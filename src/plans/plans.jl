@@ -1,0 +1,11 @@
+
+include("abstractplans.jl")
+include("aggregation/aggregate.jl")
+include("aggregation/aggregatetranslate.jl")
+include("disaggregation/disaggregate.jl")
+include("disaggregation/disaggregatetranslate.jl")
+include("split.jl")
+include("galerkinplans.jl")
+include("petrovplans.jl")
+include("adjointplans.jl")
+include("correctionplan.jl")
