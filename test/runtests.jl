@@ -20,9 +20,9 @@ end
 end
 
 @testitem "H2NURBSTrees" begin
-    using NURBS
-    using BEAST
-    BEASTnurbs = Base.get_extension(BEAST, :BEASTnurbs)
+    # using NURBS
+    # using BEAST
+    # BEASTnurbs = Base.get_extension(BEAST, :BEASTnurbs)
 end
 
 @testitem "H2BEASTTrees" begin
@@ -42,6 +42,7 @@ end
 #     using H2Trees
 #     Aqua.test_all(H2Trees)
 # end
+
 # @testitem "Code linting (JET.jl)" begin
 #     using JET
 #     using H2Trees

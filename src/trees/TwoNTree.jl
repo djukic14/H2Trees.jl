@@ -1,42 +1,28 @@
-struct TwoNTree{N,D,T,P} <: H2ClusterTree
+struct TwoNTree{N,D,T} <: H2ClusterTree
     nodes::Vector{Node{D}}
     root::Int
     center::SVector{N,T}
     halfsize::T
     nodesatlevel::Vector{Vector{Int}}
-    pointsunique::P
 end
 
 function (tree::H2ClusterTree)(node::Int)
     return tree.nodes[node - H2Trees.root(tree) + 1]
 end
 
-function boxdata(sector, values, center, halfsize, level)
-    return BoxData(sector, values, center, halfsize, level)
-end
-
 function TwoNTree(
-    positions,
-    minhalfsize;
-    minlevel::Int=1,
-    root::Int=1,
-    boxdata=boxdata,
-    pointsunique=H2Trees.UniquePoints(),
-    minvalues=0,
+    positions, minhalfsize; minlevel::Int=1, root::Int=1, boxdata=BoxData, minvalues=0
 )
     rootcenter, rootsize = boundingbox(positions)
-
-    nlevels = numberoflevels(rootsize, minhalfsize)
 
     return TwoNTree(
         SVector(rootcenter...),
         positions,
-        roothalfsize(minhalfsize, nlevels),
+        roothalfsize(rootsize, minhalfsize),
         minhalfsize;
         minlevel=minlevel,
         root=root,
         boxdata=boxdata,
-        pointsunique=pointsunique,
         minvalues=minvalues,
     )
 end
@@ -46,33 +32,24 @@ function TwoNTree(
     halfsize::T;
     minlevel::Int=1,
     root::Int=1,
-    boxdata=boxdata,
-    pointsunique=H2Trees.UniquePoints(),
+    boxdata=BoxData,
     minvalues=0,
 ) where {N,T}
     rootnode = Node(boxdata(0, Int[], center, halfsize, minlevel), 0, 0, 0)
-    return TwoNTree([rootnode], root, center, halfsize, [Int[]], pointsunique)
+    return TwoNTree([rootnode], root, center, halfsize, [Int[]])
 end
 
 function TwoNTree(
     center::SVector{N,T},
-    points::AbstractArray{SVector{N,T},1},
+    points::AbstractVector{SVector{N,T}},
     halfsize::T,
     minhalfsize::T;
     minlevel::Int=1,
     root::Int=1,
-    boxdata=boxdata,
-    pointsunique=H2Trees.UniquePoints(),
+    boxdata=BoxData,
     minvalues=0,
 ) where {N,T}
-    tree = TwoNTree(
-        center,
-        halfsize;
-        minlevel=minlevel,
-        root=root,
-        boxdata=boxdata,
-        pointsunique=pointsunique,
-    )
+    tree = TwoNTree(center, halfsize; minlevel=minlevel, root=root, boxdata=boxdata)
 
     addpoints!(
         tree,
@@ -91,13 +68,15 @@ end
 
 # ClusterTrees API #########################################################################
 
-function route!(tree::TwoNTree, state, destination; boxdata=boxdata)
-    point = destination.target_point
-    smallest_box_size = destination.smallest_box_size
-    minvalues = destination.minvalues
+function route!(tree::TwoNTree, state, router; boxdata=BoxData)
+    point = targetpoint(router)
+    smallest_box_size = smallestboxsize(router)
+    minvals = minvalues(router)
 
     nodeid, center, size, sfc_state, lvl = state
     size <= smallest_box_size && return state
+    isleaf(tree, nodeid) && length(values(tree, nodeid)) < minvals && return state
+
     target_sector, target_center, target_size = sector_center_size(point, center, size)
     target_pos = hilbert_positions[sfc_state][target_sector + 1] + 1
     target_sfc_state = hilbert_states[sfc_state][target_sector + 1] + 1
@@ -143,7 +122,7 @@ end
 function setfirstchild!(tree::H2ClusterTree, nodeid, child)
     node = tree(nodeid)
     return tree.nodes[nodeid - H2Trees.root(tree) + 1] = Node(
-        node.data, node.next_sibling, node.parent, child
+        node.data, node.nextsibling, node.parent, child
     )
 end
 
@@ -151,108 +130,90 @@ function setnextsibling!(tree::H2ClusterTree, nodeid, sibling)
     node = tree(nodeid)
 
     return tree.nodes[nodeid - H2Trees.root(tree) + 1] = Node(
-        node.data, sibling, node.parent, node.first_child
+        node.data, sibling, node.parent, node.firstchild
     )
 end
 
 """
-    parentcenterminuschildcenter(tree::TwoNTree{3,D,T}, child::Int) where {D,T}
+    parentcenterminuschildcenter(tree::TwoNTree{N,D,T}, child::Int) where {D,T}
 
 Calculate the difference `r_p-r_c` between the center of the parent `r_p` and the center of
-the child node `r_c`. This currently only works for octrees.
+the child node `r_c`.
 
 # Arguments
 
-  - `tree::TwoNTree{3,D,T}`
+  - `tree::TwoNTree{N,D,T}`
   - `child::Int`: The index of the child node.
 
 # Returns
 
-  - `SVector{3,T}`: The difference between the center of the parent node and the center of
+  - `SVector{N,T}`: The difference between the center of the parent node and the center of
     the child node.
 """
-function parentcenterminuschildcenter(tree::TwoNTree{3,D,T}, child::Int) where {D,T}
-    return parentcenterminuschildcenter(sector(tree, child), halfsize(tree, child))
+function parentcenterminuschildcenter(tree::TwoNTree{N,D,T}, child::Int) where {N,D,T}
+    return parentcenterminuschildcenter(N, sector(tree, child), halfsize(tree, child))
 end
 
-"""
-    parentcenterminuschildcenter(sector::Int, halfsizechild::T) where {T}
-
-Calculate the difference `r_p-r_c` between the center of the parent `r_p` and the center of
-the child node `r_c`. This currently only works for octrees.
-
-# Arguments
-
-  - `sector::Int`: The sector of the child.
-  - `halfsizechild::T`: Half size of the child box.
-
-# Returns
-
-  - `SVector{3,T}`: The difference between the parent center and the child center.
-
-# Example
-
-```
-julia> parentcenterminuschildcenter(0, 0.5)
-3-element SVector{3, Float64}:
- 0.5
- 0.5
- 0.5
-```
-"""
-function parentcenterminuschildcenter(sector::Int, halfsizechild::T) where {T}
-    @match sector begin
-        0 => return SVector{3,T}(halfsizechild, halfsizechild, halfsizechild)
-        1 => return SVector{3,T}(-halfsizechild, halfsizechild, halfsizechild)
-        2 => return SVector{3,T}(halfsizechild, -halfsizechild, halfsizechild)
-        3 => return SVector{3,T}(-halfsizechild, -halfsizechild, halfsizechild)
-        4 => return SVector{3,T}(halfsizechild, halfsizechild, -halfsizechild)
-        5 => return SVector{3,T}(-halfsizechild, halfsizechild, -halfsizechild)
-        6 => return SVector{3,T}(halfsizechild, -halfsizechild, -halfsizechild)
-        7 => return SVector{3,T}(-halfsizechild, -halfsizechild, -halfsizechild)
+function parentcenterminuschildcenter(N, sector, halfsize)
+    ds = digits(sector; base=2, pad=N)
+    for i in eachindex(ds)
+        ds[i] == 0 && (ds[i] = -1)
     end
+
+    return SVector{N}(ds .* -halfsize)
 end
 
-function oppositesector(tree::TwoNTree, node::Int)
-    return oppositesector(sector(tree, node))
+function oppositesector(tree::TwoNTree{N,D,T}, node::Int) where {N,D,T}
+    return oppositesector(N, sector(tree, node))
 end
 
-function oppositesector(sector::Int)
-    @match sector begin
-        0 => return 7
-        1 => return 6
-        2 => return 5
-        3 => return 4
-        4 => return 3
-        5 => return 2
-        6 => return 1
-        7 => return 0
-    end
+function oppositesector(N::Int, sector)
+    return (2^N - 1) - sector
 end
 
 function numberoflevels(halfsize, minhalfsize)
     return ceil(Int, log2(halfsize / minhalfsize))
 end
 
-function roothalfsize(minhalfsize::T, nlevels) where {T}
+function roothalfsize(rootsize::T, minhalfsize::T) where {T}
+    iszero(minhalfsize) && return rootsize
+    nlevels = numberoflevels(rootsize, minhalfsize)
     return minhalfsize * T(2)^(nlevels)
 end
 
 function addpoint!(
     tree::TwoNTree,
-    point,
+    points,
     pointid,
     smallestboxsize;
     minlevel::Int=H2Trees.level(tree, H2Trees.root(tree)),
     rootsize=H2Trees.halfsize(tree, H2Trees.root(tree)),
     rootcenter=H2Trees.center(tree, H2Trees.root(tree)),
-    boxdata=boxdata,
+    boxdata=BoxData,
     minvalues=0,
 )
-    router = Router(smallestboxsize, point, minvalues)
+    router = Router(smallestboxsize, points, pointid, minvalues)
     root_state = root(tree), rootcenter, rootsize, 1, minlevel
     return update!(tree, root_state, pointid, router; boxdata=boxdata) do tree, node, data
-        return push!(values(tree, node), data)
+        push!(values(tree, node), data)
+        node == root(tree) && return nothing
+        prnt = parent(tree, node)
+        for pointid in values(H2Trees.data(tree, prnt))
+            deleteat!(values(H2Trees.data(tree, prnt)), 1)
+
+            addpoint!(
+                tree,
+                points,
+                pointid,
+                smallestboxsize;
+                minlevel=minlevel,
+                rootsize=rootsize,
+                rootcenter=rootcenter,
+                boxdata=boxdata,
+                minvalues=minvalues,
+            )
+        end
+        return nothing
     end
 end
 
@@ -263,13 +224,13 @@ function addpoints!(
     minlevel::Int=level(tree, root(tree)),
     rootsize=halfsize(tree, root(tree)),
     rootcenter=center(tree, root(tree)),
-    boxdata=boxdata,
+    boxdata=BoxData,
     minvalues=0,
 )
     for i in eachindex(points)
         addpoint!(
             tree,
-            points[i],
+            points,
             i,
             smallestboxsize,
             ;
@@ -283,64 +244,27 @@ function addpoints!(
 end
 
 """
-    cornerpoints(tree::TwoNTree{2,D,T}, node::Int, i)
+    cornerpoints(tree::TwoNTree{N,D,T}, node::Int, i)
 
-Return the corner point of a given node in a two-dimensional quadtree.
+Return the corner point of a given node in an N-dimensional TwoNTree.
 
 # Arguments
 
-  - `tree::TwoNTree{2,D,T}`: The quadtree.
+  - `tree::TwoNTree{N,D,T}`: The tree.
   - `node::Int`: The index of the node.
-  - `i`: The corner point index (1, 2, 3, or 4).
+  - `i`: The corner point index (1 til 2^N).
 
 # Returns
 
   - The corner point coordinates as a `SVector`.
 """
-function cornerpoints(tree::TwoNTree{2,D,T}, node::Int, i) where {D,T}
-    center = H2Trees.center(tree, node)
-    halfsize = H2Trees.halfsize(tree, node)
-    @assert i in 1:4
-
-    @match i begin
-        1 => return center + SVector(-halfsize, -halfsize)
-        2 => return center + SVector(-halfsize, halfsize)
-        3 => return center + SVector(halfsize, -halfsize)
-        4 => return center + SVector(halfsize, halfsize)
+function cornerpoints(tree::TwoNTree{N,D,T}, node::Int, i) where {N,D,T}
+    ds = reverse(digits(i - 1; base=2, pad=N))
+    for i in eachindex(ds)
+        ds[i] == 0 && (ds[i] = -1)
     end
-end
 
-"""
-    cornerpoints(tree::TwoNTree{3,D,T}, node::Int, i)
-
-Return the corner point of a given node in a three-dimensional octree.
-
-# Arguments
-
-  - `tree::TwoNTree{3,D,T}`: The quadtree.
-  - `node::Int`: The index of the node.
-  - `i`: The corner point index (1 til 8).
-
-# Returns
-
-  - The corner point coordinates as a `SVector`.
-"""
-function cornerpoints(tree::TwoNTree{3,D,T}, node::Int, i) where {D,T}
-    center = H2Trees.center(tree, node)
-    halfsize = H2Trees.halfsize(tree, node)
-    @assert i in 1:8
-
-    @match i begin
-        1 => return center + SVector(-halfsize, -halfsize, -halfsize)
-        2 => return center + SVector(-halfsize, -halfsize, halfsize)
-        3 => return center + SVector(-halfsize, halfsize, -halfsize)
-        4 => return center + SVector(-halfsize, halfsize, halfsize)
-        5 => return center + SVector(halfsize, -halfsize, -halfsize)
-        6 => return center + SVector(halfsize, -halfsize, halfsize)
-        7 => return center + SVector(halfsize, halfsize, -halfsize)
-        8 => return center + SVector(halfsize, halfsize, halfsize)
-    end
-    #TODO: instead of writing one function for 2 and 3 dimensions --> write a function that converts i into bits and use the bit representation to calculate the corner point
+    return center(tree, node) + SVector{N}(ds .* halfsize(tree, node))
 end
 
 # More API for H2Trees.jl ##################################################################
@@ -359,8 +283,4 @@ function leaves(tree::H2ClusterTree, node::Int)
     )
 end
 
-H2Trees.treetrait(::Type{TwoNTree{N,D,T,P}}) where {N,D,T,P} = isTwoNTree()
-
-function uniquepointstree(tree::TwoNTree{N,D,T,H2Trees.NonUniquePoints}) where {N,D,T}
-    return false
-end
+H2Trees.treetrait(::Type{TwoNTree{N,D,T}}) where {N,D,T} = isTwoNTree()

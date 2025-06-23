@@ -12,12 +12,12 @@ using SparseArrays
         CompScienceMeshes.readmesh(
             joinpath(pkgdir(H2Trees), "test", "assets", "in", "sphere3.in")
         ),
-        # CompScienceMeshes.readmesh(
-        #     joinpath(pkgdir(H2Trees), "test", "assets", "in", "cuboid.in")
-        # ),
-        # CompScienceMeshes.readmesh(
-        #     joinpath(pkgdir(H2Trees), "test", "assets", "in", "twospheres2.in")
-        # ),
+        CompScienceMeshes.readmesh(
+            joinpath(pkgdir(H2Trees), "test", "assets", "in", "cuboid.in")
+        ),
+        CompScienceMeshes.readmesh(
+            joinpath(pkgdir(H2Trees), "test", "assets", "in", "twospheres2.in")
+        ),
         CompScienceMeshes.readmesh(
             joinpath(pkgdir(H2Trees), "test", "assets", "in", "multiplerects.in")
         ),
@@ -27,17 +27,17 @@ using SparseArrays
         X = raviartthomas(m)
 
         minhalfsize = λ / 9
-        tree = TwoNTree(X, minhalfsize)
+        tree = TwoNTree(X, minhalfsize; minvalues=10)
 
         blocktree = H2Trees.BlockTree(tree, tree)
 
-        values, nearvalues = H2Trees.nearinteractions(tree; size=30)
+        values, nearvalues = H2Trees.nearinteractions(tree;)
 
         selfvalues2, values2, nearvalues2 = H2Trees.nearinteractions(
-            tree; size=30, extractselfvalues=true
+            tree; extractselfvalues=true
         )
 
-        testvalues, trialvalues = H2Trees.nearinteractions(blocktree; size=30)
+        testvalues, trialvalues = H2Trees.nearinteractions(blocktree)
 
         @show sum(length, values) / length(values)
         @show sum(length, nearvalues) / length(nearvalues)
@@ -59,11 +59,14 @@ using SparseArrays
                     for nv in nearnodevalues
                         push!(I, v)
                         push!(J, nv)
+                        push!(I, nv)
+                        push!(J, v)
                     end
                 end
             end
         end
         Atest = sparse(I, J, ones(length(I)), numfunctions(X), numfunctions(X))
+        Atest.nzval .= 1.0
 
         @test length(values) == length(nearvalues)
 
@@ -186,11 +189,11 @@ end
             Y = raviartthomas(my)
 
             minhalfsize = λ / 9
-            tree = TwoNTree(X, Y, minhalfsize)
+            tree = TwoNTree(X, Y, minhalfsize; minvaluestest=10)
             testtree = H2Trees.testtree(tree)
             trialtree = H2Trees.trialtree(tree)
 
-            values, nearvalues = H2Trees.nearinteractions(tree; size=30)
+            values, nearvalues = H2Trees.nearinteractions(tree)
 
             @test length(values) == length(nearvalues)
 
@@ -216,7 +219,7 @@ end
                 end
             end
             Atest = sparse(I, J, ones(length(I)), numfunctions(X), numfunctions(Y))
-
+            Atest.nzval .= 1.0
             I = Int[]
             J = Int[]
 

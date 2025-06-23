@@ -120,10 +120,6 @@ function nearinteractionscorrection!(
 
     combinations = collect(keys(cinformation))
 
-    pbar = progressbar(
-        length(combinations), verbose; desc="Computing correction of nearinteractions"
-    )
-
     @threads :static for key in combinations
         correctioninfo = cinformation[key]
         box, otherbox = key
@@ -171,10 +167,7 @@ function nearinteractionscorrection!(
                 end
             end
         end
-        next!(pbar)
     end
-
-    finish!(pbar)
 
     return nothing
 end

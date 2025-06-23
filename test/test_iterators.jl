@@ -14,35 +14,39 @@ using BEAST
 
     minlevels = 1:10
     roots = 1:3
+    minvalues = [0, 11, 20]
 
     for root in roots
         for minlevel in minlevels
-            tree = TwoNTree(X, λ; minlevel=minlevel, root=root)
+            for minvalues in minvalues
+                tree = TwoNTree(X, λ / 5; minlevel=minlevel, root=root, minvalues=minvalues)
 
-            valuesatnodes = H2Trees.valuesatnodes(tree)
-            @test length(valuesatnodes) == numfunctions(X)
-            for (functionid, value) in enumerate(valuesatnodes)
-                @test length(value) == 1
-                @test functionid in H2Trees.values(tree, value[1])
-            end
-            nodesatvalues = H2Trees.nodesatvalues(tree)
-            for (key, value) in nodesatvalues
-                @test length(key) == 1
-                key = key[1]
-                @test sort(value) == sort(H2Trees.values(tree, key))
-            end
+                valuesatnodes = H2Trees.valuesatnodes(tree)
+                @test length(valuesatnodes) == numfunctions(X)
+                for (functionid, value) in enumerate(valuesatnodes)
+                    @test length(value) == 1
+                    @test functionid in H2Trees.values(tree, value[1])
+                end
+                nodesatvalues = H2Trees.nodesatvalues(tree)
+                for (key, value) in nodesatvalues
+                    @test length(key) == 1
+                    key = key[1]
+                    @test sort(value) == sort(H2Trees.values(tree, key))
+                end
 
-            @test H2Trees.minimumlevel(tree) == minlevel
-            @test H2Trees.levels(tree) == minlevel:(minlevel + 2)
+                @test H2Trees.minimumlevel(tree) == minlevel
+                @test H2Trees.levels(tree)[1] == minlevel
 
-            @test sort!(collect(H2Trees.DepthFirstIterator(tree, root))) ==
-                Array(root:(length(tree.nodes) + root - 1))
-            @test typeof(collect(H2Trees.DepthFirstIterator(tree, root))) == Vector{Int}
+                @test sort!(collect(H2Trees.DepthFirstIterator(tree, root))) ==
+                    Array(root:(length(tree.nodes) + root - 1))
+                @test typeof(collect(H2Trees.DepthFirstIterator(tree, root))) == Vector{Int}
 
-            for i in H2Trees.LevelIterator(tree, minlevel + 1)
-                @test H2Trees.level(tree, i) == minlevel + 1
-                collect(H2Trees.ParentUpwardsIterator(tree, i)) == [1]
-                @test typeof(collect(H2Trees.ParentUpwardsIterator(tree, i))) == Vector{Int}
+                for i in H2Trees.LevelIterator(tree, minlevel + 1)
+                    @test H2Trees.level(tree, i) == minlevel + 1
+                    collect(H2Trees.ParentUpwardsIterator(tree, i)) == [1]
+                    @test typeof(collect(H2Trees.ParentUpwardsIterator(tree, i))) ==
+                        Vector{Int}
+                end
             end
         end
     end
@@ -56,30 +60,32 @@ end
     X = raviartthomas(m)
 
     root = 3
-    tree = TwoNTree(X, λ / 10; minlevel=root)
+    for minvalues in [0, 10]
+        tree = TwoNTree(X, λ / 10; minlevel=root, minvalues=minvalues)
 
-    valuesatnodes = H2Trees.valuesatnodes(tree)
-    @test length(valuesatnodes) == numfunctions(X)
-    for (functionid, value) in enumerate(valuesatnodes)
-        @test length(value) == 1
-        @test functionid in H2Trees.values(tree, value[1])
-    end
-    nodesatvalues = H2Trees.nodesatvalues(tree)
-    for (key, value) in nodesatvalues
-        @test length(key) == 1
-        key = key[1]
-        @test sort(value) == sort(H2Trees.values(tree, key))
-    end
+        valuesatnodes = H2Trees.valuesatnodes(tree)
+        @test length(valuesatnodes) == numfunctions(X)
+        for (functionid, value) in enumerate(valuesatnodes)
+            @test length(value) == 1
+            @test functionid in H2Trees.values(tree, value[1])
+        end
+        nodesatvalues = H2Trees.nodesatvalues(tree)
+        for (key, value) in nodesatvalues
+            @test length(key) == 1
+            key = key[1]
+            @test sort(value) == sort(H2Trees.values(tree, key))
+        end
 
-    for level in H2Trees.levels(tree)
-        for node in H2Trees.LevelIterator(tree, level)
-            nodes = collect(H2Trees.ParentUpwardsIterator(tree, node))
+        for level in H2Trees.levels(tree)
+            for node in H2Trees.LevelIterator(tree, level)
+                nodes = collect(H2Trees.ParentUpwardsIterator(tree, node))
 
-            level == 2 && @test nodes == []
+                level == 2 && @test nodes == []
 
-            for i in eachindex(nodes)
-                if i < length(nodes)
-                    @test nodes[i + 1] == tree(nodes[i]).parent
+                for i in eachindex(nodes)
+                    if i < length(nodes)
+                        @test nodes[i + 1] == tree(nodes[i]).parent
+                    end
                 end
             end
         end
@@ -95,176 +101,184 @@ end
     X = raviartthomas(m)
 
     root = 3
-    tree = TwoNTree(X, λ / 10; minlevel=2, root=root)
+    for minvalues in [0, 10]
+        tree = TwoNTree(X, λ / 10; minlevel=2, root=root, minvalues=minvalues)
 
-    valuesatnodes = H2Trees.valuesatnodes(tree)
-    @test length(valuesatnodes) == numfunctions(X)
-    for (functionid, value) in enumerate(valuesatnodes)
-        @test length(value) == 1
-        @test functionid in H2Trees.values(tree, value[1])
-    end
-    nodesatvalues = H2Trees.nodesatvalues(tree)
-    for (key, value) in nodesatvalues
-        @test length(key) == 1
-        key = key[1]
-        @test sort(value) == sort(H2Trees.values(tree, key))
-    end
-
-    for centernode in eachindex(tree.nodes)
-        centernode = centernode + root - 1
-        for node in H2Trees.TranslatingNodesIterator(tree, centernode)
-            @test H2Trees.level(tree, node) == H2Trees.level(tree, centernode)
-            @test !H2Trees.isnear(tree, node, centernode)
-
-            parentsnodes = collect(H2Trees.ParentUpwardsIterator(tree, node))
-            parentscenternode = collect(H2Trees.ParentUpwardsIterator(tree, centernode))
-
-            for i in eachindex(parentsnodes)
-                @test H2Trees.level(tree, parentsnodes[i]) ==
-                    H2Trees.level(tree, parentscenternode[i])
-                @test H2Trees.isnear(tree, parentsnodes[i], parentscenternode[i])
-            end
+        valuesatnodes = H2Trees.valuesatnodes(tree)
+        @test length(valuesatnodes) == numfunctions(X)
+        for (functionid, value) in enumerate(valuesatnodes)
+            @test length(value) == 1
+            @test functionid in H2Trees.values(tree, value[1])
         end
-
-        translatingnodes = collect(H2Trees.TranslatingNodesIterator(tree, centernode))
-        nottranslatingnodes = collect(H2Trees.NotTranslatingNodesIterator(tree, centernode))
-
-        @test sort([translatingnodes; nottranslatingnodes]) ==
-            Array(H2Trees.LevelIterator(tree, H2Trees.level(tree, centernode)))
-
-        for node in H2Trees.FarNodeIterator(tree, centernode)
-            @test H2Trees.level(tree, node) == H2Trees.level(tree, centernode)
-            @test !H2Trees.isnear(
-                tree, node, centernode, H2Trees.isTwoNTree(); additionalbufferboxes=0
-            )
+        nodesatvalues = H2Trees.nodesatvalues(tree)
+        for (key, value) in nodesatvalues
+            @test length(key) == 1
+            key = key[1]
+            @test sort(value) == sort(H2Trees.values(tree, key))
         end
-
-        for node in H2Trees.NearNodeIterator(tree, centernode)
-            @test H2Trees.level(tree, node) == H2Trees.level(tree, centernode)
-            @test H2Trees.isnear(
-                tree, node, centernode, H2Trees.isTwoNTree(); additionalbufferboxes=0
-            )
-        end
-
-        nearnodevalues = H2Trees.nearnodevalues(tree, centernode)
-        farnodevalues = H2Trees.farnodevalues(tree, centernode)
-
-        @test sort([nearnodevalues; farnodevalues]) == Array(1:numfunctions(X))
-
-        @test typeof(collect(H2Trees.FarNodeIterator(tree, centernode))) == Vector{Int}
-
-        @test typeof(collect(H2Trees.NearNodeIterator(tree, centernode))) == Vector{Int}
-    end
-
-    for additionalbufferboxes in [0, 1, 2]
-        isfarfilter =
-            (tree, node, testnode) ->
-                !H2Trees.isnear(
-                    tree,
-                    node,
-                    testnode,
-                    H2Trees.isTwoNTree();
-                    additionalbufferboxes=additionalbufferboxes,
-                )
-        isnearfilter =
-            (tree, node, testnode) -> H2Trees.isnear(
-                tree,
-                node,
-                testnode,
-                H2Trees.isTwoNTree();
-                additionalbufferboxes=additionalbufferboxes,
-            )
-
-        iswellseparatedfilter =
-            (tree, node, testnode) -> H2Trees.iswellseparated(
-                tree, node, testnode, H2Trees.isTwoNTree(); isnear=isnearfilter
-            )
-
-        isnotwellseparatedfilter =
-            (tree, node, testnode) ->
-                !H2Trees.iswellseparated(
-                    tree, node, testnode, H2Trees.isTwoNTree(); isnear=isnearfilter
-                )
 
         for centernode in eachindex(tree.nodes)
             centernode = centernode + root - 1
-            translatingnodes = collect(
-                H2Trees.TranslatingNodesIterator(
-                    tree, centernode; iswellseparated=iswellseparatedfilter
-                ),
-            )
+            for node in H2Trees.TranslatingNodesIterator(tree, centernode)
+                @test H2Trees.level(tree, node) == H2Trees.level(tree, centernode)
+                @test !H2Trees.isnear(tree, node, centernode)
 
+                parentsnodes = collect(H2Trees.ParentUpwardsIterator(tree, node))
+                parentscenternode = collect(H2Trees.ParentUpwardsIterator(tree, centernode))
+
+                for i in eachindex(parentsnodes)
+                    @test H2Trees.level(tree, parentsnodes[i]) ==
+                        H2Trees.level(tree, parentscenternode[i])
+                    @test H2Trees.isnear(tree, parentsnodes[i], parentscenternode[i])
+                end
+            end
+
+            translatingnodes = collect(H2Trees.TranslatingNodesIterator(tree, centernode))
             nottranslatingnodes = collect(
-                H2Trees.NotTranslatingNodesIterator(
-                    tree, centernode; isnotwellseparated=isnotwellseparatedfilter
-                ),
+                H2Trees.NotTranslatingNodesIterator(tree, centernode)
             )
 
             @test sort([translatingnodes; nottranslatingnodes]) ==
                 Array(H2Trees.LevelIterator(tree, H2Trees.level(tree, centernode)))
 
-            for testnode in H2Trees.TranslatingNodesIterator(
-                tree, centernode; iswellseparated=iswellseparatedfilter
-            )
-                @test H2Trees.level(tree, testnode) == H2Trees.level(tree, centernode)
-
+            for node in H2Trees.FarNodeIterator(tree, centernode)
+                @test H2Trees.level(tree, node) == H2Trees.level(tree, centernode)
                 @test !H2Trees.isnear(
+                    tree, node, centernode, H2Trees.isTwoNTree(); additionalbufferboxes=0
+                )
+            end
+
+            for node in H2Trees.NearNodeIterator(tree, centernode)
+                @test H2Trees.level(tree, node) == H2Trees.level(tree, centernode)
+                @test H2Trees.isnear(
+                    tree, node, centernode, H2Trees.isTwoNTree(); additionalbufferboxes=0
+                )
+            end
+
+            nearnodevalues = H2Trees.nearnodevalues(tree, centernode)
+            farnodevalues = H2Trees.farnodevalues(tree, centernode)
+
+            @test sort([nearnodevalues; farnodevalues]) == Array(1:numfunctions(X))
+
+            @test typeof(collect(H2Trees.FarNodeIterator(tree, centernode))) == Vector{Int}
+
+            @test typeof(collect(H2Trees.NearNodeIterator(tree, centernode))) == Vector{Int}
+        end
+
+        for additionalbufferboxes in [0, 1, 2]
+            isfarfilter =
+                (tree, node, testnode) ->
+                    !H2Trees.isnear(
+                        tree,
+                        node,
+                        testnode,
+                        H2Trees.isTwoNTree();
+                        additionalbufferboxes=additionalbufferboxes,
+                    )
+            isnearfilter =
+                (tree, node, testnode) -> H2Trees.isnear(
                     tree,
+                    node,
                     testnode,
-                    centernode,
                     H2Trees.isTwoNTree();
                     additionalbufferboxes=additionalbufferboxes,
                 )
 
-                parentstestnode = collect(H2Trees.ParentUpwardsIterator(tree, testnode))
-                parentscenternode = collect(H2Trees.ParentUpwardsIterator(tree, centernode))
+            iswellseparatedfilter =
+                (tree, node, testnode) -> H2Trees.iswellseparated(
+                    tree, node, testnode, H2Trees.isTwoNTree(); isnear=isnearfilter
+                )
 
-                for i in eachindex(parentstestnode)
-                    @test H2Trees.level(tree, parentstestnode[i]) ==
-                        H2Trees.level(tree, parentscenternode[i])
-                    @test H2Trees.isnear(
+            isnotwellseparatedfilter =
+                (tree, node, testnode) ->
+                    !H2Trees.iswellseparated(
+                        tree, node, testnode, H2Trees.isTwoNTree(); isnear=isnearfilter
+                    )
+
+            for centernode in eachindex(tree.nodes)
+                centernode = centernode + root - 1
+                translatingnodes = collect(
+                    H2Trees.TranslatingNodesIterator(
+                        tree, centernode; iswellseparated=iswellseparatedfilter
+                    ),
+                )
+
+                nottranslatingnodes = collect(
+                    H2Trees.NotTranslatingNodesIterator(
+                        tree, centernode; isnotwellseparated=isnotwellseparatedfilter
+                    ),
+                )
+
+                @test sort([translatingnodes; nottranslatingnodes]) ==
+                    Array(H2Trees.LevelIterator(tree, H2Trees.level(tree, centernode)))
+
+                for testnode in H2Trees.TranslatingNodesIterator(
+                    tree, centernode; iswellseparated=iswellseparatedfilter
+                )
+                    @test H2Trees.level(tree, testnode) == H2Trees.level(tree, centernode)
+
+                    @test !H2Trees.isnear(
                         tree,
-                        parentstestnode[i],
-                        parentscenternode[i],
+                        testnode,
+                        centernode,
+                        H2Trees.isTwoNTree();
+                        additionalbufferboxes=additionalbufferboxes,
+                    )
+
+                    parentstestnode = collect(H2Trees.ParentUpwardsIterator(tree, testnode))
+                    parentscenternode = collect(
+                        H2Trees.ParentUpwardsIterator(tree, centernode)
+                    )
+
+                    for i in eachindex(parentstestnode)
+                        @test H2Trees.level(tree, parentstestnode[i]) ==
+                            H2Trees.level(tree, parentscenternode[i])
+                        @test H2Trees.isnear(
+                            tree,
+                            parentstestnode[i],
+                            parentscenternode[i],
+                            H2Trees.isTwoNTree();
+                            additionalbufferboxes=additionalbufferboxes,
+                        )
+                    end
+                end
+                for node in H2Trees.FarNodeIterator(tree, centernode; isfar=isfarfilter)
+                    @test H2Trees.level(tree, node) == H2Trees.level(tree, centernode)
+                    @test !H2Trees.isnear(
+                        tree,
+                        node,
+                        centernode,
                         H2Trees.isTwoNTree();
                         additionalbufferboxes=additionalbufferboxes,
                     )
                 end
-            end
-            for node in H2Trees.FarNodeIterator(tree, centernode; isfar=isfarfilter)
-                @test H2Trees.level(tree, node) == H2Trees.level(tree, centernode)
-                @test !H2Trees.isnear(
-                    tree,
-                    node,
-                    centernode,
-                    H2Trees.isTwoNTree();
-                    additionalbufferboxes=additionalbufferboxes,
+
+                for node in H2Trees.NearNodeIterator(tree, centernode; isnear=isnearfilter)
+                    @test H2Trees.level(tree, node) == H2Trees.level(tree, centernode)
+                    @test H2Trees.isnear(
+                        tree,
+                        node,
+                        centernode,
+                        H2Trees.isTwoNTree();
+                        additionalbufferboxes=additionalbufferboxes,
+                    )
+                end
+
+                nearnodevalues = H2Trees.nearnodevalues(
+                    tree, centernode; isnear=isnearfilter
                 )
+                farnodevalues = H2Trees.farnodevalues(tree, centernode; isfar=isfarfilter)
+
+                @test sort([nearnodevalues; farnodevalues]) == Array(1:numfunctions(X))
+
+                @test typeof(
+                    collect(H2Trees.FarNodeIterator(tree, centernode; isfar=isfarfilter))
+                ) == Vector{Int}
+
+                @test typeof(
+                    collect(H2Trees.NearNodeIterator(tree, centernode; isnear=isnearfilter))
+                ) == Vector{Int}
             end
-
-            for node in H2Trees.NearNodeIterator(tree, centernode; isnear=isnearfilter)
-                @test H2Trees.level(tree, node) == H2Trees.level(tree, centernode)
-                @test H2Trees.isnear(
-                    tree,
-                    node,
-                    centernode,
-                    H2Trees.isTwoNTree();
-                    additionalbufferboxes=additionalbufferboxes,
-                )
-            end
-
-            nearnodevalues = H2Trees.nearnodevalues(tree, centernode; isnear=isnearfilter)
-            farnodevalues = H2Trees.farnodevalues(tree, centernode; isfar=isfarfilter)
-
-            @test sort([nearnodevalues; farnodevalues]) == Array(1:numfunctions(X))
-
-            @test typeof(
-                collect(H2Trees.FarNodeIterator(tree, centernode; isfar=isfarfilter))
-            ) == Vector{Int}
-
-            @test typeof(
-                collect(H2Trees.NearNodeIterator(tree, centernode; isnear=isnearfilter))
-            ) == Vector{Int}
         end
     end
 end
@@ -645,25 +659,27 @@ end
     X = raviartthomas(m)
 
     root = 4
-    tree = TwoNTree(X, λ / 10; minlevel=2, root=root)
+    for minvalues in [0, 10]
+        tree = TwoNTree(X, λ / 10; minlevel=2, root=root, minvalues=minvalues)
 
-    valuesatnodes = H2Trees.valuesatnodes(tree)
-    @test length(valuesatnodes) == numfunctions(X)
-    for (functionid, value) in enumerate(valuesatnodes)
-        @test length(value) == 1
-        @test functionid in H2Trees.values(tree, value[1])
+        valuesatnodes = H2Trees.valuesatnodes(tree)
+        @test length(valuesatnodes) == numfunctions(X)
+        for (functionid, value) in enumerate(valuesatnodes)
+            @test length(value) == 1
+            @test functionid in H2Trees.values(tree, value[1])
+        end
+        nodesatvalues = H2Trees.nodesatvalues(tree)
+        for (key, value) in nodesatvalues
+            @test length(key) == 1
+            key = key[1]
+            @test sort(value) == sort(H2Trees.values(tree, key))
+        end
+
+        @test H2Trees.testwellseparatedness(tree)
+
+        @test_throws ErrorException H2Trees.WellSeparatedIterator()
+        @test H2Trees.WellSeparatedIterator(; iswellseparated=1).iswellseparated == 1
     end
-    nodesatvalues = H2Trees.nodesatvalues(tree)
-    for (key, value) in nodesatvalues
-        @test length(key) == 1
-        key = key[1]
-        @test sort(value) == sort(H2Trees.values(tree, key))
-    end
-
-    @test H2Trees.testwellseparatedness(tree)
-
-    @test_throws ErrorException H2Trees.WellSeparatedIterator()
-    @test H2Trees.WellSeparatedIterator(; iswellseparated=1).iswellseparated == 1
 end
 
 @testset "Connections basis test functions" begin
@@ -683,26 +699,49 @@ end
 
     ms = [sphereλ, sphere2λ, sphere2λdisplaced, sphere2λdisplacedfar]
 
-    for mx in ms
-        X = raviartthomas(mx)
-        for my in ms
-            Y = raviartthomas(my)
-            tree = TwoNTree(X, Y, λ / 20)
+    for minvaluestest in [0, 5]
+        for minvaluestrial in [0, 5]
+            for mx in ms
+                X = raviartthomas(mx)
+                for my in ms
+                    Y = raviartthomas(my)
+                    tree = TwoNTree(
+                        X,
+                        Y,
+                        λ / 20;
+                        minvaluestest=minvaluestrial,
+                        minvaluestrial=minvaluestrial,
+                    )
 
-            for tree in [H2Trees.testtree(tree), H2Trees.trialtree(tree)]
-                valuesatnodes = H2Trees.valuesatnodes(tree)
-                for (functionid, value) in enumerate(valuesatnodes)
-                    @test length(value) == 1
-                    @test functionid in H2Trees.values(tree, value[1])
-                end
-                nodesatvalues = H2Trees.nodesatvalues(tree)
-                for (key, value) in nodesatvalues
-                    @test length(key) == 1
-                    key = key[1]
-                    @test sort(value) == sort(H2Trees.values(tree, key))
+                    testlevels = unique(
+                        H2Trees.level.(
+                            Ref(H2Trees.testtree(tree)),
+                            H2Trees.leaves(H2Trees.testtree(tree)),
+                        ),
+                    )
+                    triallevels = unique(
+                        H2Trees.level.(
+                            Ref(H2Trees.trialtree(tree)),
+                            H2Trees.leaves(H2Trees.trialtree(tree)),
+                        ),
+                    )
+
+                    for tree in [H2Trees.testtree(tree), H2Trees.trialtree(tree)]
+                        valuesatnodes = H2Trees.valuesatnodes(tree)
+                        for (functionid, value) in enumerate(valuesatnodes)
+                            @test length(value) == 1
+                            @test functionid in H2Trees.values(tree, value[1])
+                        end
+                        nodesatvalues = H2Trees.nodesatvalues(tree)
+                        for (key, value) in nodesatvalues
+                            @test length(key) == 1
+                            key = key[1]
+                            @test sort(value) == sort(H2Trees.values(tree, key))
+                        end
+                    end
+                    @test H2Trees.testwellseparatedness(tree)
                 end
             end
-            @test H2Trees.testwellseparatedness(tree)
         end
     end
 end

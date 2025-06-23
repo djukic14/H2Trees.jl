@@ -10,7 +10,7 @@ using H2Trees
         joinpath(pkgdir(H2Trees), "test", "assets", "in", "sphere6.in")
     )
     X = raviartthomas(m)
-    tree = TwoNTree(X, λ / 10)
+    tree = TwoNTree(X, λ / 10; minvalues=20)
 
     disaggregationplan = H2Trees.DisaggregateTranslatePlan(
         tree, H2Trees.TranslatingNodesIterator
@@ -62,7 +62,7 @@ end
         joinpath(pkgdir(H2Trees), "test", "assets", "in", "sphere6.in")
     )
     X = raviartthomas(m)
-    tree = TwoNTree(X, λ / 10)
+    tree = TwoNTree(X, λ / 10; minvalues=30)
 
     disaggregationplan = H2Trees.DisaggregateTranslatePlan(
         tree, H2Trees.TranslatingNodesIterator
@@ -120,7 +120,7 @@ end
     )
     X = raviartthomas(mx)
     Y = raviartthomas(my)
-    tree = TwoNTree(Y, X, λ / 10)
+    tree = TwoNTree(Y, X, λ / 10; minvaluestest=20, minvaluestrial=20)
 
     disaggregationplan = H2Trees.DisaggregateTranslatePlan(
         H2Trees.testtree(tree), H2Trees.trialtree(tree), H2Trees.TranslatingNodesIterator
@@ -181,7 +181,7 @@ end
 
     X = raviartthomas(mx)
     Y = raviartthomas(my)
-    tree = TwoNTree(X, Y, λ / 10)
+    tree = TwoNTree(X, Y, λ / 10; minvaluestest=20, minvaluestrial=20)
 
     disaggregationplan = H2Trees.DisaggregateTranslatePlan(
         H2Trees.testtree(tree), H2Trees.trialtree(tree), H2Trees.TranslatingNodesIterator
@@ -242,7 +242,7 @@ end
         joinpath(pkgdir(H2Trees), "test", "assets", "in", "sphere6.in")
     )
     X = raviartthomas(m)
-    tree = TwoNTree(X, λ / 10)
+    tree = TwoNTree(X, λ / 10; minvalues=30)
 
     disaggregationplan = H2Trees.DisaggregateTranslatePlan(
         tree, H2Trees.TranslatingNodesIterator
@@ -314,7 +314,7 @@ end
     ]
         for TranslationTrait in TranslationTraits
             Y = raviartthomas(my)
-            tree2 = TwoNTree(X, Y, λ / 10)
+            tree2 = TwoNTree(X, Y, λ / 10; minvaluestest=20, minvaluestrial=30)
 
             disaggregationplan2 = H2Trees.DisaggregateTranslatePlan(
                 H2Trees.testtree(tree2),

@@ -9,8 +9,13 @@ function TwoNTree(
     trialpositions,
     minhalfsize;
     safetyfactorboundingbox=1,
-    pointsunique=H2Trees.UniquePoints(),
+    minvaluestest=0,
+    minvaluestrial=0,
 )
+    # We cannot just create the trees from the minimum number of values, because
+    # the boxes at the same level across both trees have to be the same size.
+    @assert minhalfsize > 0 "Minimum halfsize must be greater than zero."
+
     testcenter, testhalfsize = boundingbox(testpositions)
     trialcenter, trialhalfsize = boundingbox(trialpositions)
 
@@ -23,21 +28,20 @@ function TwoNTree(
     testtree = TwoNTree(
         SVector(testcenter...),
         testpositions,
-        roothalfsize(minhalfsize, testnlevels),
+        roothalfsize(testhalfsize, minhalfsize),
         minhalfsize;
         minlevel=minleveltest,
-        pointsunique=pointsunique,
+        minvalues=minvaluestest,
     )
 
     trialtree = TwoNTree(
         SVector(trialcenter...),
         trialpositions,
-        roothalfsize(minhalfsize, trialnlevels),
+        roothalfsize(trialhalfsize, minhalfsize),
         minhalfsize;
         minlevel=minleveltrial,
-        pointsunique=pointsunique,
+        minvalues=minvaluestrial,
     )
-    #TODO: create both trees with level 1 and then update level afterwards --> important for minvalues ≠ 0
 
     return BlockTree(testtree, trialtree)
 end
@@ -55,5 +59,5 @@ function trialtree(tree::BlockTree) # if relevant
 end
 
 function Base.eltype(tree::BlockTree)
-    return Base.eltype(H2Trees.testtree(tree))
+    return Base.eltype(testtree(tree))
 end

@@ -34,13 +34,14 @@ end
 function printtree(io::IO, tree, ::isTwoNTree)
     println(io, typeof(tree))
     for level in H2Trees.levels(tree)
-        avgnpoints = averagenumberofpoints(tree, level)
-        avgnchildren = averagenumberofchildrens(tree, level)
-        halfsize = H2Trees.halfsize(tree, H2Trees.LevelIterator(tree, level)[begin])
+        avgnpoints = round(averagenumberofpoints(tree, level); digits=2)
+        avgnchildren = round(averagenumberofchildrens(tree, level); digits=2)
+        hs = halfsize(tree, H2Trees.LevelIterator(tree, level)[begin])
+        numnodes = length(collect(H2Trees.LevelIterator(tree, level)))
         print(io, "-"^(level - H2Trees.minimumlevel(tree)))
         println(
             io,
-            " level: $level with on average $avgnpoints points and $avgnchildren childrens and halfsize: $halfsize",
+            " level: $level with $numnodes node(s) with on average $avgnpoints points and $avgnchildren children and halfsize: $hs",
         )
     end
 end

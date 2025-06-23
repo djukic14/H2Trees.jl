@@ -82,13 +82,13 @@ end
 
         blocktree = BlockTree(tree, tree)
 
-        values, nearvalues = H2Trees.nearinteractions(tree; size=30)
+        values, nearvalues = H2Trees.nearinteractions(tree)
 
         selfvalues2, values2, nearvalues2 = H2Trees.nearinteractions(
-            tree; size=30, extractselfvalues=true
+            tree; extractselfvalues=true
         )
 
-        testvalues, trialvalues = H2Trees.nearinteractions(blocktree; size=30)
+        testvalues, trialvalues = H2Trees.nearinteractions(blocktree)
 
         @show sum(length, values) / length(values)
         @show sum(length, nearvalues) / length(nearvalues)
@@ -206,7 +206,7 @@ end
             testtree = H2Trees.testtree(tree)
             trialtree = H2Trees.trialtree(tree)
 
-            values, nearvalues = H2Trees.nearinteractions(tree; size=30)
+            values, nearvalues = H2Trees.nearinteractions(tree)
 
             @test length(values) == length(nearvalues)
 

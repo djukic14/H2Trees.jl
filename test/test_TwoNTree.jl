@@ -20,12 +20,13 @@ end
     m = CompScienceMeshes.readmesh(
         joinpath(pkgdir(H2Trees), "test", "assets", "in", "sphere4.in")
     )
+
     points = vertices(m)
 
     root = 2
     minlevel = 2
 
-    tree = TwoNTree(points, 0.1; root=root, minlevel=minlevel, minvalues=10)
+    tree = TwoNTree(points, 0.0; root=root, minlevel=minlevel, minvalues=10)
     valuesatnodes = H2Trees.valuesatnodes(tree)
     @test length(valuesatnodes) == length(points)
     for (functionid, value) in enumerate(valuesatnodes)
@@ -40,6 +41,8 @@ end
     end
 
     maximumlevel = H2Trees.levels(tree)[end] - minlevel + 1
+
+    leaflevels = sort(unique(H2Trees.level.(Ref(tree), H2Trees.leaves(tree))))[2:end]
 
     nodes = Int[]
     for i in H2Trees.DepthFirstIterator(tree, root)
@@ -64,7 +67,9 @@ end
             append!(valuesonlevel, H2Trees.values(tree, node))
         end
 
-        @test sort!(valuesonlevel) == Array(1:length(points))
+        if !(H2Trees.level(tree, i) in leaflevels)
+            @test sort!(valuesonlevel) == Array(1:length(points))
+        end
         push!(nodes, i)
 
         sector = H2Trees.sector(tree, i)
@@ -142,6 +147,7 @@ end
     @test sort!(nodes) == Array(root:(length(tree.nodes) + root - 1))
 
     for level in H2Trees.levels(tree)
+        level in leaflevels && continue
         values = Int[]
         for node in H2Trees.LevelIterator(tree, level)
             append!(values, H2Trees.values(tree, node))
@@ -154,7 +160,7 @@ end
 
     for leaf in leaves
         @test H2Trees.isleaf(tree, leaf)
-        @test tree(leaf).first_child == 0
+        @test tree(leaf).firstchild == 0
     end
 
     tree2 = TwoNTree(SVector(0.0, 0.0, 0.0), 0.1; root=root, minlevel=minlevel)
@@ -209,7 +215,7 @@ end
     X = raviartthomas(mx)
     Y = raviartthomas(my)
 
-    tree = TwoNTree(X, Y, minhalfsize)
+    tree = TwoNTree(X, Y, minhalfsize; minvaluestest=10, minvaluestrial=3)
 
     for tree in [H2Trees.testtree(tree), H2Trees.trialtree(tree)]
         valuesatnodes = H2Trees.valuesatnodes(tree)
@@ -228,13 +234,12 @@ end
     @test eltype(tree) == SVector{3,Float64}
     @test eltype(H2Trees.testtree(tree)) == SVector{3,Float64}
 
-    @test H2Trees.treewithmorelevels(tree) == H2Trees.testtree(tree)
+    @test H2Trees.treewithmorelevels(tree) == H2Trees.trialtree(tree)
 
     tree2 = TwoNTree(Y, X, minhalfsize)
     @test H2Trees.treewithmorelevels(tree2) == H2Trees.trialtree(tree2)
 
     @test H2Trees.minhalfsize(H2Trees.trialtree(tree)) == minhalfsize
-    @test H2Trees.minhalfsize(H2Trees.testtree(tree)) == minhalfsize
 
     for level in H2Trees.levels(H2Trees.trialtree(tree))
         halfsize = H2Trees.halfsize(

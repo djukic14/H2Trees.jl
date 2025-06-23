@@ -16,7 +16,7 @@ function QuadPointsTree(
         convert(Vector{typeof(pos[1])}, pos)
     end
 
-    tree = TwoNTree(positions, minhalfsize; pointsunique=H2Trees.NonUniquePoints())
+    tree = TwoNTree(positions, minhalfsize)
 
     cU, cV = BEASTnurbs.numBezierCells(space)
 
@@ -39,5 +39,5 @@ function QuadPointsTree(
         append!(H2Trees.values(tree, leaf), sort!(collect(newvals)))
     end
 
-    return tree
+    return QuadPointsTree(tree)
 end

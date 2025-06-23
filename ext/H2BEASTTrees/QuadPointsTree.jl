@@ -21,9 +21,7 @@ function QuadPointsTree(
     els, adata, _ = adinfo
     ref = refspace(space)
 
-    tree = TwoNTree(
-        positions, minhalfsize; pointsunique=NonUniquePoints(), minlevel=minlevel
-    )
+    tree = TwoNTree(positions, minhalfsize; minlevel=minlevel)
     qpointsindices = CartesianIndices((length(first(qdata)), length(els)))
 
     for leaf in H2Trees.leaves(tree)
@@ -41,7 +39,7 @@ function QuadPointsTree(
         append!(H2Trees.values(tree, leaf), sort!(collect(newvals)))
     end
 
-    return tree
+    return QuadPointsTree(tree)
 end
 
 function QuadPointsTree(

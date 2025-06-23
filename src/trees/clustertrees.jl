@@ -158,8 +158,21 @@ information(s::StackElement) = s.info
 #TODO: hilbert_positions and hilbert_states for N≠3
 struct Router{T,P,M}
     smallest_box_size::T
-    target_point::P
+    target_points::P
+    pointid::Int
     minvalues::M
+end
+
+function targetpoint(router::Router)
+    return router.target_points[router.pointid]
+end
+
+function minvalues(router::Router)
+    return router.minvalues
+end
+
+function smallestboxsize(router::Router)
+    return router.smallest_box_size
 end
 
 const hilbert_states = [

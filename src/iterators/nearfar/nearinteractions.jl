@@ -4,26 +4,16 @@ function nearinteractions(tree; kwargs...)
 end
 
 function nearinteractions(tree, ::isBlockTree; kwargs...)
-    !uniquepointstree(tree) &&
+    !arepointsunique(tree) &&
         return nearinteractionsnonunique(testtree(tree), trialtree(tree); kwargs...)
     return nearinteractions(testtree(tree), trialtree(tree); kwargs...)
 end
 
 function nearinteractions(
-    tree,
-    treetrait::A;
-    size=typemax(Int),
-    minsize=nothing,
-    extractselfvalues=false,
-    isnear=isnear,
+    tree, treetrait::A; extractselfvalues=false, isnear=isnear
 ) where {A<:AbstractTreeTrait}
-    !uniquepointstree(tree) && return nearinteractionsnonunique(
-        tree,
-        treetrait;
-        size=size,
-        minsize=minsize,
-        extractselfvalues=extractselfvalues,
-        isnear=isnear,
+    !arepointsunique(tree) && return nearinteractionsnonunique(
+        tree, treetrait; extractselfvalues=extractselfvalues, isnear=isnear
     )
 
     isleafnear = LeafNearFunctor(isnear)
@@ -40,18 +30,7 @@ function nearinteractions(
         selfnearvalues = values(tree, node)
 
         lock(lk) do
-            for (i, is) in enumerate(chunks(selfnearvalues; size=size, minsize=minsize))
-                isempty(is) && continue
-                for (j, js) in enumerate(chunks(selfnearvalues; size=size, minsize=minsize))
-                    isempty(js) && continue
-                    if i == j
-                        push!(selfv, is)
-                    else
-                        push!(v, is)
-                        push!(nearvalues, js)
-                    end
-                end
-            end
+            return push!(selfv, selfnearvalues)
         end
 
         nonselfnearvalues = Int[]
@@ -74,13 +53,8 @@ function nearinteractions(
 
         isempty(nonselfnearvalues) && continue
         lock(lk) do
-            for selfnearvalues in chunks(selfnearvalues; size=size, minsize=minsize)
-                for nonselfnearvalues in
-                    chunks(nonselfnearvalues; size=size, minsize=minsize)
-                    push!(v, selfnearvalues)
-                    push!(nearvalues, nonselfnearvalues)
-                end
-            end
+            push!(v, selfnearvalues)
+            return push!(nearvalues, nonselfnearvalues)
         end
     end
 
@@ -93,9 +67,7 @@ function nearinteractions(
     end
 end
 
-function nearinteractions(
-    testtree, trialtree; size=500, minsize=nothing, extractselfvalues=false, isnear=isnear
-)
+function nearinteractions(testtree, trialtree; extractselfvalues=false, isnear=isnear)
     # no selfvalues for two trees
     @assert !extractselfvalues
     isleafnear = LeafNearFunctor(isnear)
@@ -126,12 +98,8 @@ function nearinteractions(
 
         isempty(nearvalues) && continue
         lock(lk) do
-            for testvalues in chunks(testvalues; size=size, minsize=minsize)
-                for nearvalues in chunks(nearvalues; size=size, minsize=minsize)
-                    push!(testv, testvalues)
-                    push!(trialv, nearvalues)
-                end
-            end
+            push!(testv, testvalues)
+            return push!(trialv, nearvalues)
         end
     end
     return testv, trialv
@@ -148,12 +116,7 @@ function setappend!(set, values)
 end
 
 function nearinteractionsnonunique(
-    tree,
-    treetrait::A;
-    size=typemax(Int),
-    minsize=nothing,
-    extractselfvalues=false,
-    isnear=isnear,
+    tree, treetrait::A; extractselfvalues=false, isnear=isnear
 ) where {A<:AbstractTreeTrait}
     valatnodes = valuesatnodes(tree)
     natvalues = nodesatvalues(tree, valatnodes)
@@ -177,18 +140,7 @@ function nearinteractionsnonunique(
         isempty(selfnearvalues) && continue
 
         lock(lk) do
-            for (i, is) in enumerate(chunks(selfnearvalues; size=size, minsize=minsize))
-                isempty(is) && continue
-                for (j, js) in enumerate(chunks(selfnearvalues; size=size, minsize=minsize))
-                    isempty(js) && continue
-                    if i == j
-                        push!(selfv, is)
-                    else
-                        push!(v, is)
-                        push!(nearvalues, js)
-                    end
-                end
-            end
+            return push!(selfv, selfnearvalues)
         end
 
         nonselfnearvalues = Set{Int}() # make sure that nearvalues are unique
@@ -201,13 +153,8 @@ function nearinteractionsnonunique(
         nonselfnearvalues = collect(nonselfnearvalues)
         isempty(nonselfnearvalues) && continue
         lock(lk) do
-            for selfnearvalues in chunks(selfnearvalues; size=size, minsize=minsize)
-                for nonselfnearvalues in
-                    chunks(nonselfnearvalues; size=size, minsize=minsize)
-                    push!(v, selfnearvalues)
-                    push!(nearvalues, nonselfnearvalues)
-                end
-            end
+            push!(v, selfnearvalues)
+            return push!(nearvalues, nonselfnearvalues)
         end
     end
 
@@ -231,12 +178,8 @@ function nearinteractionsnonunique(
         isempty(_nearvalues) && continue
 
         lock(lk) do
-            for sharedvalues in chunks(sharedvalues; size=size, minsize=minsize)
-                for _nearvalues in chunks(_nearvalues; size=size, minsize=minsize)
-                    push!(v, sharedvalues)
-                    push!(nearvalues, _nearvalues)
-                end
-            end
+            push!(v, sharedvalues)
+            return push!(nearvalues, _nearvalues)
         end
     end
 
@@ -250,9 +193,8 @@ function nearinteractionsnonunique(
 end
 
 function nearinteractionsnonunique(
-    testtree, trialtree; size=500, minsize=nothing, extractselfvalues=false, isnear=isnear
+    testtree, trialtree; extractselfvalues=false, isnear=isnear
 )
-    @warn "Bug here"
     # no selfvalues for two trees
     @assert !extractselfvalues
 
@@ -284,12 +226,8 @@ function nearinteractionsnonunique(
         nearvalues = collect(nearvalues)
         isempty(nearvalues) && continue
         lock(lk) do
-            for testvalues in chunks(testvalues; size=size, minsize=minsize)
-                for nearvalues in chunks(nearvalues; size=size, minsize=minsize)
-                    push!(testv, testvalues)
-                    push!(trialv, nearvalues)
-                end
-            end
+            push!(testv, testvalues)
+            return push!(trialv, nearvalues)
         end
     end
 
@@ -309,12 +247,8 @@ function nearinteractionsnonunique(
         isempty(nearvalues) && continue
 
         lock(lk) do
-            for sharedvalues in chunks(sharedvalues; size=size, minsize=minsize)
-                for nearvalues in chunks(nearvalues; size=size, minsize=minsize)
-                    push!(testv, sharedvalues)
-                    push!(trialv, nearvalues)
-                end
-            end
+            push!(testv, sharedvalues)
+            return push!(trialv, nearvalues)
         end
     end
     return testv, trialv

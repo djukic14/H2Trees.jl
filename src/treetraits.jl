@@ -24,10 +24,18 @@ struct UniquePoints <: UniquePointsTrait end
 # in case that some points are allowed to be in multiple nodes
 struct NonUniquePoints <: UniquePointsTrait end
 
-function uniquepointstreetrait(tree)
-    return tree.pointsunique
+function uniquepointstreetrait(::Any)
+    return UniquePoints()
 end
 
 function arepointsunique(tree)
+    return arepointsunique(tree, treetrait(tree))
+end
+
+function arepointsunique(tree, ::AbstractTreeTrait)
     return uniquepointstreetrait(tree) isa UniquePoints
+end
+
+function arepointsunique(tree, ::isBlockTree)
+    return arepointsunique(testtree(tree)) && arepointsunique(trialtree(tree))
 end

@@ -1,13 +1,8 @@
 module H2Trees
 using StaticArrays
 using LinearAlgebra
+using ParallelKMeans
 import Base.Threads: @threads
-using ChunkSplitters
-using ProgressMeter
-using Match
-
-function QuadPointsTree end # requires BEAST to load
-export QuadPointsTree
 
 abstract type H2ClusterTree end
 
@@ -15,12 +10,6 @@ function traceball end # requires PlotlyJS to load
 function tracecube end # requires PlotlyJS to load
 
 export traceball, tracecube
-
-function progressbar(workload, verbose; kwargs...)
-    return Progress(
-        workload; barglyphs=BarGlyphs("[=> ]"), color=:white, enabled=verbose, kwargs...
-    )
-end
 
 include("treetraits.jl")
 
@@ -58,9 +47,9 @@ export NonUniquePoints
 
 struct Node{D}
     data::D
-    next_sibling::Int
+    nextsibling::Int
     parent::Int
-    first_child::Int
+    firstchild::Int
 end
 
 struct BoxData{N,T}
@@ -79,6 +68,13 @@ struct ParametricBoundingBallData{N,T}
     parametricsector::Int
     parametricnode::Int
     patchID::Int
+end
+
+struct BoundingBallData{N,T}
+    values::Vector{Int}
+    center::SVector{N,T}
+    radius::T
+    level::Int
 end
 
 include("bounding/boundingbox.jl")
@@ -149,7 +145,7 @@ function values(tree, node::Int)
     return values
 end
 
-function values(data::Union{BoxData,ParametricBoundingBallData})
+function values(data::Union{BoxData,BoundingBallData})
     return data.values
 end
 
@@ -161,8 +157,16 @@ function level(tree, nodeid::Int)
     return level(tree(nodeid).data) #TODO: look at code duplications: level, sector, data: solve with metaprogramming
 end
 
-function level(data::Union{BoxData,ParametricBoundingBallData})
+function level(data::Union{BoxData,BoundingBallData})
     return data.level
+end
+
+function nodes(tree)
+    return tree.nodes
+end
+
+function lastnode(tree)
+    return length(nodes(tree)) - root(tree) + 1
 end
 
 """
@@ -196,20 +200,19 @@ function parent(tree, node::Int)
 end
 
 function nextsibling(tree, node::Int)
-    return tree(node).next_sibling
+    return tree(node).nextsibling
 end
 
 function firstchild(tree, node::Int)
-    return tree(node).first_child
+    return tree(node).firstchild
 end
 
 function numberofnodes(tree)
     return length(tree.nodes)
 end
-function leaves(tree, node::Int) end
 
 function isleaf(tree, node::Int)
-    return iszero(tree(node).first_child)
+    return iszero(tree(node).firstchild)
 end
 # returns the leaf node that contains the given point
 """
@@ -287,7 +290,7 @@ function radius(tree, node::Int)
     return radius(tree(node).data)
 end
 
-function radius(data::ParametricBoundingBallData)
+function radius(data::BoundingBallData)
     return data.radius
 end
 
@@ -382,7 +385,6 @@ function _adjustnodesatlevels!(tree)
                 push!(tree.nodesatlevel, Int[])
             end
             push!(tree.nodesatlevel, [node])
-
         else
             append!(tree.nodesatlevel[leveltolevelid(tree, nodelevel)], node)
         end
@@ -438,18 +440,6 @@ function nodesatvalues(tree, boxes=H2Trees.valuesatnodes(tree))
     return boxesdict
 end
 
-function uniquepointstree(tree)
-    return uniquepointstree(tree, treetrait(tree))
-end
-
-function uniquepointstree(tree, ::isBlockTree)
-    return uniquepointstree(testtree(tree)) && uniquepointstree(trialtree(tree))
-end
-
-function uniquepointstree(tree, ::AbstractTreeTrait)
-    return true
-end
-
 """
     leveltolevelid(tree, level::Int)
 
@@ -473,7 +463,6 @@ function levelindex(tree, node::Int)
     return leveltolevelid(tree, H2Trees.level(tree, node))
 end
 
-#TODO: rethink this naming
 function checkbalancedtree(tree)
     leaflevel = level(tree, H2Trees.leaves(tree)[1])
     for node in H2Trees.leaves(tree)
@@ -517,9 +506,12 @@ end
 
 include("trees/clustertrees.jl")
 include("trees/TwoNTree.jl")
+include("trees/TreeWrappers.jl")
 include("trees/SimpleHybridTree.jl")
+include("trees/QuadPointsTree.jl")
 include("trees/BoundingBallTree.jl")
 include("trees/BlockTree.jl")
+include("trees/KMeansTree.jl")
 
-export TwoNTree, BlockTree
+export TwoNTree, BlockTree, QuadPointsTree, SimpleHybridTree
 end
