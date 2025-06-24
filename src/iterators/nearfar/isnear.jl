@@ -255,9 +255,7 @@ function isnear(
     )
 end
 
-function isnear(
-    tree, testnode::P, trialnode::P; kwargs...
-) where {P<:ParametricBoundingBallData}
+function isnear(tree, testnode::P, trialnode::P; kwargs...) where {P<:BoundingBallData}
     return isnearradius(
         testnode.center, trialnode.center, testnode.radius, trialnode.radius; kwargs...
     )

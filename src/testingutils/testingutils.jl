@@ -39,7 +39,7 @@ function testwellseparatedness(tree, ::Any)
                 end
 
                 if connections != 1
-                    println(
+                    error(
                         "Detected connection error: parenttranslations: $parenttranslations directtranslations: $directtranslations neartranslations: $neartranslations for testnode $testnode and trialnode $trialnode on level $level",
                     )
 

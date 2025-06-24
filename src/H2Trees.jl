@@ -1,7 +1,6 @@
 module H2Trees
 using StaticArrays
 using LinearAlgebra
-using ParallelKMeans
 import Base.Threads: @threads
 
 abstract type H2ClusterTree end
@@ -60,16 +59,6 @@ struct BoxData{N,T}
     level::Int
 end
 
-struct ParametricBoundingBallData{N,T}
-    values::Vector{Int}
-    center::SVector{N,T}
-    radius::T
-    level::Int
-    parametricsector::Int
-    parametricnode::Int
-    patchID::Int
-end
-
 struct BoundingBallData{N,T}
     values::Vector{Int}
     center::SVector{N,T}
@@ -111,7 +100,7 @@ end
 
 # API ######################################################################################
 
-export ParametricBoundingBallData
+export BoundingBallData
 export BoxData
 export Node
 
@@ -244,7 +233,7 @@ function center(tree, nodeid::Int=root(tree))
     return center(tree(nodeid).data)
 end
 
-function center(data::Union{BoxData,ParametricBoundingBallData})
+function center(data::Union{BoxData,BoundingBallData})
     return data.center
 end
 
@@ -254,10 +243,6 @@ end
 
 function sector(data::BoxData)
     return data.sector
-end
-
-function sector(data::ParametricBoundingBallData)
-    return data.parametricsector
 end
 
 function halfsize(tree, nodeid::Int=root(tree))
@@ -302,23 +287,11 @@ function treewithmorelevels(tree)
     end
 end
 
-function parametrictree(tree)
-    return tree.parametrictree
-end
-
-function parametricnode(tree, node)
-    return parametricnode(tree(node).data)
-end
-
-function parametricnode(data::ParametricBoundingBallData)
-    return data.parametricnode
-end
-
 function patchID(tree, node)
     return patchID(tree(node).data)
 end
 
-function patchID(data::ParametricBoundingBallData)
+function patchID(data::BoundingBallData)
     return data.patchID
 end
 
@@ -513,5 +486,14 @@ include("trees/BoundingBallTree.jl")
 include("trees/BlockTree.jl")
 include("trees/KMeansTree.jl")
 
-export TwoNTree, BlockTree, QuadPointsTree, SimpleHybridTree
+export TwoNTree, BlockTree, QuadPointsTree, SimpleHybridTree, KMeansTree
+
+# for backwards compatibility with julia versions below 1.9
+if !isdefined(Base, :get_extension)
+    include("../ext/H2BEASTTrees/H2BEASTTrees.jl")
+    include("../ext/H2NURBSTrees/H2NURBSTrees.jl")
+    include("../ext/H2ParallelKMeansTrees/H2ParallelKMeansTrees.jl")
+    include("../ext/H2PlotlyJSTrees/H2PlotlyJSTrees.jl")
+end
+
 end

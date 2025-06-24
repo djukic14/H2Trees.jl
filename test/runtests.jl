@@ -37,6 +37,10 @@ end
     include("H2PlotlyJSTrees/test_plots.jl")
 end
 
+@testitem "H2ParallelKMeansTrees" begin
+    include("H2ParallelKMeansTrees/test_kmeanstree.jl")
+end
+
 # @testitem "Code quality (Aqua.jl)" begin
 #     using Aqua
 #     using H2Trees
@@ -52,8 +56,7 @@ end
 @testitem "Code formatting (JuliaFormatter.jl)" begin
     using JuliaFormatter
     using H2Trees
-    pkgpath = pkgdir(H2Trees)
-    @test JuliaFormatter.format(pkgpath, overwrite=false)
+    @test JuliaFormatter.format(pkgdir(H2Trees), overwrite=false)
 end
 
 @run_package_tests verbose = true

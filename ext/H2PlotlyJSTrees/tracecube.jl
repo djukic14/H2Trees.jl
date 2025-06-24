@@ -13,7 +13,7 @@ Returns a trace, which can be used to plot a bounding box in PlotlyJS.
   - `name`: Name of trace. This is used in the legend.
   - `showlegend`: Determines whether or not an item corresponding to this trace is shown in the legend.
 """
-function H2Trees.tracecube(center::SVector{2,T}, halfsize::T; kwargs...) where {T}
+function tracecube(center::SVector{2,T}, halfsize::T; kwargs...) where {T}
     x, y = center
     trace = PlotlyJS.scatter(;
         x=[x - halfsize, x - halfsize, x + halfsize, x + halfsize, x - halfsize],
@@ -24,7 +24,7 @@ function H2Trees.tracecube(center::SVector{2,T}, halfsize::T; kwargs...) where {
     return trace
 end
 
-function H2Trees.tracecube(center::SVector{3,T}, halfsize::T; kwargs...) where {T}
+function tracecube(center::SVector{3,T}, halfsize::T; kwargs...) where {T}
     x, y, z = center
     trace = PlotlyJS.scatter3d(;
         x=[
@@ -97,4 +97,8 @@ function H2Trees.tracecube(center::SVector{3,T}, halfsize::T; kwargs...) where {
     )
 
     return trace
+end
+
+function tracecube(tree::H2ClusterTree, node::Int; kwargs...)
+    return tracecube(center(tree, node), halfsize(tree, node); kwargs...)
 end

@@ -5,18 +5,19 @@ version = "1.0.0-DEV"
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-ParallelKMeans = "42b8e9d4-006b-409a-8472-7f34b3fb58af"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [weakdeps]
 BEAST = "bb4162c7-ba94-5a20-af32-d8ec4428bdd1"
 CompScienceMeshes = "3e66a162-7b8c-5da0-b8f8-124ecd2c3ae1"
 NURBS = "dde13934-061e-461b-aa91-2c0fad390a0d"
+ParallelKMeans = "42b8e9d4-006b-409a-8472-7f34b3fb58af"
 PlotlyJS = "f0f68f2c-4968-5e81-91da-67840de0976a"
 
 [extensions]
 H2BEASTTrees = ["BEAST"]
 H2NURBSTrees = ["BEAST", "NURBS"]
+H2ParallelKMeansTrees = ["ParallelKMeans"]
 H2PlotlyJSTrees = "PlotlyJS"
 
 [compat]
@@ -30,6 +31,7 @@ JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
 JuliaFormatter = "98e50ef6-434e-11e9-1051-2b60c6c9e899"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 NURBS = "dde13934-061e-461b-aa91-2c0fad390a0d"
+ParallelKMeans = "42b8e9d4-006b-409a-8472-7f34b3fb58af"
 PlotlyJS = "f0f68f2c-4968-5e81-91da-67840de0976a"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
@@ -37,4 +39,4 @@ TestItemRunner = "f8b46487-2199-4994-9208-9a1283c18c0a"
 TestItems = "1c621080-faea-4a02-84b6-bbd5e436b8fe"
 
 [targets]
-test = ["Aqua", "BEAST", "CompScienceMeshes", "JET", "JuliaFormatter", "LinearAlgebra", "NURBS", "PlotlyJS", "SparseArrays", "Test", "TestItemRunner", "TestItems"]
+test = ["Aqua", "BEAST", "CompScienceMeshes", "JET", "JuliaFormatter", "LinearAlgebra", "NURBS", "ParallelKMeans", "PlotlyJS", "SparseArrays", "Test", "TestItemRunner", "TestItems"]

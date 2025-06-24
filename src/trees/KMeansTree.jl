@@ -1,3 +1,5 @@
+function kmeanswrapper end # requires ParallelKMeans.jl to load
+
 function KMeansTree(
     points::AbstractVector{SVector{N,T}},
     numberofclusters::Int;
@@ -8,7 +10,7 @@ function KMeansTree(
     kwargs...,
 ) where {N,T}
     pointsmatrix = reduce(hcat, points)
-    kmeansresult = kmeans(pointsmatrix, 1; kwargs...)
+    kmeansresult = kmeanswrapper(pointsmatrix, 1; kwargs...)
     center = SVector{N}(kmeansresult.centers[:, 1])
     radius = _computeradius(center, points)
 
@@ -26,6 +28,7 @@ function KMeansTree(
     )
 
     _adjustnodesatlevels!(tree)
+    updateradii!(tree)
     return tree
 end
 
@@ -41,7 +44,7 @@ function splitnode!(
     length(values(tree, node)) < max(minvalues, numberofclusters) && return tree
 
     pointsmatrix = reduce(hcat, points[values(tree, node)])
-    kresult = kmeans(pointsmatrix, numberofclusters; kwargs...)
+    kresult = kmeanswrapper(pointsmatrix, numberofclusters; kwargs...)
     centers = [SVector{N}(kresult.centers[:, i]) for i in axes(kresult.centers, 2)]
     vals = [Vector{Int}() for _ in 1:numberofclusters]
     for i in eachindex(kresult.assignments)
@@ -95,4 +98,62 @@ function _computeradius(center, points)
         end
     end
     return maxdist
+end
+
+# Tis is a very coarse approximation of a bounding sphere.
+# See "The Smallest Enclosing Ball of Balls: Combinatorial Structure and Algorithms",
+# Fischer (2004) for the right implementation of the SEBB algorithm.
+function boundingsphere(
+    center1::A1, radius1::T, center2::A2, radius2::T
+) where {T<:Number,A2<:AbstractArray{T},A1<:AbstractArray{T}}
+    difference = center1 - center2
+    differencenorm = norm(difference)
+
+    if (differencenorm + radius2 <= radius1)
+        # ball2 is inside ball1
+        return center1, radius1
+
+    elseif (differencenorm + radius1 <= radius2)
+        # ball1 is inside ball2
+        return center2, radius2
+    else
+        center =
+            T(0.5) * (center1 + center2 + (radius1 - radius2) * difference / differencenorm)
+        radius = T(0.5) * (radius1 + radius2 + differencenorm)
+
+        return center, radius
+    end
+end
+
+function boundingsphere(tree, node::Int)
+    centerbuffer = similar(center(tree, node))
+    centerbuffer .= center(tree, node)
+    rds = radius(tree, node)
+    for (i, child) in enumerate(children(tree, node))
+        i == 1 && (centerbuffer .= center(tree, child))
+
+        centerbuffer, rds = boundingsphere(
+            centerbuffer, rds, center(tree, child), radius(tree, child)
+        )
+    end
+
+    return centerbuffer, rds
+end
+
+function updateradii!(tree::BoundingBallTree)
+    for node in DepthFirstIterator(tree)
+        center, radius = boundingsphere(tree, node)
+        tree.nodes[node - root(tree) + 1] = Node(
+            BoundingBallData(
+                values(data(tree, node)),
+                SVector(deepcopy(center)),
+                radius,
+                level(tree, node),
+            ),
+            nextsibling(tree, node),
+            parent(tree, node),
+            firstchild(tree, node),
+        )
+    end
+    return tree
 end
