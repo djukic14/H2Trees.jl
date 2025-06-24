@@ -174,9 +174,7 @@ function isnearhalfsize(
 end
 
 function isin(tree, node, point, ::isTwoNTree)
-    return isnearhalfsize(
-        H2Trees.center(tree, node), point, H2Trees.halfsize(tree, node), 0, 0
-    )
+    return isnearhalfsize(center(tree, node), point, halfsize(tree, node), 0, 0)
 end
 
 # BoundingBallTree #########################################################################
@@ -258,5 +256,11 @@ end
 function isnear(tree, testnode::P, trialnode::P; kwargs...) where {P<:BoundingBallData}
     return isnearradius(
         testnode.center, trialnode.center, testnode.radius, trialnode.radius; kwargs...
+    )
+end
+
+function isin(tree, node, point, ::isBoundingBallTree)
+    return isnearradius(
+        center(tree, node), point, radius(tree, node), zero(radius(tree, node))
     )
 end

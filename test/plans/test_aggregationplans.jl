@@ -13,9 +13,13 @@ using H2Trees
     root = 2
     tree = TwoNTree(X, λ / 10; root=root)
 
-    aggregationplan = H2Trees.AggregatePlan(tree, node -> true)
+    aggregationplan = H2Trees.AggregatePlan(tree, H2Trees.AggregateAllNodesFunctor())
+    storenodefunctor = H2Trees.StoreNodeFunctor(aggregationplan)
+    storenonodefunctor = H2Trees.StoreNoNodeFunctor(aggregationplan)
     for node in H2Trees.DepthFirstIterator(tree)
         @test H2Trees.storenode(aggregationplan, node)
+        @test storenodefunctor(node) == H2Trees.storenode(aggregationplan, node)
+        @test !storenonodefunctor(node)
     end
 
     @test aggregationplan.levels == reverse(H2Trees.levels(tree))
@@ -24,15 +28,20 @@ using H2Trees
         @test sort(aggregationplan.nodes[i]) == sort(nodes)
     end
 
-    aggregationplan = H2Trees.AggregatePlan(tree, node -> ifelse(node == root, true, false))
+    aggregationplan = H2Trees.AggregatePlan(tree, H2Trees.AggregateOnlyRootFunctor(tree))
     @test aggregationplan.levels == reverse(H2Trees.levels(tree))
     for (i, nodes) in enumerate(aggregationnodes)
         @test sort(aggregationplan.nodes[i]) == sort(nodes)
     end
 
+    storenodefunctor = H2Trees.StoreNodeFunctor(aggregationplan)
+    storenonodefunctor = H2Trees.StoreNoNodeFunctor(aggregationplan)
     for node in H2Trees.DepthFirstIterator(tree)
+        @test storenodefunctor(node) == H2Trees.storenode(aggregationplan, node)
+        @test !storenonodefunctor(node)
         if node == root
             @test H2Trees.storenode(aggregationplan, node)
+
         else
             @test !H2Trees.storenode(aggregationplan, node)
         end
@@ -62,9 +71,13 @@ using H2Trees
         end
     end
 
-    aggregationplan = H2Trees.AggregatePlan(
-        tree, node -> H2Trees.istranslatingnode(tree, node)
+    istranslatingfunctor = H2Trees.istranslatingnode(;
+        TranslatingNodesIterator=H2Trees.TranslatingNodesIterator(; isnear=H2Trees.isnear())
+    )(
+        tree
     )
+
+    aggregationplan = H2Trees.AggregatePlan(tree, istranslatingfunctor)
 
     for node in H2Trees.DepthFirstIterator(tree, root)
         if H2Trees.istranslatingnode(tree, node)
@@ -123,11 +136,22 @@ using H2Trees
             testtree = H2Trees.testtree(tree)
             trialtree = H2Trees.trialtree(tree)
 
-            @test_throws ErrorException H2Trees.AggregatePlan(tree, node -> true)
-
-            trialaggregationplan = H2Trees.AggregatePlan(
-                trialtree, node -> H2Trees.istranslatingnode(testtree, trialtree, node)
+            @test_throws ErrorException H2Trees.AggregatePlan(
+                tree, H2Trees.AggregateAllNodesFunctor()
             )
+
+            istranslatingfunctor = H2Trees.PetrovAggregationFunctor(
+                H2Trees.istranslatingnode(;
+                    TranslatingNodesIterator=H2Trees.TranslatingNodesIterator(;
+                        isnear=H2Trees.isnear()
+                    ),
+                ),
+                tree,
+                testtree,
+                trialtree,
+            )
+
+            trialaggregationplan = H2Trees.AggregatePlan(trialtree, istranslatingfunctor)
 
             for trialnode in H2Trees.DepthFirstIterator(trialtree, H2Trees.root(trialtree))
                 if H2Trees.istranslatingnode(testtree, trialtree, trialnode)
@@ -163,9 +187,18 @@ using H2Trees
 
             @test H2Trees.rootoffset(trialaggregationplan) == H2Trees.root(trialtree) - 1
 
-            testaggregationplan = H2Trees.AggregatePlan(
-                testtree, node -> H2Trees.istranslatingnode(trialtree, testtree, node)
+            istranslatingfunctor = H2Trees.PetrovAggregationFunctor(
+                H2Trees.istranslatingnode(;
+                    TranslatingNodesIterator=H2Trees.TranslatingNodesIterator(;
+                        isnear=H2Trees.isnear()
+                    ),
+                ),
+                tree,
+                trialtree,
+                testtree,
             )
+
+            testaggregationplan = H2Trees.AggregatePlan(testtree, istranslatingfunctor)
 
             for testnode in H2Trees.DepthFirstIterator(testtree, H2Trees.root(testtree))
                 if H2Trees.istranslatingnode(trialtree, testtree, testnode)
@@ -216,9 +249,13 @@ end
     aggregatetranslateplan = H2Trees.AggregateTranslatePlan(tree, TFIterator)
     disaggregationplan = H2Trees.DisaggregateTranslatePlan(tree, TFIterator)
 
-    aggregateplan = H2Trees.AggregatePlan(
-        tree, node -> H2Trees.istranslatingnode(tree, node)
+    istranslatingfunctor = H2Trees.istranslatingnode(;
+        TranslatingNodesIterator=H2Trees.TranslatingNodesIterator(; isnear=H2Trees.isnear())
+    )(
+        tree
     )
+
+    aggregateplan = H2Trees.AggregatePlan(tree, istranslatingfunctor)
 
     @test H2Trees.aggregationlevels(aggregatetranslateplan) ==
         H2Trees.aggregationlevels(aggregateplan)

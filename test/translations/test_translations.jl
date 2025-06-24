@@ -385,3 +385,21 @@ end
         end
     end
 end
+
+@testset "AllLeavesTranslationsIterator" begin
+    λ = 1.0
+    m = CompScienceMeshes.readmesh(
+        joinpath(pkgdir(H2Trees), "test", "assets", "in", "sphere6.in")
+    )
+
+    tree = TwoNTree(raviartthomas(m), λ / 10; minvalues=10)
+
+    f = H2Trees.AllLeavesTranslationsIterator(tree)
+
+    for leaf in H2Trees.leaves(tree)
+        level = H2Trees.level(tree, leaf)
+        comparison = sort(collect(H2Trees.leaves(tree)))
+        comparison = filter(x -> H2Trees.level(tree, x) == level, comparison)
+        @test sort(collect(f(tree, leaf))) == sort(comparison)
+    end
+end

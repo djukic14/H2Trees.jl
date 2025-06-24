@@ -287,14 +287,6 @@ function treewithmorelevels(tree)
     end
 end
 
-function patchID(tree, node)
-    return patchID(tree(node).data)
-end
-
-function patchID(data::BoundingBallData)
-    return data.patchID
-end
-
 function samelevelnodes(tree, nodeid::Int)
     level = H2Trees.level(tree, nodeid)
     return nodesatlevel(tree, level)
@@ -448,11 +440,11 @@ function computevectorbuffers(tree, T)
     return computevectorbuffers(tree, treetrait(tree), T)
 end
 
-function computevectorbuffers(tree, ::isBlockTree, T)
+function computevectorbuffers(tree, ::isBlockTree, ::Type{T}) where {T}
     return computevectorbuffers(testtree(tree), T), computevectorbuffers(trialtree(tree), T)
 end
 
-function computevectorbuffers(tree, ::Any, ::Type{T}) where {T}
+function computevectorbuffers(tree, ::AbstractTreeTrait, ::Type{T}) where {T}
     vectors = Vector{Vector{T}}(undef, length(H2Trees.leaves(tree)))
 
     for (i, leaf) in enumerate(H2Trees.leaves(tree))
@@ -474,17 +466,25 @@ function isuppertreenode(tree, node::Int)
 end
 
 function islowertreenode(tree, node::Int)
-    return !H2Trees.isuppertreenode(tree, node)
+    return !isuppertreenode(tree, node)
 end
 
 include("trees/clustertrees.jl")
 include("trees/TwoNTree.jl")
-include("trees/TreeWrappers.jl")
+include("trees/treewrappers.jl")
 include("trees/SimpleHybridTree.jl")
 include("trees/QuadPointsTree.jl")
 include("trees/BoundingBallTree.jl")
 include("trees/BlockTree.jl")
 include("trees/KMeansTree.jl")
+
+function isgalerkinsymmetric(T)
+    return isgalerkinsymmetric(typeof(T))
+end # requires BEAST to load
+
+function isgalerkinsymmetric(::Type{T}) where {T}
+    return false
+end
 
 export TwoNTree, BlockTree, QuadPointsTree, SimpleHybridTree, KMeansTree
 

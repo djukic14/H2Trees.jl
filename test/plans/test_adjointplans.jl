@@ -31,6 +31,14 @@ using H2Trees
             testtree = H2Trees.testtree(tree)
             trialtree = H2Trees.trialtree(tree)
 
+            @test_throws ErrorException H2Trees.DisaggregateTranslatePlan(
+                tree, H2Trees.TranslatingNodesIterator
+            )
+
+            @test_throws ErrorException H2Trees.AggregateTranslatePlan(
+                tree, H2Trees.TranslatingNodesIterator
+            )
+
             trialaggregateplan = H2Trees.AggregatePlan(
                 trialtree,
                 H2Trees.PetrovAggregationFunctor(aggregatenode, tree, testtree, trialtree),
@@ -38,6 +46,7 @@ using H2Trees
             testdisaggregatetranslateplan = H2Trees.DisaggregateTranslatePlan(
                 testtree, trialtree, H2Trees.TranslatingNodesIterator
             )
+            @test testdisaggregatetranslateplan[1, 1] == Int[]
 
             atestaggregatetranslateplan, atrialdisaggregateplan = H2Trees.adjointplans(
                 trialaggregateplan, testdisaggregatetranslateplan

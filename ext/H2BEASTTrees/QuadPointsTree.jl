@@ -23,11 +23,12 @@ function QuadPointsTree(
 
     tree = TwoNTree(positions, minhalfsize; minlevel=minlevel)
     qpointsindices = CartesianIndices((length(first(qdata)), length(els)))
+    numfunctionsref = size(adata.data, 2) # ugly fix for change in BEAST with numfunctions(refspace)
 
     for leaf in H2Trees.leaves(tree)
         vals = H2Trees.values(tree, leaf)
         newvals = Set{Int}()
-        for i in 1:numfunctions(ref)
+        for i in 1:numfunctionsref
             for val in vals
                 for (functionid, _) in adata[qpointsindices[val].I[2], i]
                     push!(newvals, functionid)

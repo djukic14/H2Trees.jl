@@ -25,6 +25,13 @@ using PlotlyJS
 
     for i in eachindex(ms)
         tree = H2Trees.KMeansTree(vertices(ms[i]), 10; minvalues=100, n_threads=1)
+
         @test H2Trees.testwellseparatedness(tree)
+
+        for leaf in H2Trees.leaves(tree)
+            for point in H2Trees.values(tree, leaf)
+                @test H2Trees.isin(tree, leaf, vertices(ms[i])[point])
+            end
+        end
     end
 end

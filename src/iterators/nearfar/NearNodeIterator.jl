@@ -34,14 +34,6 @@ function _storeindices!(indices, val, ::Val{:flattened})
     return append!(indices, val)
 end
 
-function _getindicesstorage(::Val{:list})
-    return Vector{Int}[]
-end
-
-function _storeindices!(indices, val, ::Val{:list})
-    return push!(indices, val)
-end
-
 function nearnodevalues(tree, node::Int; isnear=isnear, storevalues=Val{:flattened}())
     indices = _getindicesstorage(storevalues)
     for nearnode in NearNodeIterator(tree, node; isnear=isnear)
@@ -73,15 +65,6 @@ function nearnodevalues(
             _storeindices!(indices, values(testtree, nearnode), storevalues)
         end
     end
-    return indices
-end
-
-function samelevelnodevalues(tree, node::Int, filter; storevalues=Val{:flattened}())
-    indices = _getindicesstorage(storevalues)
-    for filternode in NodeFilterIterator(tree, node, filter)
-        _storeindices!(indices, values(tree, filternode), storevalues)
-    end
-
     return indices
 end
 

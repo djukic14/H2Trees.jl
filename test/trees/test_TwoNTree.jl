@@ -26,7 +26,23 @@ end
     root = 2
     minlevel = 2
 
-    tree = TwoNTree(points, 0.0; root=root, minlevel=minlevel, minvalues=10)
+    tree = TwoNTree(points, 0.1; root=root, minlevel=minlevel, minvalues=10)
+
+    @test H2Trees.halfsizes(tree) == [0.8, 0.4, 0.2, 0.1]
+
+    @test H2Trees.nodesatlevel(tree) == tree.nodesatlevel
+
+    for node in H2Trees.DepthFirstIterator(tree)
+        @test H2Trees.samelevelnodes(tree, node) ==
+            H2Trees.nodesatlevel(tree, H2Trees.level(tree, node))
+    end
+
+    for leaf in H2Trees.leaves(tree)
+        for point in H2Trees.values(tree, leaf)
+            @test H2Trees.isin(tree, leaf, vertices(m)[point])
+        end
+    end
+
     valuesatnodes = H2Trees.valuesatnodes(tree)
     @test length(valuesatnodes) == length(points)
     for (functionid, value) in enumerate(valuesatnodes)
@@ -236,8 +252,8 @@ end
 
     @test H2Trees.treewithmorelevels(tree) == H2Trees.trialtree(tree)
 
-    tree2 = TwoNTree(Y, X, minhalfsize)
-    @test H2Trees.treewithmorelevels(tree2) == H2Trees.trialtree(tree2)
+    tree2 = TwoNTree(X, Y, minhalfsize)
+    @test H2Trees.treewithmorelevels(tree2) == H2Trees.testtree(tree2)
 
     @test H2Trees.minhalfsize(H2Trees.trialtree(tree)) == minhalfsize
 
@@ -276,4 +292,37 @@ end
     display(tree)
     display(H2Trees.testtree(tree))
     display(H2Trees.trialtree(tree))
+end
+
+@testset "Compute buffers" begin
+    m = CompScienceMeshes.readmesh(
+        joinpath(pkgdir(H2Trees), "test", "assets", "in", "sphere6.in")
+    )
+    points = vertices(m)
+    tree = TwoNTree(points, 0.1; root=2, minlevel=2, minvalues=10)
+
+    buffers = H2Trees.computevectorbuffers(tree, ComplexF64)
+
+    for (node, buffer) in buffers
+        @test length(buffer) == length(H2Trees.values(tree, node))
+        @test eltype(buffer) == ComplexF64
+    end
+
+    my = CompScienceMeshes.readmesh(
+        joinpath(pkgdir(H2Trees), "test", "assets", "in", "cuboid2.in")
+    )
+
+    tree = TwoNTree(raviartthomas(m), raviartthomas(my), 0.1)
+
+    testbuffer, trialbuffer = H2Trees.computevectorbuffers(tree, ComplexF64)
+
+    for (node, buffer) in testbuffer
+        @test length(buffer) == length(H2Trees.values(H2Trees.testtree(tree), node))
+        @test eltype(buffer) == ComplexF64
+    end
+
+    for (node, buffer) in trialbuffer
+        @test length(buffer) == length(H2Trees.values(H2Trees.trialtree(tree), node))
+        @test eltype(buffer) == ComplexF64
+    end
 end

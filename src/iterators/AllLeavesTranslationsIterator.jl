@@ -3,9 +3,10 @@ struct IsLeafFunctor{T}
 end
 
 function (f::IsLeafFunctor)(tree, nodea, nodeb)
-    return H2Trees.isleaf(tree, nodea)
+    return isleaf(tree, nodea)
 end
 
+#TODO: add BlockTree case
 function AllLeavesTranslationsIterator(tree)
-    return H2Trees.TranslatingNodesIterator(; iswellseparated=IsLeafFunctor)(tree)
+    return TranslatingNodesIterator(; iswellseparated=IsLeafFunctor)(tree)
 end

@@ -105,10 +105,6 @@ function nearinteractions(testtree, trialtree; extractselfvalues=false, isnear=i
     return testv, trialv
 end
 
-function isprimarybox(nodes, node)
-    return nodes[begin] == node
-end
-
 function setappend!(set, values)
     for val in values
         push!(set, val)

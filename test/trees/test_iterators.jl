@@ -117,6 +117,15 @@ end
             @test sort(value) == sort(H2Trees.values(tree, key))
         end
 
+        nearfunctor = H2Trees.isnear()(tree)
+        farfunctor = H2Trees.isfar(nearfunctor)
+        for node in H2Trees.DepthFirstIterator(tree)
+            for nearnode in H2Trees.NearNodeIterator(tree, node)
+                @test nearfunctor(tree, node, nearnode)
+                @test !farfunctor(tree, node, nearnode)
+            end
+        end
+
         for centernode in eachindex(tree.nodes)
             centernode = centernode + root - 1
             for node in H2Trees.TranslatingNodesIterator(tree, centernode)
@@ -298,6 +307,16 @@ end
     tree = TwoNTree(X, Y, λ / 10)
     testtree = H2Trees.testtree(tree)
     trialtree = H2Trees.trialtree(tree)
+
+    isnearfunctor = H2Trees.isnear()(tree)
+    isfarfunctor = H2Trees.isfar(isnearfunctor)
+
+    for trialnode in H2Trees.DepthFirstIterator(trialtree)
+        for testnode in H2Trees.NearNodeIterator(testtree, trialtree, trialnode)
+            @test isnearfunctor(testtree, trialtree, testnode, trialnode)
+            @test !isfarfunctor(testtree, trialtree, testnode, trialnode)
+        end
+    end
 
     for tree in [testtree, trialtree]
         valuesatnodes = H2Trees.valuesatnodes(tree)

@@ -40,8 +40,8 @@ macro treewrapper(treewrapper)
             return H2Trees.numberoflevels(tree.tree)
         end
 
-        function H2Trees.values(tree::$treewrapper)
-            return H2Trees.values(tree.tree)
+        function H2Trees.values(tree::$treewrapper, node::Int)
+            return H2Trees.values(tree.tree, node::Int)
         end
 
         function H2Trees.sector(tree::$treewrapper, node::Int)

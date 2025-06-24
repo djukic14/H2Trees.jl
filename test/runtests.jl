@@ -1,7 +1,15 @@
 using Test, TestItems, TestItemRunner
 
+@testitem "FarMulMode" begin
+    using H2Trees
+    using Test
+    @testset "FarMulMode" begin
+        @test H2Trees.AggregateMode() == adjoint(H2Trees.AggregateTranslateMode())
+        @test H2Trees.AggregateTranslateMode() == adjoint(H2Trees.AggregateMode())
+    end
+end
 @testitem "Iterators" begin
-    include("test_iterators.jl")
+    include("trees/test_iterators.jl")
 end
 
 @testitem "Near interactions" begin
@@ -9,7 +17,7 @@ end
 end
 
 @testitem "TwoNTree" begin
-    include("test_TwoNTree.jl")
+    include("trees/test_TwoNTree.jl")
 end
 
 @testitem "Plans" begin
@@ -39,6 +47,11 @@ end
 
 @testitem "H2ParallelKMeansTrees" begin
     include("H2ParallelKMeansTrees/test_kmeanstree.jl")
+end
+
+@testitem "Simple Hybrid Tree" begin
+    include("trees/test_simplehybridtree.jl")
+    include("plans/test_splitting.jl")
 end
 
 # @testitem "Code quality (Aqua.jl)" begin

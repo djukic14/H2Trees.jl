@@ -3,7 +3,7 @@ using StaticArrays
 using BEAST
 using H2Trees
 
-import H2Trees: TwoNTree, QuadPointsTree, boundingbox, numberoflevels
+import H2Trees: TwoNTree, QuadPointsTree, boundingbox, numberoflevels, isgalerkinsymmetric
 
 function TwoNTree(space::BEAST.Space, minhalfsize; kwargs...)
     return TwoNTree(BEAST.positions(space), minhalfsize; kwargs...)
@@ -24,6 +24,16 @@ function isgalerkinsymmetric(::Type{<:BEAST.HH3DSingleLayerFDBIO})
 end
 
 function isgalerkinsymmetric(::Type{<:BEAST.HH3DHyperSingularFDBIO})
+    return true
+end
+
+# Maxwell3D ################################################################################
+
+function isgalerkinsymmetric(::Type{<:BEAST.MWSingleLayer3D})
+    return true
+end
+
+function isgalerkinsymmetric(::Type{<:BEAST.MWDoubleLayer3D})
     return true
 end
 

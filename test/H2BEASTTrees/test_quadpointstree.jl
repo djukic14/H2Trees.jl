@@ -252,3 +252,12 @@ end
         end
     end
 end
+
+@testset "is Galerkin symmetric" begin
+    @test H2Trees.isgalerkinsymmetric(Maxwell3D.singlelayer(; wavenumber=1.0))
+    @test H2Trees.isgalerkinsymmetric(Maxwell3D.doublelayer(; wavenumber=1.0))
+    @test H2Trees.isgalerkinsymmetric(Helmholtz3D.singlelayer(; wavenumber=1.0))
+    @test H2Trees.isgalerkinsymmetric(Helmholtz3D.hypersingular(; wavenumber=1.0))
+
+    @test !H2Trees.isgalerkinsymmetric(Helmholtz3D.doublelayer(; wavenumber=1.0))
+end

@@ -25,7 +25,7 @@ function DisaggregateTranslatePlan(testtree, trialtree, TranslatingNodesIterator
     )
 end
 
-function DisaggregateTranslatePlan(tree, TranslatingNodesIterator, ::isBlockTree, ::Any)
+function DisaggregateTranslatePlan(tree, TranslatingNodesIterator, ::isBlockTree)
     return error(
         "BlockTrees are not supported for DisaggregateTranslatePlan. Please specify which tree is used
         for the disaggregation.",

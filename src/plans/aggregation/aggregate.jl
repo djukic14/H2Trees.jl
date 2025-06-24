@@ -31,7 +31,8 @@ function AggregatePlan(tree, aggregatenode, ::AbstractTreeTrait)
         levelaggregationnodes = Int[]
         levelid = numberoflevels(tree) - level + minimumlevel(tree)
 
-        @threads for node in LevelIterator(tree, level)
+        # @threads
+        for node in LevelIterator(tree, level)
             nodeindex = node - root + 1
 
             if aggregatenode(node)

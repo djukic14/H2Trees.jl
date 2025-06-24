@@ -169,3 +169,20 @@ function translatingplan(
 ) where {A<:AbstractAggregationPlan,D<:AbstractDisaggregationPlan}
     return error("Exactly one of the plans must be translating.")
 end
+
+struct AggregateAllNodesFunctor end
+
+function (f::AggregateAllNodesFunctor)(node::Int)
+    return true
+end
+
+struct AggregateOnlyRootFunctor
+    root::Int
+    function AggregateOnlyRootFunctor(tree)
+        return new(H2Trees.root(tree))
+    end
+end
+
+function (f::AggregateOnlyRootFunctor)(node::Int)
+    return node == f.root
+end
