@@ -15,6 +15,7 @@ using H2Trees
     disaggregationplan = H2Trees.DisaggregateTranslatePlan(
         tree, H2Trees.TranslatingNodesIterator(; isnear=H2Trees.isnear())(tree)
     )
+    @test disaggregationplan[10, 3] == Int[]
 
     for node in H2Trees.DepthFirstIterator(tree, 1)
         nodehastobevisited = false

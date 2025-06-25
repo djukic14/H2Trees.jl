@@ -234,31 +234,6 @@ function isnearradius(
     return differencenorm <= η * (1 + 10 * eps(T)) * (2 * maxradius)
 end
 
-# HybridTree ###############################################################################
-
-function isnear(tree, testnode::Int, trialnode::Int, ::isHybridTree; kwargs...)
-    return isnear(tree, data(tree, testnode), data(tree, trialnode); kwargs...)
-end
-
-#TODO: additional buffer boxes
-function isnear(
-    tree, testnode::B, trialnode::B; additionalbufferboxes=1, kwargs...
-) where {B<:BoxData}
-    return isnearhalfsize(
-        testnode.center,
-        trialnode.center,
-        max(testnode.halfsize, trialnode.halfsize),
-        additionalbufferboxes;
-        kwargs...,
-    )
-end
-
-function isnear(tree, testnode::P, trialnode::P; kwargs...) where {P<:BoundingBallData}
-    return isnearradius(
-        testnode.center, trialnode.center, testnode.radius, trialnode.radius; kwargs...
-    )
-end
-
 function isin(tree, node, point, ::isBoundingBallTree)
     return isnearradius(
         center(tree, node), point, radius(tree, node), zero(radius(tree, node))

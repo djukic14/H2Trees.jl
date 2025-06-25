@@ -22,15 +22,6 @@ function printtree(io::IO, tree)
     return printtree(io, tree, H2Trees.treetrait(tree))
 end
 
-function printtree(io::IO, tree, ::isHybridTree)
-    println(io, typeof(tree))
-    println(io, "\nUpper tree:")
-    printtree(io, tree.uppertree)
-    println(io, "\nLower tree:")
-    printtree(io, tree.lowertree)
-    return nothing
-end
-
 function printtree(io::IO, tree, ::isTwoNTree)
     println(io, typeof(tree))
     for level in H2Trees.levels(tree)

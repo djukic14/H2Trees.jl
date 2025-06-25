@@ -33,5 +33,9 @@ using PlotlyJS
                 @test H2Trees.isin(tree, leaf, vertices(ms[i])[point])
             end
         end
+
+        @test_nowarn println(tree)
+        @test_nowarn display(tree)
+        @test_nowarn show(tree)
     end
 end

@@ -7,8 +7,6 @@ struct isBoundingBallTree <: AbstractTreeTrait end
 
 struct isBlockTree <: AbstractTreeTrait end
 
-struct isHybridTree <: AbstractTreeTrait end
-
 # for a tree not fitting in any other category (or the classification is avoided)
 # mainly used for testing where the most general method version is tested
 struct isAnyTree <: AbstractTreeTrait end

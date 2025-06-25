@@ -34,8 +34,10 @@ using H2Trees
     for node in H2Trees.DepthFirstIterator(hybridtree)
         if H2Trees.level(hybridtree, node) <= hybridlevel
             @test H2Trees.isuppertreenode(hybridtree, node)
+            @test H2Trees.isuppertreelevel(hybridtree, H2Trees.level(hybridtree, node))
         else
             @test H2Trees.islowertreenode(hybridtree, node)
+            @test H2Trees.islowertreelevel(hybridtree, H2Trees.level(hybridtree, node))
         end
     end
 
@@ -48,5 +50,7 @@ using H2Trees
         @test H2Trees.parentcenterminuschildcenter(hybridtree, node) ==
             H2Trees.parentcenterminuschildcenter(tree, node)
         @test H2Trees.oppositesector(hybridtree, node) == H2Trees.oppositesector(tree, node)
+        @test H2Trees.data(hybridtree, node) == H2Trees.data(tree, node)
+        @test H2Trees.firstchild(hybridtree, node) == H2Trees.firstchild(tree, node)
     end
 end
