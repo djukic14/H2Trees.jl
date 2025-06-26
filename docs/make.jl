@@ -1,6 +1,21 @@
 using H2Trees
 using CompScienceMeshes, PlotlyJS, ParallelKMeans, BEAST
 using Documenter
+import H2Trees:
+    DepthFirstIterator,
+    ParentUpwardsIterator,
+    ChildIterator,
+    leaves,
+    LevelIterator,
+    SameLevelIterator,
+    NearNodeIterator,
+    FarNodeIterator,
+    NodeFilterIterator,
+    AbstractTranslationTrait,
+    AllTranslations,
+    DirectionInvariance,
+    DirectionInvariancePerLevel,
+    translations
 
 DocMeta.setdocmeta!(H2Trees, :DocTestSetup, :(using H2Trees); recursive=true)
 
@@ -20,14 +35,7 @@ makedocs(;
             "TwoNTree" => "twontree.md",
             "Hybrid Tree" => "hybridtree.md",
             "Quadpoints Tree" => "quadpointtree.md",
-            "Iterators" => [
-                "Leaves" => "iterators/leaves.md",
-                "Children" => "iterators/children.md",
-                "Far Nodes" => "iterators/farnode.md",
-                "Near Nodes" => "iterators/nearnode.md",
-                "Well Separated Nodes" => "iterators/wellseparated.md",
-                "Same Level Nodes" => "iterators/samelevel.md",
-            ],
+            "Iterators" => "iterators.md",
             "Plans" => [
                 "Aggregate Plan" => "plans/aggregateplan.md",
                 "Disaggregate Translate Plan" => "plans/disaggregatetranslateplan.md",

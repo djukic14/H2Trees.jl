@@ -1,6 +1,6 @@
 # Visualizing a BoundingBallTree
 
-```@example plot_twontree
+```@example plot_boundingball
 using CompScienceMeshes
 using H2Trees
 using PlotlyJS

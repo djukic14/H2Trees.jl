@@ -7,7 +7,7 @@ align_assignment = true
 align_matrix = true
 
 always_use_return = true
-short_to_long_function_def = false
+short_to_long_function_def = true
 remove_extra_newlines = true
 
 import_to_using = true

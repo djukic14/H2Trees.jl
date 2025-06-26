@@ -1,1 +1,0 @@
-# Far Nodes Iterator

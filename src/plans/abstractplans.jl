@@ -176,6 +176,19 @@ function (f::AggregateAllNodesFunctor)(node::Int)
     return true
 end
 
+function (f::AggregateAllNodesFunctor)(testtree, trialtree, trialnode::Int)
+    return true
+end
+
+function (f::AggregateAllNodesFunctor)(tree)
+    return f
+end
+
+function (f::AggregateAllNodesFunctor)(testtree, trialtree)
+    return f
+end
+
+#TODO: fix this for blocktree
 struct AggregateOnlyRootFunctor
     root::Int
     function AggregateOnlyRootFunctor(tree)
@@ -185,4 +198,12 @@ end
 
 function (f::AggregateOnlyRootFunctor)(node::Int)
     return node == f.root
+end
+
+function (f::AggregateOnlyRootFunctor)(tree)
+    return f
+end
+
+function (f::AggregateOnlyRootFunctor)(testtree, trialtree)
+    return f
 end

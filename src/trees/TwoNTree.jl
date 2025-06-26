@@ -66,6 +66,14 @@ function TwoNTree(
     return tree
 end
 
+function sector_center_size(pt, ct, hs)
+    hs = hs / 2
+    bl = pt .> ct
+    ct = ifelse.(bl, ct .+ hs, ct .- hs)
+    sc = sum(b ? 2^(i - 1) : 0 for (i, b) in enumerate(bl))
+    return sc, ct, hs
+end
+
 # ClusterTrees API #########################################################################
 
 function route!(tree::TwoNTree, state, router; boxdata=BoxData)
@@ -265,22 +273,6 @@ function cornerpoints(tree::TwoNTree{N,D,T}, node::Int, i) where {N,D,T}
     end
 
     return center(tree, node) + SVector{N}(ds .* halfsize(tree, node))
-end
-
-# More API for H2Trees.jl ##################################################################
-
-struct LeafFunctor{T}
-    tree::T
-end
-
-function (f::LeafFunctor)(node::Int)
-    return H2Trees.isleaf(f.tree, node)
-end
-
-function leaves(tree::H2ClusterTree, node::Int)
-    return collect(
-        Int, Iterators.filter(LeafFunctor(tree), H2Trees.DepthFirstIterator(tree, node))
-    )
 end
 
 H2Trees.treetrait(::Type{TwoNTree{N,D,T}}) where {N,D,T} = isTwoNTree()

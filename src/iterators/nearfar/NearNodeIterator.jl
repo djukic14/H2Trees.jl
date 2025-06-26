@@ -1,11 +1,50 @@
+
+"""
+    NearNodeIterator(tree, node::Int; isnear=isnear)
+
+Returns an iterator over the nodes in the tree that are at the same level as the specified
+`node` and are near to `node`.
+Two nodes are near if the function `isnear(tree, nodea, nodeb)` evaluates to true.
+
+# Arguments
+
+  - `tree`: The tree to search for near nodes.
+  - `node::Int`: The node from which to start the search.
+  - `isnear`: A function that returns `true` if two nodes are near each other. Defaults to `isnear`.
+
+# Returns
+
+An iterator over the nodes in the tree that are at the same level as the specified `node` and are near to `node`.
+"""
 function NearNodeIterator(tree, node::Int; isnear=isnear)
     return NodeFilterIterator(tree, node, isnear)
 end
 
+"""
+    NearNodeIterator(testtree, trialtree, trialnode::Int; isnear=isnear)
+
+Returns an iterator over the nodes in the `testtree` that are at the same level as the specified
+`node` in the `trialtree` and are near to `node`.
+Two nodes are near if the function `isnear(testtree, trialtree, testnode, trialnode)` evaluates to true.
+
+# Arguments
+
+  - `testtree`: The tree to search for near nodes.
+  - `trialtree`: The tree that contains the node to find near nodes for.
+  - `trialnode::Int`: The node in the `trialtree` from which to start the search.
+  - `isnear`: A function that returns `true` if two nodes are near each other. Defaults to `isnear`.
+
+# Returns
+
+An iterator over the nodes in the `testtree` that are at the same level as the specified `node` in the `trialtree` and are near to `node`.
+"""
 function NearNodeIterator(testtree, trialtree, trialnode::Int; isnear=isnear)
     return NodeFilterIterator(testtree, trialtree, trialnode, isnear)
 end
 
+"""
+    See NearNodeIterator.
+"""
 function FarNodeIterator(tree, node::Int; isfar=isfar)
     return NodeFilterIterator(tree, node, isfar)
 end

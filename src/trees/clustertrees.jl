@@ -11,7 +11,28 @@ function update!(f, tree, state, data, target; kwargs...)
     return node
 end
 
-struct DepthFirstIterator{T,N}
+"""
+    DepthFirstIterator{T,N<:Integer}
+
+Traverses the tree in a depth first manner. If no node is specified the tree is
+traversed from the root node.
+
+# Fields
+
+  - `tree::T`: The tree.
+  - `node::Int`: The node from which the tree is traversed.
+
+# Methods
+
+## `DepthFirstIterator(tree, node)`
+
+Creates a new `DepthFirstIterator` instance, traversing the tree from the specified `node`.
+
+## `DepthFirstIterator(tree)`
+
+Creates a new `DepthFirstIterator` instance, traversing the tree from the root node.
+"""
+struct DepthFirstIterator{T,N<:Integer}
     tree::T
     node::N
 end
@@ -49,11 +70,46 @@ function Base.iterate(itr::DepthFirstIterator, stack)
     end
 end
 
-function leaves(tree, node=root(tree))
-    return Iterators.filter(n -> !haschildren(tree, n), DepthFirstIterator(tree, node))
+struct LeafFunctor{T}
+    tree::T
 end
 
-struct ChildIterator{T,N}
+function (f::LeafFunctor)(node::Int)
+    return H2Trees.isleaf(f.tree, node)
+end
+
+"""
+    leaves(tree, node::Int)
+
+Returns an iterator over the leaf nodes in the tree, starting from the specified `node`. If
+no node is specified the tree is traversed from the root node.
+
+# Arguments
+
+  - `tree`: The tree to search for leaf nodes.
+  - `node::Int`: The node from which to start the search.
+
+# Returns
+
+An iterator over the leaf nodes in the tree.
+"""
+function leaves(tree, node::Int=H2Trees.root(tree))
+    return collect(
+        Int, Iterators.filter(LeafFunctor(tree), H2Trees.DepthFirstIterator(tree, node))
+    )
+end
+
+"""
+    ChildIterator{T,N<:Integer}
+
+An iterator over the children of a node in a tree.
+
+# Fields
+
+  - `tree::T`: The tree.
+  - `node::N`: The node whose children are being iterated over.
+"""
+struct ChildIterator{T,N<:Integer}
     tree::T
     node::N
 end
@@ -62,28 +118,17 @@ Base.IteratorSize(cv::ChildIterator) = Base.SizeUnknown()
 Base.eltype(::ChildIterator{T,N}) where {T,N} = N
 
 """
-    struct ParentUpwardsIterator{T}
+    ParentUpwardsIterator{T,N<:Int}
 
 ParentUpwardsIterator is an iterator that iterates over all parent nodes of a given node in
 a tree until the root is reached. The last node is the node 0.
-
-# Example
-
-```julia
-for node in DepthFirstIterator(tree, root(tree))
-    println("Node: ", node)
-    for parent in ParentUpwardsIterator(tree, node)
-        println("\t Parent: ", parent)
-    end
-end
-```
 
 # Fields
 
   - `tree::T`: The tree.
   - `node::Int`: The node over which parents is iterated.
 """
-struct ParentUpwardsIterator{T,N}
+struct ParentUpwardsIterator{T,N<:Integer}
     tree::T
     node::N
 end
@@ -205,14 +250,9 @@ const hilbert_positions = [
     [6, 1, 7, 0, 5, 2, 4, 3],
 ]
 
-function sector_center_size(pt, ct, hs)
-    hs = hs / 2
-    bl = pt .> ct
-    ct = ifelse.(bl, ct .+ hs, ct .- hs)
-    sc = sum(b ? 2^(i - 1) : 0 for (i, b) in enumerate(bl))
-    return sc, ct, hs
+function start(itr::ChildIterator{<:H2ClusterTree})
+    return (0, firstchild(itr.tree, itr.node))
 end
-start(itr::ChildIterator{<:H2ClusterTree}) = (0, firstchild(itr.tree, itr.node))
 
 function done(itr::ChildIterator{<:H2ClusterTree}, state)
     _, this = state

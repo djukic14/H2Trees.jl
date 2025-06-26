@@ -1,27 +1,46 @@
-struct CenterFunctor{T}
+struct _CenterFunctor{T}
     tree::T
 end
 
-function (f::CenterFunctor)(node::Int)
+function (f::_CenterFunctor)(node::Int)
     return H2Trees.center(f.tree, node)
 end
 
-struct HalfSizeFunctor{T}
+struct _HalfSizeFunctor{T}
     tree::T
 end
 
-function (f::HalfSizeFunctor)(node::Int)
+function (f::_HalfSizeFunctor)(node::Int)
     return H2Trees.halfsize(f.tree, node)
 end
 
-struct LevelFunctor{T}
+struct _LevelFunctor{T}
     tree::T
 end
 
-function (f::LevelFunctor)(node::Int)
+function (f::_LevelFunctor)(node::Int)
     return H2Trees.level(f.tree, node)
 end
 
+"""
+    function translations(tree, translatingplan::AbstractPlan, translationtrait)
+
+Compute the translations of the tree based on the given translating plan and translation trait.
+
+# Arguments
+
+  - `tree`: The tree
+  - `translatingplan::AbstractPlan`: The plan describing the translations in the tree
+  - `translationtrait`: The trait describing the translations
+
+# Returns
+
+A tuple containing two vectors:
+
+  - The first vector contains `NamedTuple`s with fields `receivingnode`, `translatingnode`, and `translationID`.
+    The `translationID` is the id of the translation in the translation directions.
+  - The second vector contains the translation directions.
+"""
 function translations(tree, translatingplan::AbstractPlan, translationtrait)
     @assert istranslatingplan(translatingplan)
     return translations(tree, treetrait(tree), translatingplan, translationtrait)
@@ -35,9 +54,9 @@ function translations(
     return _translations(
         translatingplan,
         relevantlevels,
-        CenterFunctor(tree),
-        CenterFunctor(tree),
-        LevelFunctor(tree),
+        _CenterFunctor(tree),
+        _CenterFunctor(tree),
+        _LevelFunctor(tree),
         Val{eltype(tree)}(),
         translationtrait,
     )
@@ -51,10 +70,10 @@ function translations(
     return _translations(
         translatingplan,
         relevantlevels,
-        CenterFunctor(tree),
-        CenterFunctor(tree),
-        HalfSizeFunctor(tree),
-        LevelFunctor(tree),
+        _CenterFunctor(tree),
+        _CenterFunctor(tree),
+        _HalfSizeFunctor(tree),
+        _LevelFunctor(tree),
         Val{eltype(tree)}(),
         DirectionInvariancePerLevel(),
     )
@@ -68,10 +87,10 @@ function translations(
     return _translations(
         translatingplan,
         relevantlevels,
-        CenterFunctor(tree),
-        CenterFunctor(tree),
+        _CenterFunctor(tree),
+        _CenterFunctor(tree),
         H2Trees.minhalfsize(tree),
-        LevelFunctor(tree),
+        _LevelFunctor(tree),
         Val{eltype(tree)}(),
         DirectionInvariance(),
     )
@@ -102,9 +121,9 @@ function translations(
     return _translations(
         translatingplan,
         relevantlevels,
-        CenterFunctor(receivetree),
-        CenterFunctor(translatingtree),
-        LevelFunctor(receivetree),
+        _CenterFunctor(receivetree),
+        _CenterFunctor(translatingtree),
+        _LevelFunctor(receivetree),
         Val{promote_type(eltype(receivetree), eltype(translatingtree))}(),
         translationtrait,
     )
@@ -124,10 +143,10 @@ function translations(
     return _translations(
         translatingplan,
         relevantlevels,
-        CenterFunctor(receivetree),
-        CenterFunctor(translatingtree),
-        HalfSizeFunctor(receivetree),
-        LevelFunctor(receivetree),
+        _CenterFunctor(receivetree),
+        _CenterFunctor(translatingtree),
+        _HalfSizeFunctor(receivetree),
+        _LevelFunctor(receivetree),
         Val{promote_type(eltype(receivetree), eltype(translatingtree))}(),
         DirectionInvariancePerLevel();
         offset=H2Trees.center(receivetree, H2Trees.root(receivetree)) -
@@ -149,10 +168,10 @@ function translations(
     return _translations(
         translatingplan,
         relevantlevels,
-        CenterFunctor(receivetree),
-        CenterFunctor(translatingtree),
+        _CenterFunctor(receivetree),
+        _CenterFunctor(translatingtree),
         min(H2Trees.minhalfsize(receivetree), H2Trees.minhalfsize(translatingtree)),
-        LevelFunctor(receivetree),
+        _LevelFunctor(receivetree),
         Val{promote_type(eltype(receivetree), eltype(translatingtree))}(),
         DirectionInvariance();
         offset=H2Trees.center(receivetree, H2Trees.root(receivetree)) -
@@ -183,13 +202,13 @@ function _translations(
 
     # allocate required memory
     translationinfos = Vector{
-        Vector{@NamedTuple{receivingnode::Int,translatingnode::Int,translationID::Int}}
+        Vector{@NamedTuple{receivingnode::Int, translatingnode::Int, translationID::Int}}
     }(
         undef, length(relevantlevels)
     )
     for level in relevantlevels
         translationinfos[relevantlevelsdict[level]] = Vector{
-            @NamedTuple{receivingnode::Int,translatingnode::Int,translationID::Int}
+            @NamedTuple{receivingnode::Int, translatingnode::Int, translationID::Int}
         }(
             undef, ntranslationsperlevel[relevantlevelsdict[level]]
         )
