@@ -54,17 +54,11 @@ end
     include("plans/test_splitting.jl")
 end
 
-# @testitem "Code quality (Aqua.jl)" begin
-#     using Aqua
-#     using H2Trees
-#     Aqua.test_all(H2Trees)
-# end
-
-# @testitem "Code linting (JET.jl)" begin
-#     using JET
-#     using H2Trees
-#     JET.test_package(H2Trees; target_defined_modules=true)
-# end
+@testitem "Code quality (Aqua.jl)" begin
+    using Aqua
+    using H2Trees
+    Aqua.test_all(H2Trees)
+end
 
 @testitem "Code formatting (JuliaFormatter.jl)" begin
     using JuliaFormatter
