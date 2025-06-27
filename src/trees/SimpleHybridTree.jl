@@ -1,5 +1,9 @@
 # upper tree: [minlevel, hybridlevel]
 # lower tree: [hybridlevel+1, maxlevel]
+
+"""
+    SimpleHybridTree
+"""
 struct SimpleHybridTree{T} <: H2ClusterTree
     tree::T
     hybridlevel::Int

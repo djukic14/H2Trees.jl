@@ -1,3 +1,6 @@
+"""
+    QuadPointsTree
+"""
 struct QuadPointsTree{T} <: H2ClusterTree
     tree::T
 end

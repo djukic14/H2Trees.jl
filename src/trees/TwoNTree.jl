@@ -1,3 +1,6 @@
+"""
+    TwoNTree
+"""
 struct TwoNTree{N,D,T} <: H2ClusterTree
     nodes::Vector{Node{D}}
     root::Int

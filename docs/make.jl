@@ -20,12 +20,35 @@ import H2Trees:
     TranslatingNodesIterator,
     NearNodeIterator,
     isnear,
-    iswellseparated
+    iswellseparated,
+    TwoNTree,
+    BoundingBallTree,
+    tracecube,
+    traceball,
+    QuadPointsTree,
+    SimpleHybridTree
 
 DocMeta.setdocmeta!(H2Trees, :DocTestSetup, :(using H2Trees); recursive=true)
 
 makedocs(;
-    modules=[H2Trees],
+    modules=[
+        H2Trees,
+        if isdefined(Base, :get_extension)
+            Base.get_extension(H2Trees, :H2BEASTTrees)
+        else
+            H2Trees.H2BEASTTrees
+        end,
+        if isdefined(Base, :get_extension)
+            Base.get_extension(H2Trees, :H2ParallelKMeansTrees)
+        else
+            H2Trees.H2ParallelKMeansTrees
+        end,
+        if isdefined(Base, :get_extension)
+            Base.get_extension(H2Trees, :H2PlotlyJSTrees)
+        else
+            H2Trees.H2PlotlyJSTrees
+        end,
+    ],
     authors="Danijel Jukić <danijel.jukic14@gmail.com> and contributors",
     sitename="𝓗² Trees.jl",
     format=Documenter.HTML(;
@@ -38,8 +61,7 @@ makedocs(;
         "Home" => "index.md",
         "Manual" => [
             "TwoNTree" => "twontree.md",
-            "Hybrid Tree" => "hybridtree.md",
-            "Quadpoints Tree" => "quadpointtree.md",
+            "Simple Hybrid Tree" => "simplehybridtree.md",
             "Iterators" => "iterators.md",
             "Plans" => [
                 "Aggregate Plan" => "plans/aggregateplan.md",
@@ -49,9 +71,10 @@ makedocs(;
             ],
             "Translations" => "translations.md",
         ],
-        "Visualization" => [
-            "TwoNTree" => "visualization/twontree_plot.md",
-            "BoundingBallTree" => "visualization/boundingballtree_plot.md",
+        "Extensions" => [
+            "BEAST" => "ext/h2beasttrees.md",
+            "ParallelKMeans" => "ext/h2parallelkmeanstrees.md",
+            "PlotlyJS" => "ext/h2plotlyjstrees.md",
         ],
         "API Reference" => "apiref.md",
         "Contributing" => "contributing.md",

@@ -1,4 +1,7 @@
 
+"""
+    BlockTree
+"""
 struct BlockTree{T}
     testcluster::T
     trialcluster::T
