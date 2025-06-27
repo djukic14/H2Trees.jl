@@ -696,7 +696,6 @@ end
 
         @test H2Trees.testwellseparatedness(tree)
 
-        @test_throws ErrorException H2Trees.WellSeparatedIterator()
         @test H2Trees.WellSeparatedIterator(; iswellseparated=1).iswellseparated == 1
     end
 end

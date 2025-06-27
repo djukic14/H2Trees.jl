@@ -7,46 +7,49 @@ end
 
 # Distance measuring functions #############################################################
 
-struct IsNearFunctor{P}
+struct _IsNearFunctor{P}
     kwargs::P
 end
 
-function (f::IsNearFunctor)(tree)
+function (f::_IsNearFunctor)(tree)
     return isnear(tree, treetrait(tree); f.kwargs...)
 end
 
+"""
+    isnear
+"""
 function isnear(; kwargs...)
-    return IsNearFunctor(kwargs)
+    return _IsNearFunctor(kwargs)
 end
 
-struct IsNearNotBlockTreeFunctor{P}
+struct _IsNearNotBlockTreeFunctor{P}
     kwargs::P
 end
 
-function (f::IsNearNotBlockTreeFunctor)(tree, testnode, trialnode)
+function (f::_IsNearNotBlockTreeFunctor)(tree, testnode, trialnode)
     return isnear(tree, testnode, trialnode, treetrait(tree); f.kwargs...)
 end
 
 function isnear(tree, ::Any; kwargs...)
-    return IsNearNotBlockTreeFunctor(kwargs)
+    return _IsNearNotBlockTreeFunctor(kwargs)
 end
-struct IsFarNotBlockTreeFunctor{P}
+struct _IsFarNotBlockTreeFunctor{P}
     kwargs::P
 end
 
-function (f::IsFarNotBlockTreeFunctor)(tree, testnode, trialnode)
+function (f::_IsFarNotBlockTreeFunctor)(tree, testnode, trialnode)
     return !isnear(tree, testnode, trialnode, treetrait(tree); f.kwargs...)
 end
 
-function isfar(f::IsNearNotBlockTreeFunctor)
-    return IsFarNotBlockTreeFunctor(f.kwargs)
+function isfar(f::_IsNearNotBlockTreeFunctor)
+    return _IsFarNotBlockTreeFunctor(f.kwargs)
 end
 
-struct IsNearBlockTreeFunctor{P}
+struct _IsNearBlockTreeFunctor{P}
     kwargs::P
 end
 
-function (f::IsNearBlockTreeFunctor)(testtree, trialtree, testnode, trialnode)
+function (f::_IsNearBlockTreeFunctor)(testtree, trialtree, testnode, trialnode)
     return isnear(
         testtree,
         trialtree,
@@ -58,11 +61,11 @@ function (f::IsNearBlockTreeFunctor)(testtree, trialtree, testnode, trialnode)
     )
 end
 
-struct IsFarBlockTreeFunctor{P}
+struct _IsFarBlockTreeFunctor{P}
     kwargs::P
 end
 
-function (f::IsFarBlockTreeFunctor)(testtree, trialtree, testnode, trialnode)
+function (f::_IsFarBlockTreeFunctor)(testtree, trialtree, testnode, trialnode)
     return !isnear(
         testtree,
         trialtree,
@@ -74,12 +77,12 @@ function (f::IsFarBlockTreeFunctor)(testtree, trialtree, testnode, trialnode)
     )
 end
 
-function isfar(f::IsNearBlockTreeFunctor)
-    return IsFarBlockTreeFunctor(f.kwargs)
+function isfar(f::_IsNearBlockTreeFunctor)
+    return _IsFarBlockTreeFunctor(f.kwargs)
 end
 
 function isnear(tree, ::isBlockTree; kwargs...)
-    return IsNearBlockTreeFunctor(kwargs)
+    return _IsNearBlockTreeFunctor(kwargs)
 end
 
 function isnear(tree, testnode::Int, trialnode::Int; kwargs...)

@@ -16,7 +16,7 @@ function nearinteractions(
         tree, treetrait; extractselfvalues=extractselfvalues, isnear=isnear
     )
 
-    isleafnear = LeafNearFunctor(isnear)
+    isleafnear = _LeafNearFunctor(isnear)
 
     selfv = Vector{Int}[]
 
@@ -70,7 +70,7 @@ end
 function nearinteractions(testtree, trialtree; extractselfvalues=false, isnear=isnear)
     # no selfvalues for two trees
     @assert !extractselfvalues
-    isleafnear = LeafNearFunctor(isnear)
+    isleafnear = _LeafNearFunctor(isnear)
 
     testv = Vector{Int}[]
     trialv = Vector{Int}[]

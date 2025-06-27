@@ -33,7 +33,9 @@ function AggregateTranslatePlan(tree, TranslatingNodesIterator, ::isBlockTree)
 end
 
 function AggregateTranslatePlan(tree, TranslatingNodesIterator, ::AbstractTreeTrait)
-    return _AggregateTranslatePlan(tree, TranslatingFunctor(tree, TranslatingNodesIterator))
+    return _AggregateTranslatePlan(
+        tree, _TranslatingFunctor(tree, TranslatingNodesIterator)
+    )
 end
 
 function _AggregateTranslatePlan(
@@ -41,7 +43,7 @@ function _AggregateTranslatePlan(
 )
     return _AggregateTranslatePlan(
         testtree,
-        TranslatingBlockTreeFunctor(testtree, trialtree, TranslatingNodesIterator);
+        _TranslatingBlockTreeFunctor(testtree, trialtree, TranslatingNodesIterator);
     )
 end
 

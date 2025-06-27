@@ -1,10 +1,10 @@
 
-struct CorrectNearInteractionsFunctor{N,S}
+struct _CorrectNearInteractionsFunctor{N,S}
     nearinteractions::N
     symmetric::S
 end
 
-function (f::CorrectNearInteractionsFunctor)(testvalue, trialvalues, correction)
+function (f::_CorrectNearInteractionsFunctor)(testvalue, trialvalues, correction)
     return correct(
         f.nearinteractions, testvalue, trialvalues, correction; symmetric=f.symmetric
     )

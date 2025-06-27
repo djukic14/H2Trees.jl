@@ -70,11 +70,11 @@ function Base.iterate(itr::DepthFirstIterator, stack)
     end
 end
 
-struct LeafFunctor{T}
+struct _LeafFunctor{T}
     tree::T
 end
 
-function (f::LeafFunctor)(node::Int)
+function (f::_LeafFunctor)(node::Int)
     return H2Trees.isleaf(f.tree, node)
 end
 
@@ -95,7 +95,7 @@ An iterator over the leaf nodes in the tree.
 """
 function leaves(tree, node::Int=H2Trees.root(tree))
     return collect(
-        Int, Iterators.filter(LeafFunctor(tree), H2Trees.DepthFirstIterator(tree, node))
+        Int, Iterators.filter(_LeafFunctor(tree), H2Trees.DepthFirstIterator(tree, node))
     )
 end
 

@@ -53,15 +53,15 @@ function FarNodeIterator(testtree, trialtree, trialnode::Int; isfar=isfar)
     return NodeFilterIterator(testtree, trialtree, trialnode, isfar)
 end
 
-struct LeafNearFunctor{IN}
+struct _LeafNearFunctor{IN}
     isnear::IN
 end
 
-function (f::LeafNearFunctor)(tree, nodea, nodeb)
+function (f::_LeafNearFunctor)(tree, nodea, nodeb)
     return isleaf(tree, nodea) && f.isnear(tree, nodea, nodeb)
 end
 
-function (f::LeafNearFunctor)(testtree, trialtree, testnode, trialnode)
+function (f::_LeafNearFunctor)(testtree, trialtree, testnode, trialnode)
     return isleaf(testtree, testnode) && f.isnear(testtree, trialtree, testnode, trialnode)
 end
 
@@ -79,7 +79,7 @@ function nearnodevalues(tree, node::Int; isnear=isnear, storevalues=Val{:flatten
         _storeindices!(indices, values(tree, nearnode), storevalues)
     end
 
-    isleafnear = LeafNearFunctor(isnear)
+    isleafnear = _LeafNearFunctor(isnear)
 
     for parent in ParentUpwardsIterator(tree, node)
         for nearnode in NearNodeIterator(tree, parent; isnear=isleafnear)
@@ -97,7 +97,7 @@ function nearnodevalues(
         _storeindices!(indices, values(testtree, nearnode), storevalues)
     end
 
-    isleafnear = LeafNearFunctor(isnear)
+    isleafnear = _LeafNearFunctor(isnear)
 
     for parent in ParentUpwardsIterator(trialtree, trialnode)
         for nearnode in NearNodeIterator(testtree, trialtree, parent; isnear=isleafnear)
@@ -113,7 +113,7 @@ function farnodevalues(tree, node::Int; isfar=isfar)
         append!(indices, values(tree, farnode))
     end
 
-    isleaffar = LeafNearFunctor(isfar)
+    isleaffar = _LeafNearFunctor(isfar)
 
     for parent in ParentUpwardsIterator(tree, node)
         for farnode in FarNodeIterator(tree, parent; isfar=isleaffar)
@@ -129,7 +129,7 @@ function farnodevalues(testtree, trialtree, trialnode::Int; isfar=isfar)
         append!(indices, values(testtree, farnode))
     end
 
-    isleaffar = LeafNearFunctor(isfar)
+    isleaffar = _LeafNearFunctor(isfar)
 
     for parent in ParentUpwardsIterator(trialtree, trialnode)
         for farnode in FarNodeIterator(testtree, trialtree, parent; isfar=isleaffar)

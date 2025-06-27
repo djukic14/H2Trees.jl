@@ -202,13 +202,13 @@ function _translations(
 
     # allocate required memory
     translationinfos = Vector{
-        Vector{@NamedTuple{receivingnode::Int, translatingnode::Int, translationID::Int}}
+        Vector{@NamedTuple{receivingnode::Int,translatingnode::Int,translationID::Int}}
     }(
         undef, length(relevantlevels)
     )
     for level in relevantlevels
         translationinfos[relevantlevelsdict[level]] = Vector{
-            @NamedTuple{receivingnode::Int, translatingnode::Int, translationID::Int}
+            @NamedTuple{receivingnode::Int,translatingnode::Int,translationID::Int}
         }(
             undef, ntranslationsperlevel[relevantlevelsdict[level]]
         )

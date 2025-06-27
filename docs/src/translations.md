@@ -32,7 +32,7 @@ plans = H2Trees.galerkinplans(tree, H2Trees.AggregateAllNodesFunctor(), tfiterat
 # the translations can be found in the testdisaggregationplan in AggregateMode
 for translationtrait in [H2Trees.AllTranslations(), H2Trees.DirectionInvariance(),  H2Trees.DirectionInvariancePerLevel()]
     translationinfo, translations = H2Trees.translations(tree, plans.testdisaggregationplan, translationtrait)
-    println("For translationtrait: $translationtrait we have $(length(translations)) unique translations.")
+    println("For translationtrait $(typeof(translationtrait)) we have $(length(translations)) unique translations.")
 end
 ```
 
@@ -58,6 +58,6 @@ plans = H2Trees.petrovplans(tree, H2Trees.AggregateAllNodesFunctor(), tfiterator
 # the translations can be found in the testdisaggregationplan in AggregateMode
 for translationtrait in [H2Trees.AllTranslations(), H2Trees.DirectionInvariance(),  H2Trees.DirectionInvariancePerLevel()]
     translationinfo, translations = H2Trees.translations(tree, plans.testdisaggregationplan, translationtrait)
-    println("For translationtrait: $translationtrait we have $(length(translations)) unique translations.")
+    println("For translationtrait $(typeof(translationtrait)) we have $(length(translations)) unique translations.")
 end
 ```

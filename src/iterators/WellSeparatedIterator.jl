@@ -1,14 +1,37 @@
-struct WellSeparatedIteratorFunctor{IN}
+struct _WellSeparatedIteratorFunctor{IN}
     iswellseparated::IN
 end
 
-function (f::WellSeparatedIteratorFunctor)(tree)
+function (f::_WellSeparatedIteratorFunctor)(tree)
     return WellSeparatedIterator(
         tree, treetrait(tree); iswellseparated=f.iswellseparated(tree)
     )
 end
 
-function WellSeparatedIterator(; isnear=nothing, iswellseparated=nothing)
+"""
+    WellSeparatedIterator(; isnear=nothing, iswellseparated=nothing)
+
+Constructs a functor that returns a `WellSeparatedIterator` if provided a tree.
+Two nodes are considered well-separated if their parents are near each other and
+the nodes themselves are far apart.
+This assumes that child clusters are completely inside their parent clusters.
+
+# Arguments
+
+  - `isnear`: a function that takes a tree as input and returns another function. This returned function is then used to evaluate the `isnear` criterion.
+  - `iswellseparated`: a function that takes a tree as input and returns another function. This returned function is then used to evaluate the `iswellseparated` criterion.
+
+# Returns
+
+A `WellSeparatedIteratorFunctor` that returns a `WellSeparatedIterator` if provided with a tree.
+
+# Throws
+
+  - `error`: if both `isnear` and `iswellseparated` are provided, or if neither is provided.
+"""
+function WellSeparatedIterator(;
+    iswellseparated=nothing, isnear=isnothing(iswellseparated) ? H2Trees.isnear() : nothing
+)
     if !((isnear !== nothing) ⊻ (iswellseparated !== nothing))
         error("Supply one of (not both) isnear or iswellseparated")
     end
@@ -19,39 +42,78 @@ function WellSeparatedIterator(; isnear=nothing, iswellseparated=nothing)
         iswellseparated
     end
 
-    return WellSeparatedIteratorFunctor(filter)
+    return _WellSeparatedIteratorFunctor(filter)
 end
 
-struct WellSeparatedIteratorNotBlockTreeFunctor{IN}
+struct _WellSeparatedIteratorNotBlockTreeFunctor{IN}
     iswellseparated::IN
 end
 
-function (f::WellSeparatedIteratorNotBlockTreeFunctor)(tree, node)
+function (f::_WellSeparatedIteratorNotBlockTreeFunctor)(tree, node)
     return WellSeparatedIterator(tree, node; iswellseparated=f.iswellseparated)
 end
 
-function WellSeparatedIterator(tree, ::Any; iswellseparated=iswellseparated)
-    return WellSeparatedIteratorNotBlockTreeFunctor(iswellseparated)
+function WellSeparatedIterator(tree, ::AbstractTreeTrait; iswellseparated=iswellseparated)
+    return _WellSeparatedIteratorNotBlockTreeFunctor(iswellseparated)
 end
 
-struct WellSeparatedIteratorBlockTreeFunctor{IN}
+struct _WellSeparatedIteratorBlockTreeFunctor{IN}
     iswellseparated::IN
 end
 
-function (f::WellSeparatedIteratorBlockTreeFunctor)(testtree, trialtree, trialnode)
+function (f::_WellSeparatedIteratorBlockTreeFunctor)(testtree, trialtree, trialnode)
     return WellSeparatedIterator(
         testtree, trialtree, trialnode; iswellseparated=f.iswellseparated
     )
 end
 
 function WellSeparatedIterator(tree, ::isBlockTree; iswellseparated=iswellseparated)
-    return WellSeparatedIteratorBlockTreeFunctor(iswellseparated)
+    return _WellSeparatedIteratorBlockTreeFunctor(iswellseparated)
 end
 
+"""
+    WellSeparatedIterator(tree, node::Int; iswellseparated=iswellseparated)
+
+Constructs an iterator to identify which translations should occur and which should not.
+This determination is based on the concept of well-separated nodes.
+Two nodes are considered well-separated if their parents are near each other and
+the nodes themselves are far apart.
+This assumes that child clusters are completely inside their parent clusters.
+
+# Arguments
+
+  - `tree`: the tree in which the translations occur
+  - `node`: the node for which the translations happen
+  - `iswellseparated`: a function that returns `true` if two nodes are well-separated and `false` otherwise
+
+# Returns
+
+An iterator that yields the nodes that are well-separated from the specified `node` in the `tree`.
+"""
 function WellSeparatedIterator(tree, node::Int; iswellseparated=iswellseparated)
     return NodeFilterIterator(tree, node, iswellseparated)
 end
 
+"""
+    WellSeparatedIterator(testtree, trialtree, trialnode::Int; iswellseparated=iswellseparated)
+
+Constructs an iterator to identify which translations should occur and which should not.
+This determination is based on the concept of well-separated nodes.
+Two nodes are considered well-separated if their parents are near each other and
+the nodes themselves are far apart.
+This assumes that child clusters are completely inside their parent clusters.
+
+# Arguments
+
+  - `testtree`: the test tree
+  - `trialtree`: the trial tree
+  - `trialnode`: the node in the trial tree for which the translations happen
+  - `iswellseparated`: a function that returns `true` if two nodes are well-separated and `false` otherwise
+
+# Returns
+
+An iterator that yields the nodes in the `testtree` that are well-separated from the specified `trialnode` in the `trialtree`.
+"""
 function WellSeparatedIterator(
     testtree, trialtree, trialnode::Int; iswellseparated=iswellseparated
 )
@@ -67,40 +129,42 @@ function NotWellSeparatedIterator(
 )
     return NodeFilterIterator(testtree, trialtree, trialnode, isnotwellseparated)
 end
-
 # Well separated filters ###################################################################
 
-struct IsWellSeparatedFunctor{IN}
+struct _IsWellSeparatedFunctor{IN}
     isnear::IN
 end
 
-function (f::IsWellSeparatedFunctor)(tree)
+function (f::_IsWellSeparatedFunctor)(tree)
     return iswellseparated(tree, H2Trees.treetrait(tree); isnear=f.isnear(tree))
 end
 
+"""
+    iswellseparated
+"""
 function iswellseparated(; isnear=nothing)
-    return IsWellSeparatedFunctor(isnear)
+    return _IsWellSeparatedFunctor(isnear)
 end
 
-struct IsWellSeparatedNotBlockTreeFunctor{IN}
+struct _IsWellSeparatedNotBlockTreeFunctor{IN}
     isnear::IN
 end
 
-function (f::IsWellSeparatedNotBlockTreeFunctor)(tree, testnode, trialnode)
+function (f::_IsWellSeparatedNotBlockTreeFunctor)(tree, testnode, trialnode)
     return iswellseparated(
         tree, testnode, trialnode, H2Trees.treetrait(tree); isnear=f.isnear
     )
 end
 
 function iswellseparated(tree, ::Any; isnear=isnear)
-    return IsWellSeparatedNotBlockTreeFunctor(isnear)
+    return _IsWellSeparatedNotBlockTreeFunctor(isnear)
 end
 
-struct IsWellSeparatedBlockTreeFunctor{IN}
+struct _IsWellSeparatedBlockTreeFunctor{IN}
     isnear::IN
 end
 
-function (f::IsWellSeparatedBlockTreeFunctor)(testtree, trialtree, testnode, trialnode)
+function (f::_IsWellSeparatedBlockTreeFunctor)(testtree, trialtree, testnode, trialnode)
     return iswellseparated(
         testtree,
         trialtree,
@@ -113,7 +177,7 @@ function (f::IsWellSeparatedBlockTreeFunctor)(testtree, trialtree, testnode, tri
 end
 
 function iswellseparated(tree, ::isBlockTree; isnear=isnear)
-    return IsWellSeparatedBlockTreeFunctor(isnear)
+    return _IsWellSeparatedBlockTreeFunctor(isnear)
 end
 
 function iswellseparated(tree, testnode::Int, trialnode::Int)
@@ -183,11 +247,11 @@ end
 
 # Util functions ###########################################################################
 
-struct IsTranslatingNodeFunctor{IN}
+struct _IsTranslatingNodeFunctor{IN}
     TranslatingNodesIterator::IN
 end
 
-function (f::IsTranslatingNodeFunctor)(tree)
+function (f::_IsTranslatingNodeFunctor)(tree)
     return istranslatingnode(
         tree,
         H2Trees.treetrait(tree);
@@ -196,38 +260,38 @@ function (f::IsTranslatingNodeFunctor)(tree)
 end
 
 function istranslatingnode(; TranslatingNodesIterator=nothing)
-    return IsTranslatingNodeFunctor(TranslatingNodesIterator)
+    return _IsTranslatingNodeFunctor(TranslatingNodesIterator)
 end
 
-struct IsTranslatingNodeNotBlockTreeFunctor{T,IN}
+struct _IsTranslatingNodeNotBlockTreeFunctor{T,IN}
     tree::T
     TranslatingNodesIterator::IN
 end
 
-function (f::IsTranslatingNodeNotBlockTreeFunctor)(node)
+function (f::_IsTranslatingNodeNotBlockTreeFunctor)(node)
     return istranslatingnode(
         f.tree, node; TranslatingNodesIterator=f.TranslatingNodesIterator
     )
 end
 
-struct IsTranslatingNodeBlockTreeFunctor{IN}
+struct _IsTranslatingNodeBlockTreeFunctor{IN}
     TranslatingNodesIterator::IN
 end
 
-function (f::IsTranslatingNodeBlockTreeFunctor)(testtree, trialtree, trialnode)
+function (f::_IsTranslatingNodeBlockTreeFunctor)(testtree, trialtree, trialnode)
     return istranslatingnode(
         testtree, trialtree, trialnode; TranslatingNodesIterator=f.TranslatingNodesIterator
     )
 end
 
 function istranslatingnode(tree, ::Any; TranslatingNodesIterator=TranslatingNodesIterator)
-    return IsTranslatingNodeNotBlockTreeFunctor(tree, TranslatingNodesIterator)
+    return _IsTranslatingNodeNotBlockTreeFunctor(tree, TranslatingNodesIterator)
 end
 
 function istranslatingnode(
     tree, ::isBlockTree; TranslatingNodesIterator=TranslatingNodesIterator
 )
-    return IsTranslatingNodeBlockTreeFunctor(TranslatingNodesIterator)
+    return _IsTranslatingNodeBlockTreeFunctor(TranslatingNodesIterator)
 end
 
 function istranslatingnode(
@@ -276,6 +340,10 @@ function mintranslationlevel(
     return levels(tree)[end]
 end
 
-TranslatingNodesIterator = WellSeparatedIterator
+"""
+    TranslatingNodesIterator
 
+    This is a wrapper for the `WellSeparatedIterator`.
+"""
+TranslatingNodesIterator = WellSeparatedIterator
 NotTranslatingNodesIterator = NotWellSeparatedIterator

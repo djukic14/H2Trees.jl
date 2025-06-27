@@ -15,7 +15,12 @@ import H2Trees:
     AllTranslations,
     DirectionInvariance,
     DirectionInvariancePerLevel,
-    translations
+    translations,
+    WellSeparatedIterator,
+    TranslatingNodesIterator,
+    NearNodeIterator,
+    isnear,
+    iswellseparated
 
 DocMeta.setdocmeta!(H2Trees, :DocTestSetup, :(using H2Trees); recursive=true)
 

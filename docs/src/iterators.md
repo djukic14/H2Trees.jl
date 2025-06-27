@@ -118,6 +118,90 @@ The [`FarNodeIterator`](@ref) is defined accordingly.
 
 ## Well Separated Nodes
 
+The [`WellSeparatedIterator`](@ref) is used to identify which translations should occur and which should not.
+This determination is based on the concept of well-separated nodes.
+
+!!! note
+    Two nodes are considered well-separated if their parents are near each other and the nodes themselves are far apart.
+    This assumes that child clusters are completely inside their parent clusters.
+
+The [`WellSeparatedIterator`](@ref) can be configured using either an [`isnear`](@ref) or an [`iswellseparated`](@ref) function.
+
+The following example demonstrates the usage of the [`WellSeparatedIterator`](@ref) in the Galerkin-case
+
+```@example wellseparated1
+using CompScienceMeshes # hide
+using H2Trees # hide
+
+m = meshsphere(1.0, 0.1)
+tree = KMeansTree(vertices(m), 4; minvalues=60)
+
+# Using the WellSeparatedIterator with the default isnear() function
+println("First iterator\t", collect(H2Trees.WellSeparatedIterator(tree, 3)))
+
+# Creating a functor without specifying a tree first
+functor = H2Trees.WellSeparatedIterator()
+iterator = functor(tree)
+println("Second iterator\t", collect(iterator(tree, 3)))
+
+# Specifying a custom iswellseparated criterion
+functor = H2Trees.WellSeparatedIterator(; iswellseparated=(tree) -> (tree, nodea, nodeb) -> iseven(nodea))
+iterator = functor(tree)
+println("Third iterator\t", collect(iterator(tree, 3)))
+
+# Specifying a custom isnear criterion
+functor = H2Trees.WellSeparatedIterator(; isnear=(tree) -> (tree, nodea, nodeb) -> iseven(nodea))
+iterator = functor(tree)
+println("Fourth iterator\t", collect(iterator(tree, 3)))
+```
+
+When defining the [`isnear`](@ref) or [`iswellseparated`](@ref) criterion, it is necessary to provide a function that takes a tree as input and returns another function. This returned function is then used to evaluate the criterion.
+
+At first glance, this may seem like an unnecessary layer of indirection. However, it actually provides a significant advantage: it enables precomputations that can be performed only once, when the criterion function is first created, rather than every time the iterator is called.
+
+By allowing the initial function to perform any necessary precomputations and store the results, the returned function can then simply use these precomputed values to evaluate the criterion. This can significantly improve performance, especially when working with large trees or complex criteria.
+
+For the Petrov-Galerkin case, we assume that translations occur from the `trialtree` to the `testtree`.
+This scenario can be demonstrated with the following example
+
+```@example wellseparated2
+using CompScienceMeshes # hide
+using H2Trees # hide
+
+mx = meshsphere(1.0, 0.1)
+my = meshsphere(2.0, 0.1)
+
+tree = TwoNTree(vertices(mx), vertices(my), 0.1)
+
+# Using the WellSeparatedIterator with the default isnear() function
+println("First iterator\t", collect(H2Trees.WellSeparatedIterator(tree, 4)))
+
+# Creating a functor without specifying a tree first
+functor = H2Trees.WellSeparatedIterator()
+iterator = functor(tree)
+println("Second iterator\t", collect(iterator(H2Trees.testtree(tree), H2Trees.trialtree(tree), 4)))
+
+# Specifying a custom iswellseparated criterion
+functor = H2Trees.WellSeparatedIterator(;
+    iswellseparated=(tree) -> (testtree, trialtree, testnode, trialnode) -> iseven(testnode)
+)
+iterator = functor(tree)
+println("Third iterator\t", collect(iterator(H2Trees.testtree(tree), H2Trees.trialtree(tree), 4)))
+
+# Specifying a custom isnear criterion
+functor = H2Trees.WellSeparatedIterator(;
+    isnear=(tree) -> (testtree, trialtree, testnode, trialnode) -> iseven(testnode)
+)
+iterator = functor(tree)
+println("Fourth iterator\t", collect(iterator(H2Trees.testtree(tree), H2Trees.trialtree(tree), 4)))
+```
+
+In general, it is more efficient to use functors instead of functions in this context.
+
+## Translating Nodes
+
+The [`TranslatingNodesIterator`](@ref) is a wrapper for the [`WellSeparatedIterator`](@ref).
+
 ## Filtering Nodes
 
 [`NodeFilterIterator`](@ref) returns an iterator over nodes at the same level as `trialnode` in `trialtree`,

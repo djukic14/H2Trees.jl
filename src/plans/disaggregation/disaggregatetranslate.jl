@@ -34,7 +34,7 @@ end
 
 function DisaggregateTranslatePlan(tree, TranslatingNodesIterator, ::AbstractTreeTrait)
     return _DisaggregateTranslatePlan(
-        tree, TranslatingFunctor(tree, TranslatingNodesIterator)
+        tree, _TranslatingFunctor(tree, TranslatingNodesIterator)
     )
 end
 
@@ -43,7 +43,7 @@ function _DisaggregateTranslatePlan(
 )
     return _DisaggregateTranslatePlan(
         testtree,
-        TranslatingBlockTreeFunctor(testtree, trialtree, TranslatingNodesIterator);
+        _TranslatingBlockTreeFunctor(testtree, trialtree, TranslatingNodesIterator);
     )
 end
 

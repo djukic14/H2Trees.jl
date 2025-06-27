@@ -124,22 +124,22 @@ function (f::StoreNoNodeFunctor)(node::Int)
     return false
 end
 
-struct TranslatingFunctor{T,TF}
+struct _TranslatingFunctor{T,TF}
     tree::T
     translatingnodesiterator::TF
 end
 
-function (d::TranslatingFunctor)(node::Int)
+function (d::_TranslatingFunctor)(node::Int)
     return d.translatingnodesiterator(d.tree, node)
 end
 
-struct TranslatingBlockTreeFunctor{TE,TR,TF}
+struct _TranslatingBlockTreeFunctor{TE,TR,TF}
     testtree::TE
     trialtree::TR
     translatingnodesiterator::TF
 end
 
-function (d::TranslatingBlockTreeFunctor)(testnode::Int)
+function (d::_TranslatingBlockTreeFunctor)(testnode::Int)
     return d.translatingnodesiterator(d.trialtree, d.testtree, testnode)
 end
 
