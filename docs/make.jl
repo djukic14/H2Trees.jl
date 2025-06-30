@@ -87,4 +87,5 @@ deploydocs(;
     devbranch="main",
     push_preview=true,
     forcepush=true,
+    versions=["stable" => "v^", "dev" => "dev"],
 )
