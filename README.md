@@ -1,10 +1,11 @@
 # 𝓗² Trees
 
+<p align="center">
 <picture>
   <source media="(prefers-color-scheme)" srcset="docs/src/assets/logo.svg" height="190">
   <img alt="" src="" height="190">
 </picture>
-
+</p>
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://djukic14.github.io/H2Trees.jl/stable/)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://djukic14.github.io/H2Trees.jl/dev/)
