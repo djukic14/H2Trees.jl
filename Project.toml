@@ -21,21 +21,21 @@ H2ParallelKMeansTrees = ["ParallelKMeans"]
 H2PlotlyJSTrees = "PlotlyJS"
 
 [compat]
-julia = "1.10"
-LinearAlgebra = "1"
-StaticArrays = "1.9"
+Aqua = "0.8"
 BEAST = "2"
 CompScienceMeshes = "0.9"
-NURBS = "0.7"
+JET = "0.9"
+JuliaFormatter = "2.1"
+LinearAlgebra = "1"
+NURBS = "0.7, 0.8"
 ParallelKMeans = "1.1"
 PlotlyJS = "0.18"
-Aqua = "0.8"
 SparseArrays = "1"
+StaticArrays = "1.9"
 Test = "1"
-JuliaFormatter = "2.1"
 TestItemRunner = "1.1"
 TestItems = "1.0"
-JET = "0.9"
+julia = "1.10"
 
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
