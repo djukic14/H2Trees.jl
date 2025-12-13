@@ -1,7 +1,7 @@
 name = "H2Trees"
 uuid = "9db26ae3-82ff-4374-85e9-9ed87405fd16"
-authors = ["djukic14 <danijel.jukic14@gmail.com> and contributors"]
 version = "0.1.0"
+authors = ["djukic14 <danijel.jukic14@gmail.com> and contributors"]
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -24,7 +24,7 @@ H2PlotlyJSTrees = "PlotlyJS"
 Aqua = "0.8"
 BEAST = "2"
 CompScienceMeshes = "0.9"
-JET = "0.9"
+JET = "0.9, 0.11"
 JuliaFormatter = "2.1"
 LinearAlgebra = "1"
 NURBS = "0.7, 0.8"
