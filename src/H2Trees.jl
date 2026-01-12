@@ -134,16 +134,10 @@ function values(tree, node::Int)
     return values
 end
 
-function values(tree, nodes::Vector{Int})
+function values(tree, nodes)
     values = Int[]
     for node in nodes
-        if iszero(firstchild(tree, node))
-            append!(values, H2Trees.values(tree, node))
-        else
-            for i in H2Trees.leaves(tree, node)
-                append!(values, H2Trees.values(tree, Int(i)))
-            end
-        end
+        append!(values, H2Trees.values(tree, node))
     end
     return values
 end
