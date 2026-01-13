@@ -371,7 +371,7 @@ end
 function numberofvalues(tree, node::Int=root(tree))
     nvals = 0
     for leaf in H2Trees.leaves(tree, node)
-        nvals += length(tree.nodes[leaf].data.values)
+        nvals += length(data(tree, leaf).values)
     end
     return nvals
 end
