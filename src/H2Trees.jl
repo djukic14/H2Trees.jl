@@ -134,6 +134,14 @@ function values(tree, node::Int)
     return values
 end
 
+function values(tree, nodes)
+    values = Int[]
+    for node in nodes
+        append!(values, H2Trees.values(tree, node))
+    end
+    return values
+end
+
 function values(data::Union{BoxData,BoundingBallData})
     return data.values
 end
@@ -360,13 +368,12 @@ function _adjustnodesatlevels!(tree)
     end
 end
 
-function numberofvalues(tree)
-    maxvalue = 0
-    for leaf in H2Trees.leaves(tree)
-        maxvalue = max(maxvalue, maximum(H2Trees.values(tree, leaf)))
+function numberofvalues(tree, node::Int=root(tree))
+    nvals = 0
+    for leaf in H2Trees.leaves(tree, node)
+        nvals += length(data(tree, leaf).values)
     end
-
-    return maxvalue
+    return nvals
 end
 
 function valuesatnodes(tree; numberofvalues=H2Trees.numberofvalues(tree))
