@@ -11,7 +11,8 @@ using BEAST
     @test H2Trees.center(tree, 1) == SVector(0.0, 0.0, 0.0)
     @test H2Trees.halfsize(tree, 1) == 1.0
     @test H2Trees.level(tree, 1) == 1
-
+    @test H2Trees.values(tree, 1) == Int[]
+    @test H2Trees.values(tree, H2Trees.leaves(tree)) == Int[]
     @test H2Trees.LevelIterator(tree, 1) == Int[]
     @test H2Trees.treetrait(tree) == H2Trees.isTwoNTree()
 end
@@ -31,6 +32,8 @@ end
     @test H2Trees.halfsizes(tree) == [0.8, 0.4, 0.2, 0.1]
 
     @test H2Trees.nodesatlevel(tree) == tree.nodesatlevel
+    @test H2Trees.values(tree, H2Trees.root(tree)) ==
+        H2Trees.values(tree, H2Trees.leaves(tree, H2Trees.root(tree)))
 
     for node in H2Trees.DepthFirstIterator(tree)
         @test H2Trees.samelevelnodes(tree, node) ==
@@ -164,11 +167,15 @@ end
 
     for level in H2Trees.levels(tree)
         level in leaflevels && continue
+
+        iteratorvalues = H2Trees.values(tree, H2Trees.LevelIterator(tree, level))
+
         values = Int[]
         for node in H2Trees.LevelIterator(tree, level)
             append!(values, H2Trees.values(tree, node))
         end
-
+        @test iteratorvalues == values
+        @test sort(iteratorvalues) == Array(1:length(points))
         @test sort(values) == Array(1:length(points))
     end
 
