@@ -206,9 +206,10 @@ end
     @test H2Trees.findleafnode(tree, -1) == 0
 
     leafclusters = H2Trees.leafclusters(tree)
-
+    leavesvalues = H2Trees.values(tree, H2Trees.leaves(tree))
     for (i, leaf) in enumerate(H2Trees.leaves(tree))
         @test leafclusters[i] == H2Trees.values(tree, leaf)
+        @test issubset(leafclusters[i], leavesvalues)
     end
 end
 
