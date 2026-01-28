@@ -87,7 +87,10 @@ include("printing.jl")
 
 include("testingutils/testingutils.jl")
 
+include("protrusion.jl")
+
 export AggregatePlan, AggregateTranslatePlan, DisaggregatePlan, DisaggregateTranslatePlan
+export AggregateMode, AggregateTranslateMode
 
 function leafclusters(tree)
     clusters = Vector{Vector{Int}}(undef, length(H2Trees.leaves(tree)))
@@ -496,4 +499,4 @@ if !isdefined(Base, :get_extension)
     include("../ext/H2PlotlyJSTrees/H2PlotlyJSTrees.jl")
 end
 
-end
+end # module H2Trees

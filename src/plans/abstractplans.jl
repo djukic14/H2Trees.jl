@@ -207,3 +207,57 @@ end
 function (f::AggregateOnlyRootFunctor)(testtree, trialtree)
     return f
 end
+
+# Util functions ###########################################################################
+
+function aggregateallnodes()
+    return AggregateAllNodesFunctor()
+end
+
+function aggregaterootonly()
+    return AggregateRootFunctor()
+end
+
+# Functors for utils #######################################################################
+
+struct AggregateAllNodesNotBlockTreeFunctor end
+
+struct AggregateAllNodesBlockTreeFunctor end
+
+function (::AggregateAllNodesNotBlockTreeFunctor)(node::Int)
+    return true
+end
+
+function (::AggregateAllNodesBlockTreeFunctor)(testtree, trialtree, trialnode::Int)
+    return true
+end
+
+struct AggregateRootFunctor end
+
+function (a::AggregateRootFunctor)(tree)
+    return a(tree, H2Trees.treetrait(tree))
+end
+
+function (a::AggregateRootFunctor)(tree, ::Any)
+    return AggregateRootNotBlockTreeFunctor(tree)
+end
+
+function (a::AggregateRootFunctor)(tree, ::isBlockTree)
+    return AggregateRootBlockTreeFunctor(tree)
+end
+
+struct AggregateRootNotBlockTreeFunctor{T}
+    tree::T
+end
+
+function (f::AggregateRootNotBlockTreeFunctor)(node::Int)
+    return H2Trees.root(f.tree) == node
+end
+
+struct AggregateRootBlockTreeFunctor{T}
+    tree::T
+end
+
+function (::AggregateRootBlockTreeFunctor)(testtree, trialtree, trialnode::Int)
+    return H2Trees.root(trialtree) == trialnode
+end

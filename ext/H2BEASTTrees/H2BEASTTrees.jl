@@ -4,7 +4,7 @@ using BEAST
 using H2Trees
 
 import H2Trees: TwoNTree, QuadPointsTree, boundingbox, numberoflevels, isgalerkinsymmetric
-
+import H2Trees: BEASTProtrusionFunctor, halfsize, center
 """
     TwoNTree(space::BEAST.Space, minhalfsize; kwargs...)
 
@@ -46,6 +46,8 @@ function TwoNTree(testspace::BEAST.Space, trialspace::BEAST.Space, minhalfsize; 
         BEAST.positions(testspace), BEAST.positions(trialspace), minhalfsize; kwargs...
     )
 end
+
+include("protrusion.jl")
 
 include("QuadPointsTree.jl")
 

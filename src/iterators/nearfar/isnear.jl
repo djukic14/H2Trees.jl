@@ -27,7 +27,7 @@ struct _IsNearNotBlockTreeFunctor{P}
 end
 
 function (f::_IsNearNotBlockTreeFunctor)(tree, testnode, trialnode)
-    return isnear(tree, testnode, trialnode, treetrait(tree); f.kwargs...)
+    return isnear(tree, testnode, trialnode; f.kwargs...)
 end
 
 function isnear(tree, ::Any; kwargs...)
@@ -85,13 +85,32 @@ function isnear(tree, ::isBlockTree; kwargs...)
     return _IsNearBlockTreeFunctor(kwargs)
 end
 
-function isnear(tree, testnode::Int, trialnode::Int; kwargs...)
-    return isnear(tree, testnode, trialnode, treetrait(tree), kwargs...)
+function isnear(
+    tree, testnode::Int, trialnode::Int; minlevel::Int=level(tree, root(tree)), kwargs...
+)
+    level(tree, testnode) < minlevel && return true
+    return isnear(tree, testnode, trialnode, treetrait(tree); kwargs...)
 end
 
-function isnear(testtree, trialtree, testnode::Int, trialnode::Int)
+function isnear(
+    testtree,
+    trialtree,
+    testnode::Int,
+    trialnode::Int;
+    minlevel::Int=level(testtree, root(testnode)),
+    kwargs...,
+)
+    H2Trees.level(testtree, testnode) < minlevel && return true
+    H2Trees.level(trialtree, trialnode) < minlevel && return true
+
     return isnear(
-        testtree, trialtree, testnode, trialnode, treetrait(testtree), treetrait(trialtree)
+        testtree,
+        trialtree,
+        testnode,
+        trialnode,
+        treetrait(testtree),
+        treetrait(trialtree);
+        kwargs...,
     )
 end
 

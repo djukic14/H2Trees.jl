@@ -147,3 +147,6 @@ function Base.getindex(plan::AggregateTranslatePlan, receivingnode::Int, level::
         return Int[]
     end
 end
+function isreceivingnode(plan::AggregateTranslatePlan, node::Int)
+    return node in receivingnodes(plan, level(tree(plan), node))
+end
