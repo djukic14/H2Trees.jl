@@ -14,7 +14,14 @@ function (tree::H2ClusterTree)(node::Int)
 end
 
 function TwoNTree(
-    positions, minhalfsize; minlevel::Int=1, root::Int=1, boxdata=BoxData, minvalues=0
+    positions,
+    minhalfsize;
+    minlevel::Int=1,
+    root::Int=1,
+    minvalues=0,
+    maxprotrusion=NaN,
+    minsubdividelevel=minlevel + 2,
+    computeprotrusion=ComputeProtrusionFunctor(),
 )
     rootcenter, rootsize = boundingbox(positions)
 
@@ -25,20 +32,17 @@ function TwoNTree(
         minhalfsize;
         minlevel=minlevel,
         root=root,
-        boxdata=boxdata,
         minvalues=minvalues,
+        maxprotrusion=maxprotrusion,
+        minsubdividelevel=minsubdividelevel,
+        computeprotrusion=computeprotrusion,
     )
 end
 
 function TwoNTree(
-    center::SVector{N,T},
-    halfsize::T;
-    minlevel::Int=1,
-    root::Int=1,
-    boxdata=BoxData,
-    minvalues=0,
+    center::SVector{N,T}, halfsize::T; minlevel::Int=1, root::Int=1, minvalues=0
 ) where {N,T}
-    rootnode = Node(boxdata(0, Int[], center, halfsize, minlevel), 0, 0, 0)
+    rootnode = Node(BoxData(0, Int[], center, halfsize, minlevel), 0, 0, 0)
     return TwoNTree([rootnode], root, center, halfsize, [Int[]])
 end
 
@@ -49,20 +53,24 @@ function TwoNTree(
     minhalfsize::T;
     minlevel::Int=1,
     root::Int=1,
-    boxdata=BoxData,
     minvalues=0,
+    maxprotrusion=NaN,
+    minsubdividelevel=minlevel + 2,
+    computeprotrusion=ComputeProtrusionFunctor(),
 ) where {N,T}
-    tree = TwoNTree(center, halfsize; minlevel=minlevel, root=root, boxdata=boxdata)
+    tree = TwoNTree(center, halfsize; minlevel=minlevel, root=root)
 
     addpoints!(
         tree,
         points,
         minhalfsize;
+        minsubdividelevel=minsubdividelevel,
         minlevel=minlevel,
         rootsize=halfsize,
         rootcenter=center,
-        boxdata=boxdata,
         minvalues=minvalues,
+        maxprotrusion=maxprotrusion,
+        computeprotrusion=computeprotrusion,
     )
     _adjustnodesatlevels!(tree)
 
@@ -79,14 +87,16 @@ end
 
 # ClusterTrees API #########################################################################
 
-function route!(tree::TwoNTree, state, router; boxdata=BoxData)
+function route!(tree::TwoNTree, state, router)
     point = targetpoint(router)
     smallest_box_size = smallestboxsize(router)
-    minvals = minvalues(router)
+    # minvals = minvalues(router)
 
     nodeid, center, size, sfc_state, lvl = state
     size <= smallest_box_size && return state
-    isleaf(tree, nodeid) && length(values(tree, nodeid)) < minvals && return state
+    # isleaf(tree, nodeid) && length(values(tree, nodeid)) < minvals && return state
+    # !computeprotrusion(router)(center, size, pointid) && return state
+    !subdivide(router)(router.pointid, lvl) && return state
 
     target_sector, target_center, target_size = sector_center_size(point, center, size)
     target_pos = hilbert_positions[sfc_state][target_sector + 1] + 1
@@ -107,7 +117,7 @@ function route!(tree::TwoNTree, state, router; boxdata=BoxData)
         pos = newpos
     end
 
-    dat = boxdata(target_sector, Int[], target_center, target_size, target_level)
+    dat = BoxData(target_sector, Int[], target_center, target_size, target_level)
     child = insert!(chds, dat, pos)
 
     return child, target_center, target_size, target_sfc_state, target_level
@@ -182,6 +192,20 @@ function oppositesector(N::Int, sector)
     return (2^N - 1) - sector
 end
 
+function comparisonTwoNTree(points, root::Int, roothalfsize)
+    # TODO: there has to be a smarter way
+    # TODO: test this
+    nlevels = ceil(Int, log2(length(points)))
+
+    tree = TwoNTree(points, roothalfsize / 2^nlevels; root=root)
+
+    while length(tree.nodesatlevel[end]) < length(points)
+        nlevels += 1
+        tree = TwoNTree(points, roothalfsize / 2^nlevels; root=root)
+    end
+    return tree
+end
+
 function numberoflevels(halfsize, minhalfsize)
     return ceil(Int, log2(halfsize / minhalfsize))
 end
@@ -200,12 +224,11 @@ function addpoint!(
     minlevel::Int=H2Trees.level(tree, H2Trees.root(tree)),
     rootsize=H2Trees.halfsize(tree, H2Trees.root(tree)),
     rootcenter=H2Trees.center(tree, H2Trees.root(tree)),
-    boxdata=BoxData,
-    minvalues=0,
+    subdivide=CheckSubdivideFunctor(),
 )
-    router = Router(smallestboxsize, points, pointid, minvalues)
+    router = Router(smallestboxsize, points, subdivide, pointid)
     root_state = root(tree), rootcenter, rootsize, 1, minlevel
-    return update!(tree, root_state, pointid, router; boxdata=boxdata) do tree, node, data
+    return update!(tree, root_state, pointid, router) do tree, node, data
         push!(values(tree, node), data)
         node == root(tree) && return nothing
         prnt = parent(tree, node)
@@ -220,8 +243,7 @@ function addpoint!(
                 minlevel=minlevel,
                 rootsize=rootsize,
                 rootcenter=rootcenter,
-                boxdata=boxdata,
-                minvalues=minvalues,
+                subdivide=subdivide,
             )
         end
         return nothing
@@ -235,21 +257,30 @@ function addpoints!(
     minlevel::Int=level(tree, root(tree)),
     rootsize=halfsize(tree, root(tree)),
     rootcenter=center(tree, root(tree)),
-    boxdata=BoxData,
     minvalues=0,
+    minsubdividelevel=minlevel + 2,
+    maxprotrusion=NaN,
+    computeprotrusion=ComputeProtrusionFunctor(),
 )
+    subdivide = CheckSubdivideFunctor(
+        minvalues,
+        maxprotrusion,
+        minsubdividelevel,
+        computeprotrusion,
+        points,
+        H2Trees.root(tree),
+        rootsize,
+    )
     for i in eachindex(points)
         addpoint!(
             tree,
             points,
             i,
-            smallestboxsize,
-            ;
+            smallestboxsize;
             minlevel=minlevel,
             rootsize=rootsize,
             rootcenter=rootcenter,
-            boxdata=boxdata,
-            minvalues=minvalues,
+            subdivide=subdivide,
         )
     end
 end
@@ -279,3 +310,26 @@ function cornerpoints(tree::TwoNTree{N,D,T}, node::Int, i) where {N,D,T}
 end
 
 H2Trees.treetrait(::Type{TwoNTree{N,D,T}}) where {N,D,T} = isTwoNTree()
+
+# find node which contains point at given level
+function locatepointintree(tree, point, level)
+    tempnode = H2Trees.root(tree)
+    for _ in 1:level
+        if H2Trees.level(tree, tempnode) == level
+            return tempnode
+        end
+
+        newsector, _, _ = sector_center_size(
+            point, center(tree, tempnode), halfsize(tree, tempnode)
+        )
+
+        for child in children(tree, tempnode)
+            if sector(tree, child) == newsector
+                tempnode = child
+                break
+            end
+        end
+    end
+
+    return error("No suitable node at level $level found for point $point")
+end

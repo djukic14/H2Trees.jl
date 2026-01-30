@@ -3,7 +3,7 @@ using StaticArrays
 using BEAST
 using H2Trees
 
-import H2Trees: TwoNTree, QuadPointsTree, boundingbox, numberoflevels, isgalerkinsymmetric
+import H2Trees: TwoNTree, boundingbox, numberoflevels, isgalerkinsymmetric
 import H2Trees: BEASTProtrusionFunctor, halfsize, center
 """
     TwoNTree(space::BEAST.Space, minhalfsize; kwargs...)
@@ -20,8 +20,15 @@ Construct a TwoNTree from a given `BEAST.Space`.
 
 A TwoNTree.
 """
-function TwoNTree(space::BEAST.Space, minhalfsize; kwargs...)
-    return TwoNTree(BEAST.positions(space), minhalfsize; kwargs...)
+function TwoNTree(
+    space::BEAST.Space,
+    minhalfsize;
+    computeprotrusion=BEASTProtrusionFunctor(space),
+    kwargs...,
+)
+    return TwoNTree(
+        BEAST.positions(space), minhalfsize; computeprotrusion=computeprotrusion, kwargs...
+    )
 end
 
 """
@@ -48,8 +55,6 @@ function TwoNTree(testspace::BEAST.Space, trialspace::BEAST.Space, minhalfsize; 
 end
 
 include("protrusion.jl")
-
-include("QuadPointsTree.jl")
 
 # Helmholtz3D ##############################################################################
 

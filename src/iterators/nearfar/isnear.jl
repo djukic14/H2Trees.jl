@@ -97,7 +97,7 @@ function isnear(
     trialtree,
     testnode::Int,
     trialnode::Int;
-    minlevel::Int=level(testtree, root(testnode)),
+    minlevel::Int=level(testtree, root(testtree)),
     kwargs...,
 )
     H2Trees.level(testtree, testnode) < minlevel && return true

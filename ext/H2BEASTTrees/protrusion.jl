@@ -1,5 +1,5 @@
-function (f::BEASTProtrusionFunctor)(tree, leaf::Int, value::Int)
-    return f(H2Trees.center(tree, leaf), H2Trees.halfsize(tree, leaf), value)
+function (f::BEASTProtrusionFunctor)(tree, node::Int, value::Int)
+    return f(H2Trees.center(tree, node), H2Trees.halfsize(tree, node), value)
 end
 
 function (f::BEASTProtrusionFunctor)(

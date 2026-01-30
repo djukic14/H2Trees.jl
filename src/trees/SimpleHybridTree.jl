@@ -43,8 +43,4 @@ function hybridlevel(tree::SimpleHybridTree)
     return tree.hybridlevel
 end
 
-function uniquepointstreetrait(tree::SimpleHybridTree)
-    return uniquepointstreetrait(tree.tree)
-end
-
 @treewrapper SimpleHybridTree

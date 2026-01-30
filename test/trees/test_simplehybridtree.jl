@@ -18,7 +18,6 @@ using H2Trees
 
     hybridtree = SimpleHybridTree(tree; hybridhalfsize=0.2)
     @test H2Trees.hybridlevel(hybridtree) == 4
-    @test H2Trees.uniquepointstreetrait(hybridtree) == H2Trees.uniquepointstreetrait(tree)
 
     @test_nowarn println(hybridtree)
     @test_nowarn display(hybridtree)

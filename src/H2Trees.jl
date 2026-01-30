@@ -41,8 +41,6 @@ end
 export treetrait
 export isTwoNTree
 export isBlockTree
-export UniquePoints
-export NonUniquePoints
 
 struct Node{D}
     data::D
@@ -476,7 +474,6 @@ include("trees/clustertrees.jl")
 include("trees/TwoNTree.jl")
 include("trees/treewrappers.jl")
 include("trees/SimpleHybridTree.jl")
-include("trees/QuadPointsTree.jl")
 include("trees/BoundingBallTree.jl")
 include("trees/BlockTree.jl")
 include("trees/KMeansTree.jl")
@@ -489,12 +486,11 @@ function isgalerkinsymmetric(::Type{T}) where {T}
     return false
 end
 
-export TwoNTree, BlockTree, QuadPointsTree, SimpleHybridTree, KMeansTree
+export TwoNTree, BlockTree, SimpleHybridTree, KMeansTree
 
 # for backwards compatibility with julia versions below 1.9
 if !isdefined(Base, :get_extension)
     include("../ext/H2BEASTTrees/H2BEASTTrees.jl")
-    include("../ext/H2NURBSTrees/H2NURBSTrees.jl")
     include("../ext/H2ParallelKMeansTrees/H2ParallelKMeansTrees.jl")
     include("../ext/H2PlotlyJSTrees/H2PlotlyJSTrees.jl")
 end

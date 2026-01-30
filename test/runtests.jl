@@ -27,16 +27,6 @@ end
     include("plans/test_planapi.jl")
 end
 
-@testitem "H2NURBSTrees" begin
-    # using NURBS
-    # using BEAST
-    # BEASTnurbs = Base.get_extension(BEAST, :BEASTnurbs)
-end
-
-@testitem "H2BEASTTrees" begin
-    include("H2BEASTTrees/test_quadpointstree.jl")
-end
-
 @testitem "Translations" begin
     include("translations/test_translations.jl")
 end
