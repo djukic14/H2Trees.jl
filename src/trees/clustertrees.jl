@@ -291,7 +291,7 @@ function CheckSubdivideFunctor(
     # we subdivide if number of values >= minvalues
     # we do not subdivide if function protrudes more than
 
-    comptree = comparisonTwoNTree(points, root, roothalfsize)
+    comptree = comparisonTwoNTree(points, root, roothalfsize, minlevel)
     pointmaxlevel = zeros(Int, length(points))
     conformingnodes = zeros(Bool, H2Trees.numberofnodes(comptree))
     conformingnodes[1] = true
@@ -332,10 +332,11 @@ function CheckSubdivideFunctor(
                         end
                     end
                 end
-                conformingnodes[node] = conforming
+                conformingnodes[node - H2Trees.root(comptree) + 1] = conforming
             end
 
-            if conformingnodes[node] && H2Trees.isleaf(comptree, node)
+            if conformingnodes[node - H2Trees.root(comptree) + 1] &&
+                H2Trees.isleaf(comptree, node)
                 for val in H2Trees.values(comptree, node)
                     pointmaxlevel[val] = max(pointmaxlevel[val], level)
                 end

@@ -192,12 +192,12 @@ function oppositesector(N::Int, sector)
     return (2^N - 1) - sector
 end
 
-function comparisonTwoNTree(points, root::Int, roothalfsize)
+function comparisonTwoNTree(points, root::Int, roothalfsize, minlevel)
     # TODO: there has to be a smarter way
     # TODO: test this
     nlevels = ceil(Int, log2(length(points)))
 
-    tree = TwoNTree(points, roothalfsize / 2^nlevels; root=root)
+    tree = TwoNTree(points, roothalfsize / 2^nlevels; root=root, minlevel=minlevel)
 
     while length(tree.nodesatlevel[end]) < length(points)
         nlevels += 1
