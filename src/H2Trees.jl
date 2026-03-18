@@ -70,7 +70,6 @@ include("iterators/NodeFilterIterator.jl")
 
 include("iterators/nearfar/NearNodeIterator.jl")
 include("iterators/nearfar/nearinteractions.jl")
-# include("iterators/nearfar/corrector.jl")
 include("iterators/nearfar/isnear.jl")
 
 include("iterators/WellSeparatedIterator.jl")

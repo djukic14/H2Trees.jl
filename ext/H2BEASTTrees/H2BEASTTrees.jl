@@ -48,9 +48,21 @@ trial space.
 
 A TwoNTree.
 """
-function TwoNTree(testspace::BEAST.Space, trialspace::BEAST.Space, minhalfsize; kwargs...)
+function TwoNTree(
+    testspace::BEAST.Space,
+    trialspace::BEAST.Space,
+    minhalfsize;
+    testcomputeprotrusion=BEASTProtrusionFunctor(testspace),
+    trialcomputeprotrusion=BEASTProtrusionFunctor(trialspace),
+    kwargs...,
+)
     return TwoNTree(
-        BEAST.positions(testspace), BEAST.positions(trialspace), minhalfsize; kwargs...
+        BEAST.positions(testspace),
+        BEAST.positions(trialspace),
+        minhalfsize;
+        testcomputeprotrusion=testcomputeprotrusion,
+        trialcomputeprotrusion=trialcomputeprotrusion,
+        kwargs...,
     )
 end
 

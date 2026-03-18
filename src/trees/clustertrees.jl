@@ -303,6 +303,15 @@ function CheckSubdivideFunctor(
     conformingnodes = zeros(Bool, numberofnodes(comptree))
     conformingnodes[1] = true
 
+    for child in children(comptree, root)
+        for val in values(comptree, child)
+            if computeprotrusion(comptree, child, val) >= maxprotrusion
+                conformingnodes[1] = false
+                break
+            end
+        end
+    end
+
     for level in levels(comptree)[2:end]
         for node in LevelIterator(comptree, level)
             #if parent is not conforming, this node is not conforming and we skip checks
@@ -342,7 +351,7 @@ function CheckSubdivideFunctor(
 
             if conformingnodes[node - H2Trees.root(comptree) + 1] && isleaf(comptree, node)
                 for val in values(comptree, node)
-                    pointmaxlevel[val] = max(pointmaxlevel[val], level)
+                    pointmaxlevel[val] = max(pointmaxlevel[val], level - 1)
                 end
             end
         end

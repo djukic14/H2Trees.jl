@@ -191,11 +191,28 @@ end
 
 function comparisonTwoNTree(points, root::Int, roothalfsize, minlevel)
     nlevels = 1
-    tree = TwoNTree(points, roothalfsize / 2^nlevels; root=root, minlevel=minlevel)
+    # tree = TwoNTree(points, roothalfsize / 2^nlevels; root=root, minlevel=minlevel)
+    rootcenter, _ = boundingbox(points)
+    tree = TwoNTree(
+        SVector(rootcenter...),
+        points,
+        roothalfsize,
+        roothalfsize / 2^nlevels;
+        minlevel=minlevel,
+        root=root,
+    )
 
     while length(tree.nodesatlevel[end]) < length(points)
         nlevels += 1
-        tree = TwoNTree(points, roothalfsize / 2^nlevels; root=root, minlevel=minlevel)
+        tree = TwoNTree(
+            SVector(rootcenter...),
+            points,
+            roothalfsize,
+            roothalfsize / 2^nlevels;
+            minlevel=minlevel,
+            root=root,
+        )
+        # tree = TwoNTree(points, roothalfsize / 2^nlevels; root=root, minlevel=minlevel)
     end
     return tree
 end
@@ -215,9 +232,9 @@ function addpoint!(
     points,
     pointid,
     smallestboxsize;
-    minlevel::Int=H2Trees.level(tree, H2Trees.root(tree)),
-    rootsize=H2Trees.halfsize(tree, H2Trees.root(tree)),
-    rootcenter=H2Trees.center(tree, H2Trees.root(tree)),
+    minlevel::Int=level(tree, root(tree)),
+    rootsize=halfsize(tree, root(tree)),
+    rootcenter=center(tree, root(tree)),
     subdivide=CheckSubdivideFunctor(),
 )
     router = Router(smallestboxsize, points, subdivide, pointid)

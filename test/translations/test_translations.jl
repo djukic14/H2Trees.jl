@@ -120,7 +120,7 @@ end
     )
     X = raviartthomas(mx)
     Y = raviartthomas(my)
-    tree = TwoNTree(Y, X, λ / 10; minvaluestest=20, minvaluestrial=20)
+    tree = TwoNTree(Y, X, λ / 10; testminvalues=20, trialminvalues=20)
 
     disaggregationplan = H2Trees.DisaggregateTranslatePlan(
         H2Trees.testtree(tree), H2Trees.trialtree(tree), H2Trees.TranslatingNodesIterator
@@ -181,7 +181,7 @@ end
 
     X = raviartthomas(mx)
     Y = raviartthomas(my)
-    tree = TwoNTree(X, Y, λ / 10; minvaluestest=20, minvaluestrial=20)
+    tree = TwoNTree(X, Y, λ / 10; testminvalues=20, trialminvalues=20)
 
     disaggregationplan = H2Trees.DisaggregateTranslatePlan(
         H2Trees.testtree(tree), H2Trees.trialtree(tree), H2Trees.TranslatingNodesIterator
@@ -314,7 +314,7 @@ end
     ]
         for TranslationTrait in TranslationTraits
             Y = raviartthomas(my)
-            tree2 = TwoNTree(X, Y, λ / 10; minvaluestest=20, minvaluestrial=30)
+            tree2 = TwoNTree(X, Y, λ / 10; testminvalues=20, trialminvalues=30)
 
             disaggregationplan2 = H2Trees.DisaggregateTranslatePlan(
                 H2Trees.testtree(tree2),

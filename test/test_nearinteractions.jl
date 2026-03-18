@@ -189,7 +189,7 @@ end
             Y = raviartthomas(my)
 
             minhalfsize = λ / 9
-            tree = TwoNTree(X, Y, minhalfsize; minvaluestest=10)
+            tree = TwoNTree(X, Y, minhalfsize; testminvalues=10)
             testtree = H2Trees.testtree(tree)
             trialtree = H2Trees.trialtree(tree)
 
