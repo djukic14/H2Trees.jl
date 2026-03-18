@@ -8,7 +8,7 @@ function nearinteractions(tree, ::isBlockTree; kwargs...)
 end
 
 function nearinteractions(
-    tree, treetrait::A; extractselfvalues=false, isnear=isnear
+    tree, ::A; extractselfvalues=false, isnear=isnear
 ) where {A<:AbstractTreeTrait}
     isleafnear = _LeafNearFunctor(isnear)
 

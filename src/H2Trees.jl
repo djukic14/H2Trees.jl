@@ -74,7 +74,6 @@ include("iterators/nearfar/nearinteractions.jl")
 include("iterators/nearfar/isnear.jl")
 
 include("iterators/WellSeparatedIterator.jl")
-include("iterators/AllLeavesTranslationsIterator.jl")
 
 include("plans/plans.jl")
 
