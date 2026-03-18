@@ -20,7 +20,7 @@ function TwoNTree(
     root::Int=1,
     minvalues=0,
     maxprotrusion=NaN,
-    minsubdividelevel=minlevel + 2,
+    minsubdividelevel=minlevel + 1,
     computeprotrusion=ComputeProtrusionFunctor(),
 )
     rootcenter, rootsize = boundingbox(positions)
@@ -55,7 +55,7 @@ function TwoNTree(
     root::Int=1,
     minvalues=0,
     maxprotrusion=NaN,
-    minsubdividelevel=minlevel + 2,
+    minsubdividelevel=minlevel + 1,
     computeprotrusion=ComputeProtrusionFunctor(),
 ) where {N,T}
     tree = TwoNTree(center, halfsize; minlevel=minlevel, root=root)
@@ -77,7 +77,7 @@ function TwoNTree(
     return tree
 end
 
-function sector_center_size(pt, ct, hs)
+function sectorcentersize(pt, ct, hs)
     hs = hs / 2
     bl = pt .> ct
     ct = ifelse.(bl, ct .+ hs, ct .- hs)
@@ -90,15 +90,12 @@ end
 function route!(tree::TwoNTree, state, router)
     point = targetpoint(router)
     smallest_box_size = smallestboxsize(router)
-    # minvals = minvalues(router)
 
     nodeid, center, size, sfc_state, lvl = state
     size <= smallest_box_size && return state
-    # isleaf(tree, nodeid) && length(values(tree, nodeid)) < minvals && return state
-    # !computeprotrusion(router)(center, size, pointid) && return state
     !subdivide(router)(router.pointid, lvl) && return state
 
-    target_sector, target_center, target_size = sector_center_size(point, center, size)
+    target_sector, target_center, target_size = sectorcentersize(point, center, size)
     target_pos = hilbert_positions[sfc_state][target_sector + 1] + 1
     target_sfc_state = hilbert_states[sfc_state][target_sector + 1] + 1
     target_level = lvl + 1
@@ -193,15 +190,12 @@ function oppositesector(N::Int, sector)
 end
 
 function comparisonTwoNTree(points, root::Int, roothalfsize, minlevel)
-    # TODO: there has to be a smarter way
-    # TODO: test this
-    nlevels = ceil(Int, log2(length(points)))
-
+    nlevels = 1
     tree = TwoNTree(points, roothalfsize / 2^nlevels; root=root, minlevel=minlevel)
 
     while length(tree.nodesatlevel[end]) < length(points)
         nlevels += 1
-        tree = TwoNTree(points, roothalfsize / 2^nlevels; root=root)
+        tree = TwoNTree(points, roothalfsize / 2^nlevels; root=root, minlevel=minlevel)
     end
     return tree
 end
@@ -258,7 +252,7 @@ function addpoints!(
     rootsize=halfsize(tree, root(tree)),
     rootcenter=center(tree, root(tree)),
     minvalues=0,
-    minsubdividelevel=minlevel + 2,
+    minsubdividelevel=minlevel + 1,
     maxprotrusion=NaN,
     computeprotrusion=ComputeProtrusionFunctor(),
 )
@@ -269,6 +263,7 @@ function addpoints!(
         computeprotrusion,
         points,
         H2Trees.root(tree),
+        minlevel,
         rootsize,
     )
     for i in eachindex(points)
@@ -311,15 +306,36 @@ end
 
 H2Trees.treetrait(::Type{TwoNTree{N,D,T}}) where {N,D,T} = isTwoNTree()
 
-# find node which contains point at given level
-function locatepointintree(tree, point, level)
-    tempnode = H2Trees.root(tree)
-    for _ in 1:level
+"""
+    locatepoint(tree, point, level)
+
+Find the node in `tree` at the given `level` whose box contains `point`.
+
+Starting from the root, the function descends the tree by determining which child sector
+contains `point` at each level, until the target `level` is reached.
+
+# Arguments
+
+  - `tree`: A `TwoNTree`.
+  - `point`: The point to locate.
+  - `level`: The tree level at which to find the containing node.
+
+# Returns
+
+  - The node index of the box at `level` that contains `point`.
+
+# Throws
+
+  - An error if no suitable node at `level` is found for `point`.
+"""
+function locatepoint(tree, point, level)
+    tempnode = root(tree)
+    for _ in minimumlevel(tree):level
         if H2Trees.level(tree, tempnode) == level
             return tempnode
         end
 
-        newsector, _, _ = sector_center_size(
+        newsector, _, _ = sectorcentersize(
             point, center(tree, tempnode), halfsize(tree, tempnode)
         )
 

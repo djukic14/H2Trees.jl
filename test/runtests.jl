@@ -18,6 +18,8 @@ end
 
 @testitem "TwoNTree" begin
     include("trees/test_TwoNTree.jl")
+    include("trees/test_comparisontree.jl")
+    include("trees/test_checksubdivision.jl")
 end
 
 @testitem "Plans" begin
@@ -42,6 +44,10 @@ end
 @testitem "Simple Hybrid Tree" begin
     include("trees/test_simplehybridtree.jl")
     include("plans/test_splitting.jl")
+end
+
+@testitem "H2BEASTTrees" begin
+    include("H2BEASTTrees/test_operators.jl")
 end
 
 @testitem "Code quality (Aqua.jl)" begin

@@ -283,31 +283,37 @@ function CheckSubdivideFunctor()
 end
 
 function CheckSubdivideFunctor(
-    minvalues::Int, maxprotrusion, minlevel, computeprotrusion, points, root, roothalfsize
+    minvalues::Int,
+    maxprotrusion,
+    minsubdividelevel,
+    computeprotrusion,
+    points,
+    root,
+    minlevel,
+    roothalfsize,
 )
     (iszero(minvalues) && isnan(maxprotrusion)) && return CheckSubdivideFunctor()
 
-    # we subdivide until minlevel, otherwise:
+    # we subdivide until minsubdividelevel, otherwise:
     # we subdivide if number of values >= minvalues
-    # we do not subdivide if function protrudes more than
+    # we do not subdivide if function protrudes more than maxprotrusion after subdivision
 
     comptree = comparisonTwoNTree(points, root, roothalfsize, minlevel)
-    pointmaxlevel = zeros(Int, length(points))
-    conformingnodes = zeros(Bool, H2Trees.numberofnodes(comptree))
+    pointmaxlevel = fill(minsubdividelevel, length(points))
+    conformingnodes = zeros(Bool, numberofnodes(comptree))
     conformingnodes[1] = true
 
-    for level in H2Trees.levels(comptree)[2:end]
-        for node in H2Trees.LevelIterator(comptree, level)
+    for level in levels(comptree)[2:end]
+        for node in LevelIterator(comptree, level)
             #if parent is not conforming, this node is not conforming and we skip checks
-            # conforming = conformingnodes[H2Trees.parent(comptree, node) - H2Trees.root(comptree) + 1]
 
             conforming = true
 
-            if conformingnodes[H2Trees.parent(comptree, node) - H2Trees.root(comptree) + 1]
-                if level <= minlevel
+            if conformingnodes[parent(comptree, node) - H2Trees.root(comptree) + 1]
+                if level <= minsubdividelevel
                     conforming = true
                 else
-                    vals = H2Trees.values(comptree, node)
+                    vals = values(comptree, node)
                     if length(vals) <= minvalues
                         conforming = false
                     end
@@ -315,8 +321,8 @@ function CheckSubdivideFunctor(
                     if conforming && !isnan(maxprotrusion)
 
                         # we need to check if after splitting the protrusion is acceptable
-                        for child in H2Trees.children(comptree, node)
-                            for val in H2Trees.values(comptree, child)
+                        for child in children(comptree, node)
+                            for val in values(comptree, child)
                                 if computeprotrusion(comptree, child, val) >= maxprotrusion
                                     conforming = false
                                     break
@@ -327,7 +333,6 @@ function CheckSubdivideFunctor(
 
                     if !conforming
                         for val in vals
-                            # pointmaxlevel[val] = level - 1
                             pointmaxlevel[val] = max(pointmaxlevel[val], level - 1)
                         end
                     end
@@ -335,9 +340,8 @@ function CheckSubdivideFunctor(
                 conformingnodes[node - H2Trees.root(comptree) + 1] = conforming
             end
 
-            if conformingnodes[node - H2Trees.root(comptree) + 1] &&
-                H2Trees.isleaf(comptree, node)
-                for val in H2Trees.values(comptree, node)
+            if conformingnodes[node - H2Trees.root(comptree) + 1] && isleaf(comptree, node)
+                for val in values(comptree, node)
                     pointmaxlevel[val] = max(pointmaxlevel[val], level)
                 end
             end
