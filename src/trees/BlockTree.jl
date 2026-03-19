@@ -21,7 +21,7 @@ function TwoNTree(
     testcenter, testhalfsize = boundingbox(testpositions)
     trialcenter, trialhalfsize = boundingbox(trialpositions)
 
-    minhalfsize, testroothalfsize, testminlevel, testminsubdividelevel, trialroothalfsize, trialminlevel, trialminsubdividelevel = adjusttwontreeblocktreeparameters(
+    minhalfsize, testroothalfsize, testminlevel, trialroothalfsize, trialminlevel, = adjusttwontreeblocktreeparameters(
         testhalfsize, trialhalfsize, minhalfsize
     )
 
@@ -34,7 +34,6 @@ function TwoNTree(
         minvalues=testminvalues,
         maxprotrusion=testmaxprotrusion,
         computeprotrusion=testcomputeprotrusion,
-        minsubdividelevel=testminsubdividelevel,
     )
 
     trialtree = TwoNTree(
@@ -46,7 +45,6 @@ function TwoNTree(
         minvalues=trialminvalues,
         maxprotrusion=trialmaxprotrusion,
         computeprotrusion=trialcomputeprotrusion,
-        minsubdividelevel=trialminsubdividelevel,
     )
 
     return BlockTree(testtree, trialtree)
@@ -61,10 +59,9 @@ function adjusttwontreeblocktreeparameters(testhalfsize, trialhalfsize, minhalfs
         return minhalfsize,
         roothalfsize(commonhalfsize, minhalfsize),
         1,
-        0,
         roothalfsize(commonhalfsize, minhalfsize),
-        1,
-        0
+        1
+
     elseif trialhalfsize > testhalfsize
         # case where test tree is larger than trial tree
         testroothalfsize = roothalfsize(testhalfsize, minhalfsize)
@@ -73,16 +70,7 @@ function adjusttwontreeblocktreeparameters(testhalfsize, trialhalfsize, minhalfs
         testminlevel = numberoflevels(trialroothalfsize, testroothalfsize) + 1
         trialminlevel = 1
 
-        testminsubdividelevel = testminlevel - 1
-        trialminsubdividelevel = trialminlevel - 1
-
-        return minhalfsize,
-        testroothalfsize,
-        testminlevel,
-        testminsubdividelevel,
-        trialroothalfsize,
-        trialminlevel,
-        trialminsubdividelevel
+        return minhalfsize, testroothalfsize, testminlevel, trialroothalfsize, trialminlevel
     else
         # case where trial tree is larger than test tree
         trialroothalfsize = roothalfsize(trialhalfsize, minhalfsize)
@@ -91,16 +79,7 @@ function adjusttwontreeblocktreeparameters(testhalfsize, trialhalfsize, minhalfs
         trialminlevel = numberoflevels(testroothalfsize, trialroothalfsize) + 1
         testminlevel = 1
 
-        trialminsubdividelevel = trialminlevel - 1
-        testminsubdividelevel = testminlevel - 1
-
-        return minhalfsize,
-        testroothalfsize,
-        testminlevel,
-        testminsubdividelevel,
-        trialroothalfsize,
-        trialminlevel,
-        trialminsubdividelevel
+        return minhalfsize, testroothalfsize, testminlevel, trialroothalfsize, trialminlevel
     end
 end
 

@@ -102,7 +102,7 @@ end
         # "sphere6",
         # "sphere7",
         # "sphere8",
-        # "spherewithcenter",
+        "spherewithcenter",
         # "spherewithcenter2",
         # "spherewithcenter3",
         # "spherewithcenter4",
@@ -118,7 +118,7 @@ end
         # "spherewithcenter14",
         # "spherewithcenter15",
         # "spherewithcenter16",
-        # "twospheres",
+        "twospheres",
         # "twospheres2",
         # "twospheres3",
         # "twospheres4",
@@ -135,10 +135,10 @@ end
         for (iy, my) in enumerate(ms)
             Y = raviartthomas(my)
             trialprotrusion = H2Trees.BEASTProtrusionFunctor(Y)
-            for testmaxprotrusion in [0.1, 0.5, 1.0]
-                for trialmaxprotrusion in [0.1, 0.5, 1.0]
-                    for testminvalues in [0, 10, 100]
-                        for trialminvalues in [0, 10, 100]
+            for testmaxprotrusion in [0.1, 0.5]
+                for trialmaxprotrusion in [0.1, 0.5]
+                    for testminvalues in [0, 100]
+                        for trialminvalues in [0, 100]
                             for minhalfsize in [0.0, 0.1]
                                 println(
                                     "Testing with meshes $ix and $iy, testmaxprotrusion=$testmaxprotrusion, trialmaxprotrusion=$trialmaxprotrusion, testminvalues=$testminvalues, trialminvalues=$trialminvalues, minhalfsize=$minhalfsize",

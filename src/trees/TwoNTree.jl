@@ -20,7 +20,6 @@ function TwoNTree(
     root::Int=1,
     minvalues=0,
     maxprotrusion=NaN,
-    minsubdividelevel=minlevel + 1,
     computeprotrusion=ComputeProtrusionFunctor(),
 )
     rootcenter, rootsize = boundingbox(positions)
@@ -34,7 +33,6 @@ function TwoNTree(
         root=root,
         minvalues=minvalues,
         maxprotrusion=maxprotrusion,
-        minsubdividelevel=minsubdividelevel,
         computeprotrusion=computeprotrusion,
     )
 end
@@ -55,7 +53,6 @@ function TwoNTree(
     root::Int=1,
     minvalues=0,
     maxprotrusion=NaN,
-    minsubdividelevel=minlevel + 1,
     computeprotrusion=ComputeProtrusionFunctor(),
 ) where {N,T}
     tree = TwoNTree(center, halfsize; minlevel=minlevel, root=root)
@@ -64,7 +61,6 @@ function TwoNTree(
         tree,
         points,
         minhalfsize;
-        minsubdividelevel=minsubdividelevel,
         minlevel=minlevel,
         rootsize=halfsize,
         rootcenter=center,
@@ -269,14 +265,12 @@ function addpoints!(
     rootsize=halfsize(tree, root(tree)),
     rootcenter=center(tree, root(tree)),
     minvalues=0,
-    minsubdividelevel=minlevel + 1,
     maxprotrusion=NaN,
     computeprotrusion=ComputeProtrusionFunctor(),
 )
     subdivide = CheckSubdivideFunctor(
         minvalues,
         maxprotrusion,
-        minsubdividelevel,
         computeprotrusion,
         points,
         H2Trees.root(tree),

@@ -174,13 +174,8 @@ function isnearhalfsize(
 
     distancesquared = LinearAlgebra.dot(difference, difference)
 
-    adbufferboxes = if minhalfsizeadditionalbufferboxes < halfsize
-        0
-    else
-        additionalbufferboxes
-    end
-
-    return distancesquared <= (adbufferboxes + 1) * 12 * (1 + 100 * eps(T)) * halfsize^2
+    return distancesquared <=
+           (additionalbufferboxes + 1) * 12 * (1 + 100 * eps(T)) * halfsize^2
 end
 
 function isnearhalfsize(

@@ -7,6 +7,7 @@ function KMeansTree(
     minlevel::Int=1,
     root::Int=1,
     balldata=BoundingBallData,
+    updateradii=boundingsphere,
     kwargs...,
 ) where {N,T}
     pointsmatrix = reduce(hcat, points)
@@ -28,7 +29,8 @@ function KMeansTree(
     )
 
     _adjustnodesatlevels!(tree)
-    updateradii!(tree)
+    updateradii!(tree; update=updateradii)
+
     return tree
 end
 
@@ -140,9 +142,24 @@ function boundingsphere(tree, node::Int)
     return centerbuffer, rds
 end
 
-function updateradii!(tree::BoundingBallTree)
+function unsafemaxradiusboundingsphere(tree, node::Int)
+    @warn "Radii of the tree have not been properly updated. This will lead to incorrect results when using the iterators in H2Trees.  Proceed at your own risk."
+    rds = radius(tree, node)
+    for child in children(tree, node)
+        rds = max(rds, radius(tree, child))
+    end
+
+    return center(tree, node), rds
+end
+
+function noboundingsphereupdate(tree, node::Int)
+    @warn "Radii of the tree have not been updated. This will lead to incorrect results when using the iterators in H2Trees.  Proceed at your own risk."
+    return center(tree, node), radius(tree, node)
+end
+
+function updateradii!(tree::BoundingBallTree; update=boundingsphere)
     for node in DepthFirstIterator(tree)
-        center, radius = boundingsphere(tree, node)
+        center, radius = update(tree, node)
         tree.nodes[node - root(tree) + 1] = Node(
             BoundingBallData(
                 values(data(tree, node)),

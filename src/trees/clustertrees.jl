@@ -283,23 +283,15 @@ function CheckSubdivideFunctor()
 end
 
 function CheckSubdivideFunctor(
-    minvalues::Int,
-    maxprotrusion,
-    minsubdividelevel,
-    computeprotrusion,
-    points,
-    root,
-    minlevel,
-    roothalfsize,
+    minvalues::Int, maxprotrusion, computeprotrusion, points, root, minlevel, roothalfsize
 )
     (iszero(minvalues) && isnan(maxprotrusion)) && return CheckSubdivideFunctor()
 
-    # we subdivide until minsubdividelevel, otherwise:
     # we subdivide if number of values >= minvalues
     # we do not subdivide if function protrudes more than maxprotrusion after subdivision
 
     comptree = comparisonTwoNTree(points, root, roothalfsize, minlevel)
-    pointmaxlevel = fill(minsubdividelevel, length(points))
+    pointmaxlevel = fill(minlevel - 1, length(points))
     conformingnodes = zeros(Bool, numberofnodes(comptree))
     conformingnodes[1] = true
 
@@ -319,31 +311,27 @@ function CheckSubdivideFunctor(
             conforming = true
 
             if conformingnodes[parent(comptree, node) - H2Trees.root(comptree) + 1]
-                if level <= minsubdividelevel
-                    conforming = true
-                else
-                    vals = values(comptree, node)
-                    if length(vals) <= minvalues
-                        conforming = false
-                    end
+                vals = values(comptree, node)
+                if length(vals) <= minvalues
+                    conforming = false
+                end
 
-                    if conforming && !isnan(maxprotrusion)
+                if conforming && !isnan(maxprotrusion)
 
-                        # we need to check if after splitting the protrusion is acceptable
-                        for child in children(comptree, node)
-                            for val in values(comptree, child)
-                                if computeprotrusion(comptree, child, val) >= maxprotrusion
-                                    conforming = false
-                                    break
-                                end
+                    # we need to check if after splitting the protrusion is acceptable
+                    for child in children(comptree, node)
+                        for val in values(comptree, child)
+                            if computeprotrusion(comptree, child, val) >= maxprotrusion
+                                conforming = false
+                                break
                             end
                         end
                     end
+                end
 
-                    if !conforming
-                        for val in vals
-                            pointmaxlevel[val] = max(pointmaxlevel[val], level - 1)
-                        end
+                if !conforming
+                    for val in vals
+                        pointmaxlevel[val] = max(pointmaxlevel[val], level - 1)
                     end
                 end
                 conformingnodes[node - H2Trees.root(comptree) + 1] = conforming
