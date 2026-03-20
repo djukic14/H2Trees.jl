@@ -2,7 +2,7 @@
 
 The basis functions defined in [BEAST.jl](https://github.com/krcools/BEAST.jl) can be sorted into trees.
 
-## TwoNTree
+## TwoNTree together with BEAST
 
 For [`TwoNTree`](@ref)s this can, for example, be done like this for the Galerkin case
 
