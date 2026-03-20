@@ -247,6 +247,13 @@ end
 
     TFIterator = H2Trees.TranslatingNodesIterator(; isnear=H2Trees.isnear())(tree)
     aggregatetranslateplan = H2Trees.AggregateTranslatePlan(tree, TFIterator)
+
+    for level in H2Trees.aggregationlevels(aggregatetranslateplan)
+        for node in H2Trees.aggregationnodes(aggregatetranslateplan, level)
+            @test H2Trees.istranslatingnode(aggregatetranslateplan, node)
+        end
+    end
+
     disaggregationplan = H2Trees.DisaggregateTranslatePlan(tree, TFIterator)
 
     istranslatingfunctor = H2Trees.istranslatingnode(;
@@ -323,6 +330,19 @@ end
             trialaggregatetranslateplan = H2Trees.AggregateTranslatePlan(
                 trialtree, H2Trees.PetrovDisaggregationFunctor(TFIterator, tree, testtree)
             )
+
+            for level in H2Trees.aggregationlevels(trialaggregatetranslateplan)
+                for node in H2Trees.aggregationnodes(trialaggregatetranslateplan, level)
+                    # @test
+                    tfs = H2Trees.TranslatingNodesIterator(testtree, trialtree, node)
+
+                    if H2Trees.istranslatingnode(trialaggregatetranslateplan, node)
+                        @test !isempty(tfs)
+                    else
+                        @test isempty(tfs)
+                    end
+                end
+            end
 
             testaggregatetranslateplan = H2Trees.AggregateTranslatePlan(
                 testtree, H2Trees.PetrovDisaggregationFunctor(TFIterator, tree, trialtree)

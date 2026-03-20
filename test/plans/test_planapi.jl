@@ -22,6 +22,16 @@ using H2Trees
     testaggregatetranslateplan = H2Trees.AggregateTranslatePlan(tree, TFIterator(tree))
     trialdisaggregateplan = H2Trees.DisaggregatePlan(tree, aggregatenode(tree))
 
+    aggregateallplans = H2Trees.galerkinplans(
+        tree, H2Trees.aggregateallnodes(), TFIterator, H2Trees.AggregateMode()
+    )
+    @test sum(aggregateallplans.trialaggregationplan.storenode) == length(tree.nodes)
+
+    aggregaterootplans = H2Trees.galerkinplans(
+        tree, H2Trees.aggregaterootonly(), TFIterator, H2Trees.AggregateMode()
+    )
+    @test sum(aggregaterootplans.trialaggregationplan.storenode) == 1
+    @test aggregaterootplans.trialaggregationplan.storenode[H2Trees.root(tree)] == 1
     plans = H2Trees.galerkinplans(tree, aggregatenode, TFIterator, H2Trees.AggregateMode())
 
     ptrialaggregateplan = plans.trialaggregationplan
@@ -188,6 +198,18 @@ end
                 trialtree,
                 H2Trees.PetrovAggregationFunctor(aggregatenode, tree, testtree, trialtree),
             )
+
+            aggregateallplans = H2Trees.petrovplans(
+                tree, H2Trees.aggregateallnodes(), TFIterator, H2Trees.AggregateMode()
+            )
+            @test sum(aggregateallplans.trialaggregationplan.storenode) ==
+                length(trialtree.nodes)
+
+            aggregaterootplans = H2Trees.petrovplans(
+                tree, H2Trees.aggregaterootonly(), TFIterator, H2Trees.AggregateMode()
+            )
+            @test sum(aggregaterootplans.trialaggregationplan.storenode) == 1
+            aggregaterootplans.trialaggregationplan.storenode[H2Trees.root(trialtree)] == 1
             plans = H2Trees.petrovplans(
                 tree, aggregatenode, TFIterator, H2Trees.AggregateMode()
             )

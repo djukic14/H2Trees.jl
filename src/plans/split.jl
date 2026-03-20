@@ -4,10 +4,12 @@ function splitplan(tree, plan::AggregateTranslatePlan)
 
     upperrange = hybridlevel:-1:startlevel
     lowerrange = endlevel:-1:(hybridlevel + 1)
+
     return AggregateTranslatePlan(
         plan.receivingnodes[leveltolevelid.(Ref(plan), upperrange)],
         plan.nodes[leveltolevelid.(Ref(plan), upperrange)],
         upperrange,
+        plan.istranslatingnode,
         plan.rootoffset,
         tree,
     ),
@@ -15,6 +17,7 @@ function splitplan(tree, plan::AggregateTranslatePlan)
         plan.receivingnodes[leveltolevelid.(Ref(plan), lowerrange)],
         plan.nodes[leveltolevelid.(Ref(plan), lowerrange)],
         lowerrange,
+        plan.istranslatingnode,
         plan.rootoffset,
         tree,
     )

@@ -239,7 +239,7 @@ end
     X = raviartthomas(mx)
     Y = raviartthomas(my)
 
-    tree = TwoNTree(X, Y, minhalfsize; minvaluestest=10, minvaluestrial=3)
+    tree = TwoNTree(X, Y, minhalfsize; testminvalues=10, trialminvalues=3)
 
     for tree in [H2Trees.testtree(tree), H2Trees.trialtree(tree)]
         valuesatnodes = H2Trees.valuesatnodes(tree)

@@ -1,4 +1,21 @@
+"""
+    testwellseparatedness(tree)
 
+Check that the well-separated translation rule is consistent for `tree`.
+
+A pair of nodes is treated as well-separated when the two nodes are far, while
+their parents are near. In that case, a translation is expected.
+
+This test verifies that each tested pair is covered in exactly one way:
+near interaction, direct translation, or parent-level translation.
+In particular, a translation must not be duplicated through another route
+(for example, also via parents).
+
+# Returns
+
+`true` if each tested node pair has exactly one connection class; otherwise
+throws an error.
+"""
 function testwellseparatedness(tree)
     return testwellseparatedness(tree, treetrait(tree))
 end

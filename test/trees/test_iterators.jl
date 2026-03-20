@@ -717,8 +717,8 @@ end
 
     ms = [sphereλ, sphere2λ, sphere2λdisplaced, sphere2λdisplacedfar]
 
-    for minvaluestest in [0, 5]
-        for minvaluestrial in [0, 5]
+    for testminvalues in [0, 5]
+        for trialminvalues in [0, 5]
             for mx in ms
                 X = raviartthomas(mx)
                 for my in ms
@@ -727,8 +727,8 @@ end
                         X,
                         Y,
                         λ / 20;
-                        minvaluestest=minvaluestrial,
-                        minvaluestrial=minvaluestrial,
+                        testminvalues=trialminvalues,
+                        trialminvalues=trialminvalues,
                     )
 
                     testlevels = unique(

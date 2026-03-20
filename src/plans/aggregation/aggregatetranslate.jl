@@ -1,11 +1,11 @@
 struct AggregateTranslatePlan{T} <: AbstractAggregationPlan
-    receivingnodes::Vector{Dict{Int,Vector{Int}}}
-    nodes::Vector{Vector{Int}}
-    levels::StepRange{Int,Int}
-    rootoffset::Int
+    receivingnodes::Vector{Dict{Int,Vector{Int}}} # receivingnodes[leveltolevelid(level)][disaggregationnode] = [translatingaggregationnodes]
+    nodes::Vector{Vector{Int}} # Aggregation nodes
+    levels::StepRange{Int,Int} # Aggregation levels
+    istranslatingnode::Vector{Bool} # Does the aggregationnode translate its moment?
+    rootoffset::Int # In case the tree is not rooted at 1
     tree::T
 end
-#TODO: consider storing keys of receivingnodes dict for multithreaded looping
 
 function plantranslationtrait(::AggregateTranslatePlan)
     return IsTranslatingPlan()
@@ -54,7 +54,7 @@ end
 function _AggregateTranslatePlan(tree, TranslatingNodesIterator)
     aggregationlevels = zeros(Int, numberoflevels(tree))
     aggregationnodes = Vector{Vector{Int}}(undef, length(aggregationlevels))
-    translatingnodes = Vector{Dict{Int,Vector{Int}}}(undef, length(aggregationlevels))
+    receivingnodes = Vector{Dict{Int,Vector{Int}}}(undef, length(aggregationlevels))
 
     rootoffset = H2Trees.root(tree) - 1
     levels = collect(H2Trees.levels(tree))
@@ -62,7 +62,7 @@ function _AggregateTranslatePlan(tree, TranslatingNodesIterator)
     lk = Threads.SpinLock()
     for level in levels
         levelaggregationnodes = Int[]
-        leveltranslatingnodes = Dict{Int,Vector{Int}}()
+        levelreceivingnodes = Dict{Int,Vector{Int}}()
         levelid = numberoflevels(tree) - level + minimumlevel(tree)
 
         @threads for node in LevelIterator(tree, level)
@@ -85,19 +85,19 @@ function _AggregateTranslatePlan(tree, TranslatingNodesIterator)
                 lock(lk) do
                     push!(levelaggregationnodes, node)
                     for tfnode in tfnodes
-                        if !haskey(leveltranslatingnodes, tfnode)
-                            leveltranslatingnodes[tfnode] = [node]
+                        if !haskey(levelreceivingnodes, tfnode)
+                            levelreceivingnodes[tfnode] = [node]
                         else
-                            push!(leveltranslatingnodes[tfnode], node)
+                            push!(levelreceivingnodes[tfnode], node)
                         end
                     end
                 end
             end
 
-            (isempty(levelaggregationnodes) && isempty(leveltranslatingnodes)) && continue
+            (isempty(levelaggregationnodes) && isempty(levelreceivingnodes)) && continue
             aggregationlevels[levelid] = level
             aggregationnodes[levelid] = levelaggregationnodes
-            translatingnodes[levelid] = leveltranslatingnodes
+            receivingnodes[levelid] = levelreceivingnodes
         end
     end
 
@@ -110,7 +110,7 @@ function _AggregateTranslatePlan(tree, TranslatingNodesIterator)
 
     deleteat!(aggregationlevels, indicestodelete)
     deleteat!(aggregationnodes, indicestodelete)
-    deleteat!(translatingnodes, indicestodelete)
+    deleteat!(receivingnodes, indicestodelete)
 
     aggregationlevels = if !isempty(aggregationlevels)
         @assert aggregationlevels == maximum(aggregationlevels):-1:minimum(aggregationlevels)
@@ -121,8 +121,25 @@ function _AggregateTranslatePlan(tree, TranslatingNodesIterator)
         error("Empty AggregatePlan not supported.")
 
     return AggregateTranslatePlan(
-        translatingnodes, aggregationnodes, aggregationlevels, rootoffset, tree
+        receivingnodes,
+        aggregationnodes,
+        aggregationlevels,
+        _computeistranslatingnodes(receivingnodes, tree),
+        rootoffset,
+        tree,
     )
+end
+
+function _computeistranslatingnodes(receivingnodes, tree)
+    istranslatingnodes = zeros(Bool, numberofnodes(tree))
+    for receivingnodesdict in receivingnodes
+        for (_, translatingnodes) in receivingnodesdict
+            for translatingnode in translatingnodes
+                istranslatingnodes[translatingnode - root(tree) + 1] = true
+            end
+        end
+    end
+    return istranslatingnodes
 end
 
 function receivingnodes(plan::AggregateTranslatePlan)
@@ -146,4 +163,8 @@ function Base.getindex(plan::AggregateTranslatePlan, receivingnode::Int, level::
     else
         return Int[]
     end
+end
+
+function istranslatingnode(plan::AggregateTranslatePlan, node::Int)
+    return plan.istranslatingnode[node - plan.rootoffset]
 end

@@ -189,7 +189,7 @@ end
             Y = raviartthomas(my)
 
             minhalfsize = λ / 9
-            tree = TwoNTree(X, Y, minhalfsize; minvaluestest=10)
+            tree = TwoNTree(X, Y, minhalfsize; testminvalues=10)
             testtree = H2Trees.testtree(tree)
             trialtree = H2Trees.trialtree(tree)
 
@@ -208,16 +208,17 @@ end
 
             for leaf in H2Trees.leaves(testtree)
                 leafvalues = H2Trees.values(testtree, leaf)
-                for node in H2Trees.NearNodeIterator(trialtree, testtree, leaf)
-                    nearnodevalues = H2Trees.values(trialtree, node)
-                    for v in leafvalues
-                        for nv in nearnodevalues
-                            push!(I, v)
-                            push!(J, nv)
-                        end
+                _nearvalues = H2Trees.nearnodevalues(trialtree, testtree, leaf)
+                for v in leafvalues
+                    for nv in _nearvalues
+                        push!(I, v)
+                        push!(J, nv)
                     end
                 end
+                _farvalues = H2Trees.farnodevalues(trialtree, testtree, leaf)
+                @test length(_nearvalues) + length(_farvalues) == numfunctions(Y)
             end
+
             Atest = sparse(I, J, ones(length(I)), numfunctions(X), numfunctions(Y))
             Atest.nzval .= 1.0
             I = Int[]

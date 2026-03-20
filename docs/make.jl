@@ -25,7 +25,6 @@ import H2Trees:
     BoundingBallTree,
     tracecube,
     traceball,
-    QuadPointsTree,
     SimpleHybridTree
 
 DocMeta.setdocmeta!(H2Trees, :DocTestSetup, :(using H2Trees); recursive=true)

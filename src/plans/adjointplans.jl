@@ -5,10 +5,12 @@ end
 
 # this plan aggregates and translates the tree of the disaggregation plan
 function adjointaggregation(::AggregatePlan, disaggregationplan::DisaggregateTranslatePlan)
+    receivingnodes = _inverttranslatingdict(translatingnodes(disaggregationplan))
     return AggregateTranslatePlan(
-        _inverttranslatingdict(translatingnodes(disaggregationplan)),
+        receivingnodes,
         reverse(disaggregationnodes(disaggregationplan)),
         reverse(disaggregationlevels(disaggregationplan)),
+        _computeistranslatingnodes(receivingnodes, tree(disaggregationplan)),
         rootoffset(disaggregationplan),
         tree(disaggregationplan),
     )

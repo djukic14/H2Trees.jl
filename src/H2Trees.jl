@@ -41,8 +41,6 @@ end
 export treetrait
 export isTwoNTree
 export isBlockTree
-export UniquePoints
-export NonUniquePoints
 
 struct Node{D}
     data::D
@@ -72,11 +70,9 @@ include("iterators/NodeFilterIterator.jl")
 
 include("iterators/nearfar/NearNodeIterator.jl")
 include("iterators/nearfar/nearinteractions.jl")
-# include("iterators/nearfar/corrector.jl")
 include("iterators/nearfar/isnear.jl")
 
 include("iterators/WellSeparatedIterator.jl")
-include("iterators/AllLeavesTranslationsIterator.jl")
 
 include("plans/plans.jl")
 
@@ -87,12 +83,15 @@ include("printing.jl")
 
 include("testingutils/testingutils.jl")
 
+include("protrusion.jl")
+
 export AggregatePlan, AggregateTranslatePlan, DisaggregatePlan, DisaggregateTranslatePlan
+export AggregateMode, AggregateTranslateMode
 
 function leafclusters(tree)
-    clusters = Vector{Vector{Int}}(undef, length(H2Trees.leaves(tree)))
-    for (i, leaf) in enumerate(H2Trees.leaves(tree))
-        clusters[i] = H2Trees.values(tree, leaf)
+    clusters = Vector{Vector{Int}}(undef, length(leaves(tree)))
+    for (i, leaf) in enumerate(leaves(tree))
+        clusters[i] = values(tree, leaf)
     end
 
     return clusters
@@ -185,7 +184,7 @@ function minimumlevel(tree)
 end
 
 function levels(tree)
-    return (1:length(nodesatlevel(tree))) .+ (H2Trees.minimumlevel(tree) - 1)
+    return (1:length(nodesatlevel(tree))) .+ (minimumlevel(tree) - 1)
 end
 
 function numberoflevels(tree)
@@ -227,8 +226,8 @@ Find the leaf node in the given `tree` that contains the specified `value`.
   - The leaf node that contains the `value`, or `0` if not found.
 """
 function findleafnode(tree, value::Int)
-    for leaf in H2Trees.leaves(tree)
-        (value ∈ H2Trees.values(tree, leaf)) && return leaf
+    for leaf in leaves(tree)
+        (value ∈ values(tree, leaf)) && return leaf
     end
     return 0
 end
@@ -263,9 +262,9 @@ end
 
 function halfsizes(tree)
     halfsizes = eltype(eltype(tree))[]
-    for level in H2Trees.levels(tree)
-        for node in H2Trees.nodesatlevel(tree, level)
-            push!(halfsizes, H2Trees.halfsize(tree, node))
+    for level in levels(tree)
+        for node in nodesatlevel(tree, level)
+            push!(halfsizes, halfsize(tree, node))
             break
         end
     end
@@ -295,9 +294,8 @@ function treewithmorelevels(tree)
     end
 end
 
-function samelevelnodes(tree, nodeid::Int)
-    level = H2Trees.level(tree, nodeid)
-    return nodesatlevel(tree, level)
+function samelevelnodes(tree, node::Int)
+    return nodesatlevel(tree, level(tree, node))
 end
 
 function nodesatlevel(tree)
@@ -349,9 +347,9 @@ end
 
 function _adjustnodesatlevels!(tree)
     empty!(tree.nodesatlevel)
-    for node in H2Trees.DepthFirstIterator(tree, H2Trees.root(tree))
-        nodelevel = H2Trees.level(tree, node)
-        minlevel = H2Trees.minimumlevel(tree)
+    for node in DepthFirstIterator(tree, root(tree))
+        nodelevel = level(tree, node)
+        minlevel = minimumlevel(tree)
         if nodelevel - minlevel + 1 > length(nodesatlevel(tree))
             numberofmissinglevels = nodelevel - minlevel - length(nodesatlevel(tree))
             for _ in 1:numberofmissinglevels
@@ -368,10 +366,10 @@ function _adjustnodesatlevels!(tree)
     end
 end
 
-function numberofvalues(tree, node::Int=root(tree))
-    nvals = 0
-    for leaf in H2Trees.leaves(tree, node)
-        nvals += length(data(tree, leaf).values)
+function numberofvalues(tree)
+    maxvalue = 0
+    for leaf in leaves(tree)
+        maxvalue = max(maxvalue, maximum(values(tree, leaf)))
     end
     return nvals
 end
@@ -379,8 +377,8 @@ end
 function valuesatnodes(tree; numberofvalues=H2Trees.numberofvalues(tree))
     nodes = Vector{Vector{Int}}(undef, numberofvalues)
 
-    for leaf in H2Trees.leaves(tree)
-        for value in H2Trees.values(tree, leaf)
+    for leaf in leaves(tree)
+        for value in values(tree, leaf)
             if isassigned(nodes, value)
                 push!(nodes[value], leaf)
             else
@@ -399,7 +397,7 @@ function valuesatnodes(tree; numberofvalues=H2Trees.numberofvalues(tree))
     return nodes
 end
 
-function nodesatvalues(tree, boxes=H2Trees.valuesatnodes(tree))
+function nodesatvalues(tree, boxes=valuesatnodes(tree))
     boxesdict = Dict{Vector{Int},Vector{Int}}()
     for (value, box) in enumerate(boxes)
         if haskey(boxesdict, box)
@@ -428,16 +426,16 @@ level might not be level 1.
 The level ID corresponding to the given level.
 """
 function leveltolevelid(tree, level::Int)
-    return level - H2Trees.minimumlevel(tree) + 1
+    return level - minimumlevel(tree) + 1
 end
 
 function levelindex(tree, node::Int)
-    return leveltolevelid(tree, H2Trees.level(tree, node))
+    return leveltolevelid(tree, level(tree, node))
 end
 
 function checkbalancedtree(tree)
-    leaflevel = level(tree, H2Trees.leaves(tree)[1])
-    for node in H2Trees.leaves(tree)
+    leaflevel = level(tree, leaves(tree)[1])
+    for node in leaves(tree)
         leaflevel != level(tree, node) && return false
     end
     return true
@@ -452,12 +450,12 @@ function computevectorbuffers(tree, ::isBlockTree, ::Type{T}) where {T}
 end
 
 function computevectorbuffers(tree, ::AbstractTreeTrait, ::Type{T}) where {T}
-    vectors = Vector{Vector{T}}(undef, length(H2Trees.leaves(tree)))
+    vectors = Vector{Vector{T}}(undef, length(leaves(tree)))
 
-    for (i, leaf) in enumerate(H2Trees.leaves(tree))
-        vectors[i] = Vector{T}(undef, length(H2Trees.values(tree, leaf)))
+    for (i, leaf) in enumerate(leaves(tree))
+        vectors[i] = Vector{T}(undef, length(values(tree, leaf)))
     end
-    return Dict(zip(H2Trees.leaves(tree), vectors))
+    return Dict(zip(leaves(tree), vectors))
 end
 
 function isuppertreelevel(tree, level::Int)
@@ -480,7 +478,6 @@ include("trees/clustertrees.jl")
 include("trees/TwoNTree.jl")
 include("trees/treewrappers.jl")
 include("trees/SimpleHybridTree.jl")
-include("trees/QuadPointsTree.jl")
 include("trees/BoundingBallTree.jl")
 include("trees/BlockTree.jl")
 include("trees/KMeansTree.jl")
@@ -493,14 +490,13 @@ function isgalerkinsymmetric(::Type{T}) where {T}
     return false
 end
 
-export TwoNTree, BlockTree, QuadPointsTree, SimpleHybridTree, KMeansTree
+export TwoNTree, BlockTree, SimpleHybridTree, KMeansTree
 
 # for backwards compatibility with julia versions below 1.9
 if !isdefined(Base, :get_extension)
     include("../ext/H2BEASTTrees/H2BEASTTrees.jl")
-    include("../ext/H2NURBSTrees/H2NURBSTrees.jl")
     include("../ext/H2ParallelKMeansTrees/H2ParallelKMeansTrees.jl")
     include("../ext/H2PlotlyJSTrees/H2PlotlyJSTrees.jl")
 end
 
-end
+end # module H2Trees

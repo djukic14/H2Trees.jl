@@ -201,23 +201,23 @@ childreniterator(s::StackElement) = s.chitr
 information(s::StackElement) = s.info
 
 #TODO: hilbert_positions and hilbert_states for N≠3
-struct Router{T,P,M}
+struct Router{T,P,S}
     smallest_box_size::T
     target_points::P
+    subdividefunctor::S
     pointid::Int
-    minvalues::M
 end
 
 function targetpoint(router::Router)
     return router.target_points[router.pointid]
 end
 
-function minvalues(router::Router)
-    return router.minvalues
-end
-
 function smallestboxsize(router::Router)
     return router.smallest_box_size
+end
+
+function subdivide(router::Router)
+    return router.subdividefunctor
 end
 
 const hilbert_states = [
@@ -270,4 +270,87 @@ end
 
 function Base.iterate(itr::ChildIterator{<:H2ClusterTree}, st=start(itr))
     return done(itr, st) ? nothing : next(itr, st)
+end
+
+struct CheckSubdivideFunctor{P}
+    pointmaxlevel::P
+end
+
+struct NoCheckFunctor end
+
+function CheckSubdivideFunctor()
+    return CheckSubdivideFunctor(NoCheckFunctor())
+end
+
+function CheckSubdivideFunctor(
+    minvalues::Int, maxprotrusion, computeprotrusion, points, root, minlevel, roothalfsize
+)
+    (iszero(minvalues) && isnan(maxprotrusion)) && return CheckSubdivideFunctor()
+
+    # we subdivide if number of values >= minvalues
+    # we do not subdivide if function protrudes more than maxprotrusion after subdivision
+
+    comptree = comparisonTwoNTree(points, root, roothalfsize, minlevel)
+    pointmaxlevel = fill(minlevel - 1, length(points))
+    conformingnodes = zeros(Bool, numberofnodes(comptree))
+    conformingnodes[1] = true
+
+    for child in children(comptree, root)
+        for val in values(comptree, child)
+            if computeprotrusion(comptree, child, val) >= maxprotrusion
+                conformingnodes[1] = false
+                break
+            end
+        end
+    end
+
+    for level in levels(comptree)[2:end]
+        for node in LevelIterator(comptree, level)
+            #if parent is not conforming, this node is not conforming and we skip checks
+
+            conforming = true
+
+            if conformingnodes[parent(comptree, node) - H2Trees.root(comptree) + 1]
+                vals = values(comptree, node)
+                if length(vals) <= minvalues
+                    conforming = false
+                end
+
+                if conforming && !isnan(maxprotrusion)
+
+                    # we need to check if after splitting the protrusion is acceptable
+                    for child in children(comptree, node)
+                        for val in values(comptree, child)
+                            if computeprotrusion(comptree, child, val) >= maxprotrusion
+                                conforming = false
+                                break
+                            end
+                        end
+                    end
+                end
+
+                if !conforming
+                    for val in vals
+                        pointmaxlevel[val] = max(pointmaxlevel[val], level - 1)
+                    end
+                end
+                conformingnodes[node - H2Trees.root(comptree) + 1] = conforming
+            end
+
+            if conformingnodes[node - H2Trees.root(comptree) + 1] && isleaf(comptree, node)
+                for val in values(comptree, node)
+                    pointmaxlevel[val] = max(pointmaxlevel[val], level - 1)
+                end
+            end
+        end
+    end
+    return CheckSubdivideFunctor(pointmaxlevel)
+end
+
+function (f::CheckSubdivideFunctor)(point, level)
+    return f.pointmaxlevel[point] >= level
+end
+
+function (f::CheckSubdivideFunctor{<:NoCheckFunctor})(point, level)
+    return true
 end

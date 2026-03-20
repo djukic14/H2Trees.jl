@@ -73,6 +73,23 @@ function _storeindices!(indices, val, ::Val{:flattened})
     return append!(indices, val)
 end
 
+"""
+        nearnodevalues(tree, node::Int; isnear=isnear, storevalues=Val{:flattened}())
+
+Collect values stored in near nodes for `node` in a single tree.
+
+The traversal first visits near nodes at the level of `node`, then walks upward
+through parents and includes near leaf nodes.
+
+# Keyword arguments
+
+    - `isnear`: Decides if two nodes are near.
+    - `storevalues`: Storage strategy for collected values. `Val{:flattened}()` returns a flattened `Vector{Int}`.
+
+# Returns
+
+Collected values according to `storevalues` (flattened by default).
+"""
 function nearnodevalues(tree, node::Int; isnear=isnear, storevalues=Val{:flattened}())
     indices = _getindicesstorage(storevalues)
     for nearnode in NearNodeIterator(tree, node; isnear=isnear)
@@ -89,6 +106,23 @@ function nearnodevalues(tree, node::Int; isnear=isnear, storevalues=Val{:flatten
     return indices
 end
 
+"""
+    nearnodevalues(testtree, trialtree, trialnode::Int; isnear=isnear, storevalues=Val{:flattened}())
+
+Collect values from near nodes in `testtree` for a reference node in `trialtree`.
+
+The traversal first visits near nodes relative to `trialnode`, then walks upward
+through trial-tree parents and adds near leaf nodes.
+
+# Keyword arguments
+
+  - `isnear`: Decides if two nodes are near.
+  - `storevalues`: Storage strategy for collected values. `Val{:flattened}()` returns a flattened `Vector{Int}`.
+
+# Returns
+
+Collected values from `testtree` according to `storevalues` (flattened by default).
+"""
 function nearnodevalues(
     testtree, trialtree, trialnode::Int; isnear=isnear, storevalues=Val{:flattened}()
 )
