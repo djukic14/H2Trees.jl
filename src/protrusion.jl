@@ -1,6 +1,20 @@
+"""
+    maxprotrusion(tree; computeprotrusion=ComputeProtrusionFunctor)
+
+Compute the maximum protrusion per tree level.
+
+For each leaf, this evaluates `computeprotrusion(tree, leaf, value)` for all values in the
+leaf and stores the leaf maximum on its level. The level-wise protrusion is then propagated
+upwards so each coarser level is at least half of the next finer level.
+
+A warning is emitted when a level protrusion is greater than or equal to `0.5`.
+
+# Returns
+
+A vector with one protrusion value per level in `levels(tree)`.
+"""
 function maxprotrusion(tree; computeprotrusion=ComputeProtrusionFunctor)
     T = eltype(eltype(tree))
-    # protrusion = Dict(levels(tree) .=> zeros(T, numberoflevels(tree)))
     protrusion = zeros(T, length(levels(tree)))
 
     for leaf in H2Trees.leaves(tree)
@@ -29,7 +43,15 @@ function maxprotrusion(tree; computeprotrusion=ComputeProtrusionFunctor)
     return protrusion
 end
 
-# relative protrusion normalized to 2*halfsize of the box
+"""
+    ComputeProtrusionFunctor
+
+Default protrusion evaluator.
+
+This functor represents relative protrusion normalized by `2 * halfsize` of a box.
+The base implementation returns zero and is intended as a lightweight fallback and
+extension point.
+"""
 struct ComputeProtrusionFunctor end
 
 function (f::ComputeProtrusionFunctor)(tree, leaf::Int, value::Int)
@@ -43,6 +65,13 @@ function (f::ComputeProtrusionFunctor)(
 end
 
 # needs H2BEASTTrees extension
+"""
+    BEASTProtrusionFunctor(space)
+
+Protrusion evaluator backed by a BEAST space.
+
+Concrete call methods for this type are provided by the H2BEASTTrees extension.
+"""
 struct BEASTProtrusionFunctor{S}
     space::S
 end

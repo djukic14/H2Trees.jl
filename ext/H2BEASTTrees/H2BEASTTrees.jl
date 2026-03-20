@@ -14,6 +14,7 @@ Construct a TwoNTree from a given `BEAST.Space`.
 
   - `space::BEAST.Space`: The input space.
   - `minhalfsize`: The minimum half-size of the tree.
+  - `computeprotrusion`: Protrusion functor used during tree construction. Defaults to `BEASTProtrusionFunctor(space)`.
   - `kwargs...`: Additional keyword arguments.
 
 # Returns
@@ -42,6 +43,8 @@ trial space.
   - `testspace::BEAST.Space`: The test space.
   - `trialspace::BEAST.Space`: The trial space.
   - `minhalfsize`: The minimum half-size of the tree.
+  - `testcomputeprotrusion`: Protrusion functor for the test tree. Defaults to `BEASTProtrusionFunctor(testspace)`.
+  - `trialcomputeprotrusion`: Protrusion functor for the trial tree. Defaults to `BEASTProtrusionFunctor(trialspace)`.
   - `kwargs...`: Additional keyword arguments.
 
 # Returns

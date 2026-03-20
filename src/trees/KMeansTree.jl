@@ -1,5 +1,28 @@
 function kmeanswrapper end # requires ParallelKMeans.jl to load
 
+"""
+    KMeansTree(points::AbstractVector{SVector{N,T}}, numberofclusters::Int; minvalues::Int=numberofclusters, minlevel::Int=1, root::Int=1, balldata=BoundingBallData, updateradii=boundingsphere, kwargs...)
+
+Construct a `BoundingBallTree` using k-means clustering to partition the given points.
+
+This function recursively clusters the points using k-means algorithm to build a hierarchical
+tree structure. Each node in the tree contains a cluster of points bounded by a sphere.
+
+# Arguments
+
+  - `points::AbstractVector{SVector{N,T}}`: Array of points to partition.
+  - `numberofclusters::Int`: Number of clusters for k-means at each split.
+  - `minvalues::Int`: Minimum number of points required before splitting a node (default: `numberofclusters`).
+  - `minlevel::Int`: Minimum tree level (default: 1).
+  - `root::Int`: Index of root node (default: 1).
+  - `balldata`: Data structure for storing bounding ball information (default: `BoundingBallData`).
+  - `updateradii`: Function for updating node radii (default: `boundingsphere`).
+  - `kwargs...`: Additional arguments passed to the k-means wrapper function.
+
+# Returns
+
+A `BoundingBallTree` with points organized hierarchically by k-means clustering.
+"""
 function KMeansTree(
     points::AbstractVector{SVector{N,T}},
     numberofclusters::Int;
@@ -127,6 +150,23 @@ function boundingsphere(
     end
 end
 
+"""
+    boundingsphere(tree, node::Int)
+
+Compute a bounding sphere that encloses a tree node and all its children recursively.
+
+This function performs a coarse approximation of the smallest enclosing ball algorithm
+by recursively computing bounding spheres for each child node and merging them.
+
+# Arguments
+
+  - `tree`: The bounding ball tree.
+  - `node::Int`: Index of the node to compute the bounding sphere for.
+
+# Returns
+
+A tuple `(center, radius)` representing the bounding sphere.
+"""
 function boundingsphere(tree, node::Int)
     centerbuffer = similar(center(tree, node))
     centerbuffer .= center(tree, node)
@@ -142,6 +182,30 @@ function boundingsphere(tree, node::Int)
     return centerbuffer, rds
 end
 
+"""
+    unsafemaxradiusboundingsphere(tree, node::Int)
+
+Compute a bounding sphere using the maximum child radius (unsafe approximation).
+
+This function computes a bounding sphere by taking the node's center and using the
+maximum radius among all child nodes. This is an unsafe approximation that may not
+correctly enclose all child nodes and should only be used when the proper bounding
+sphere computation has failed or for testing purposes.
+
+!!! warning
+
+    The radii of the tree have not been properly updated. This will lead to incorrect
+    results when using the iterators in H2Trees. Proceed at your own risk.
+
+# Arguments
+
+  - `tree`: The bounding ball tree.
+  - `node::Int`: Index of the node.
+
+# Returns
+
+A tuple `(center, radius)` where radius is the maximum child radius.
+"""
 function unsafemaxradiusboundingsphere(tree, node::Int)
     @warn "Radii of the tree have not been properly updated. This will lead to incorrect results when using the iterators in H2Trees.  Proceed at your own risk."
     rds = radius(tree, node)
@@ -152,6 +216,29 @@ function unsafemaxradiusboundingsphere(tree, node::Int)
     return center(tree, node), rds
 end
 
+"""
+    noboundingsphereupdate(tree, node::Int)
+
+Return the node's bounding sphere without updating it.
+
+This function returns the stored center and radius of a node without performing any
+computation or update. This can be used when radii updates are intentionally skipped
+and existing values should be preserved as-is.
+
+!!! warning
+
+    The radii of the tree have not been updated. This will lead to incorrect results
+    when using the iterators in H2Trees. Proceed at your own risk.
+
+# Arguments
+
+  - `tree`: The bounding ball tree.
+  - `node::Int`: Index of the node.
+
+# Returns
+
+A tuple `(center, radius)` with the node's current stored values.
+"""
 function noboundingsphereupdate(tree, node::Int)
     @warn "Radii of the tree have not been updated. This will lead to incorrect results when using the iterators in H2Trees.  Proceed at your own risk."
     return center(tree, node), radius(tree, node)

@@ -1,12 +1,37 @@
-
 """
-    BlockTree
+        BlockTree{T}
+
+Container holding a pair of trees used as test and trial clusters.
+
+Fields:
+- `testcluster::T`
+- `trialcluster::T`
 """
 struct BlockTree{T}
     testcluster::T
     trialcluster::T
 end
 
+"""
+        TwoNTree(testpositions, trialpositions, minhalfsize; kwargs...)
+
+Construct a `BlockTree` from separate test and trial positions.
+
+Each side is built as a `TwoNTree` with compatible root sizes and minimum
+levels, so both trees can be used together in block-tree traversals.
+
+# Keyword arguments
+
+    - `testminvalues=0`, `trialminvalues=testminvalues`: A node is only split if it has at least minimum values.
+    - `testmaxprotrusion=NaN`, `trialmaxprotrusion=testmaxprotrusion`:
+        Maximum protrusion thresholds for splitting.
+    - `testcomputeprotrusion=ComputeProtrusionFunctor()`,
+        `trialcomputeprotrusion=ComputeProtrusionFunctor()`: Protrusion functors.
+
+# Returns
+
+A `BlockTree` with a test tree and a trial tree.
+"""
 function TwoNTree(
     testpositions,
     trialpositions,

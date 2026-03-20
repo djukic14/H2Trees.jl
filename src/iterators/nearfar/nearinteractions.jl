@@ -1,4 +1,31 @@
 
+"""
+    nearinteractions(tree; kwargs...)
+
+Compute near-interaction index lists for `tree`.
+
+# Keyword arguments
+
+    - `extractselfvalues::Bool=false`: Controls whether self-interactions are returned separately.
+    - `isnear=isnear`: Decides if two nodes are near.
+
+# Returns
+
+For a single tree:
+
+    - If `extractselfvalues == false`:
+        `(v::Vector{Vector{Int}}, nearvalues::Vector{Vector{Int}})` where each
+        `v[i]` is paired with `nearvalues[i]`, including self-interactions.
+    - If `extractselfvalues == true`:
+        `(selfv::Vector{Vector{Int}}, v::Vector{Vector{Int}}, nearvalues::Vector{Vector{Int}})`
+        where `selfv` contains self-interaction
+        values, and `(v, nearvalues)` contains non-self near interactions.
+
+For a block tree (`testtree`, `trialtree`):
+
+    - Always returns `(testv::Vector{Vector{Int}}, trialv::Vector{Vector{Int}})`.
+        In this mode, `extractselfvalues` is required to be `false`.
+"""
 function nearinteractions(tree; kwargs...)
     return nearinteractions(tree, treetrait(tree); kwargs...)
 end

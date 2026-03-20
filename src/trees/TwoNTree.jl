@@ -1,5 +1,24 @@
 """
-    TwoNTree
+    TwoNTree{N,D,T} <: H2ClusterTree
+
+A cluster tree where nodes are bounded by axis-aligned boxes.
+
+This tree structure uses boxes to partition spatial data hierarchically.
+Each node is bounded by a box defined by a center and halfsize.
+
+# Type Parameters
+
+  - `N`: The coordinate space dimension.
+  - `D`: The type of the nodes.
+  - `T`: The numeric type for coordinates and halfsizes.
+
+# Fields
+
+  - `nodes::Vector{Node{D}}`: Vector of nodes comprising the tree.
+  - `root::Int`: Index of the root node.
+  - `center::SVector{N,T}`: Center of the bounding box of the tree.
+  - `halfsize::T`: Halfsize of the bounding box of the tree.
+  - `nodesatlevel::Vector{Vector{Int}}`: A vector of vectors, where each inner vector contains the indices of nodes at a specific level.
 """
 struct TwoNTree{N,D,T} <: H2ClusterTree
     nodes::Vector{Node{D}}
@@ -13,6 +32,29 @@ function (tree::H2ClusterTree)(node::Int)
     return tree.nodes[node - H2Trees.root(tree) + 1]
 end
 
+"""
+    TwoNTree(positions, minhalfsize; minlevel::Int=1, root::Int=1, minvalues=0, maxprotrusion=NaN, computeprotrusion=ComputeProtrusionFunctor())
+
+Construct a `TwoNTree` from a collection of positions.
+
+This constructor creates a hierarchical bounding box tree by recursively partitioning the given
+points. The tree is built by computing the bounding box of all positions and recursively subdividing
+boxes until the minimum halfsize is reached or stopping criteria are met.
+
+# Arguments
+
+  - `positions`: Collection of points to partition.
+  - `minhalfsize`: Minimum halfsize for leaf boxes.
+  - `minlevel::Int`: Minimum tree level (default: 1).
+  - `root::Int`: Index of root node (default: 1).
+  - `minvalues`: Minimum number of points required before subdividing (default: 0).
+  - `maxprotrusion`: Maximum allowed protrusion for nodes (default: NaN for no limit).
+  - `computeprotrusion`: Function to compute protrusion metrics (default: `ComputeProtrusionFunctor()`).
+
+# Returns
+
+A `TwoNTree` with positions hierarchically organized in axis-aligned boxes.
+"""
 function TwoNTree(
     positions,
     minhalfsize;
@@ -185,9 +227,24 @@ function oppositesector(N::Int, sector)
     return (2^N - 1) - sector
 end
 
+"""
+    comparisonTwoNTree(points, root::Int, roothalfsize, minlevel)
+
+Construct a `TwoNTree` for comparisons where the boxes are subdivided until each leaf contains exactly one point.
+
+# Arguments
+
+  - `points`: Collection of points to partition.
+  - `root::Int`: Index of root node.
+  - `roothalfsize`: Halfsize of the root bounding box.
+  - `minlevel`: Minimum tree level.
+
+# Returns
+
+A `TwoNTree` where each leaf node contains exactly one point, suitable for comparisons.
+"""
 function comparisonTwoNTree(points, root::Int, roothalfsize, minlevel)
     nlevels = 1
-    # tree = TwoNTree(points, roothalfsize / 2^nlevels; root=root, minlevel=minlevel)
     rootcenter, _ = boundingbox(points)
     tree = TwoNTree(
         SVector(rootcenter...),
@@ -208,7 +265,6 @@ function comparisonTwoNTree(points, root::Int, roothalfsize, minlevel)
             minlevel=minlevel,
             root=root,
         )
-        # tree = TwoNTree(points, roothalfsize / 2^nlevels; root=root, minlevel=minlevel)
     end
     return tree
 end

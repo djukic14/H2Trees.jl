@@ -318,6 +318,19 @@ function istranslatingnode(
     return false
 end
 
+"""
+    mintranslationlevel(tree; TranslatingNodesIterator=TranslatingNodesIterator)
+
+Return the first tree level that contains at least one translating node.
+
+A node is considered translating if `istranslatingnode(tree, node; TranslatingNodesIterator=...)`
+is `true`.
+
+# Returns
+
+The minimum level with a translating node. If no translating node exists,
+the last level of `tree` is returned.
+"""
 function mintranslationlevel(tree; TranslatingNodesIterator=TranslatingNodesIterator)
     return mintranslationlevel(
         tree, treetrait(tree); TranslatingNodesIterator=TranslatingNodesIterator

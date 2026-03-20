@@ -1,55 +1,57 @@
 
 # Is point inside node #####################################################################
 
+"""
+    isin(tree, node, point)
+
+Return whether `point` lies in `node` for `tree`.
+"""
 function isin(tree, node, point)
     return isin(tree, node, point, treetrait(tree))
 end
 
 # Distance measuring functions #############################################################
 
-struct _IsNearFunctor{P}
+struct IsNearFunctor{P}
     kwargs::P
 end
 
-function (f::_IsNearFunctor)(tree)
+function (f::IsNearFunctor)(tree)
     return isnear(tree, treetrait(tree); f.kwargs...)
 end
 
-"""
-    isnear
-"""
 function isnear(; kwargs...)
-    return _IsNearFunctor(kwargs)
+    return IsNearFunctor(kwargs)
 end
 
-struct _IsNearNotBlockTreeFunctor{P}
+struct IsNearNotBlockTreeFunctor{P}
     kwargs::P
 end
 
-function (f::_IsNearNotBlockTreeFunctor)(tree, testnode, trialnode)
+function (f::IsNearNotBlockTreeFunctor)(tree, testnode, trialnode)
     return isnear(tree, testnode, trialnode; f.kwargs...)
 end
 
 function isnear(tree, ::Any; kwargs...)
-    return _IsNearNotBlockTreeFunctor(kwargs)
+    return IsNearNotBlockTreeFunctor(kwargs)
 end
-struct _IsFarNotBlockTreeFunctor{P}
+
+struct IsFarNotBlockTreeFunctor{P}
     kwargs::P
 end
 
-function (f::_IsFarNotBlockTreeFunctor)(tree, testnode, trialnode)
+function (f::IsFarNotBlockTreeFunctor)(tree, testnode, trialnode)
     return !isnear(tree, testnode, trialnode, treetrait(tree); f.kwargs...)
 end
 
-function isfar(f::_IsNearNotBlockTreeFunctor)
-    return _IsFarNotBlockTreeFunctor(f.kwargs)
+function isfar(f::IsNearNotBlockTreeFunctor)
+    return IsFarNotBlockTreeFunctor(f.kwargs)
 end
-
-struct _IsNearBlockTreeFunctor{P}
+struct IsNearBlockTreeFunctor{P}
     kwargs::P
 end
 
-function (f::_IsNearBlockTreeFunctor)(testtree, trialtree, testnode, trialnode)
+function (f::IsNearBlockTreeFunctor)(testtree, trialtree, testnode, trialnode)
     return isnear(
         testtree,
         trialtree,
@@ -77,14 +79,22 @@ function (f::_IsFarBlockTreeFunctor)(testtree, trialtree, testnode, trialnode)
     )
 end
 
-function isfar(f::_IsNearBlockTreeFunctor)
+function isfar(f::IsNearBlockTreeFunctor)
     return _IsFarBlockTreeFunctor(f.kwargs)
 end
 
 function isnear(tree, ::isBlockTree; kwargs...)
-    return _IsNearBlockTreeFunctor(kwargs)
+    return IsNearBlockTreeFunctor(kwargs)
 end
 
+"""
+    isnear(tree, testnode::Int, trialnode::Int; minlevel=level(tree, root(tree)), kwargs...)
+
+Return whether two nodes in a single tree are near.
+
+If `level(tree, testnode) < minlevel`, this returns `true` immediately;
+otherwise it forwards to trait-dispatched `isnear`.
+"""
 function isnear(
     tree, testnode::Int, trialnode::Int; minlevel::Int=level(tree, root(tree)), kwargs...
 )
@@ -92,6 +102,14 @@ function isnear(
     return isnear(tree, testnode, trialnode, treetrait(tree); kwargs...)
 end
 
+"""
+    isnear(testtree, trialtree, testnode::Int, trialnode::Int; minlevel=level(testtree, root(testtree)), kwargs...)
+
+Return whether two nodes, one from each tree, are near.
+
+If either node level is below `minlevel`, this returns `true` immediately;
+otherwise it forwards to trait-dispatched `isnear`.
+"""
 function isnear(
     testtree,
     trialtree,
@@ -114,10 +132,20 @@ function isnear(
     )
 end
 
+"""
+    isfar(tree, testnode::Int, trialnode::Int)
+
+Return the logical negation of `isnear(tree, testnode, trialnode)`.
+"""
 function isfar(tree, testnode::Int, trialnode::Int)
     return !isnear(tree, testnode::Int, trialnode::Int)
 end
 
+"""
+    isfar(testtree, trialtree, testnode::Int, trialnode::Int)
+
+Return the logical negation of the trait-dispatched two-tree `isnear` predicate.
+"""
 function isfar(testtree, trialtree, testnode::Int, trialnode::Int)
     return !isnear(
         testtree, trialtree, testnode, trialnode, treetrait(testtree), treetrait(trialtree)
@@ -167,7 +195,6 @@ function isnearhalfsize(
     center_b::AbstractVector,
     halfsize::T,
     additionalbufferboxes::Int;
-    minhalfsizeadditionalbufferboxes::T=T(Inf),
     kwargs...,
 ) where {T}
     difference = center_a - center_b
