@@ -1,3 +1,19 @@
+"""
+        DisaggregatePlan
+
+Non-translating disaggregation plan. The corresponding aggregation plan is a `AggregateTranslatePlan``
+
+Fields:
+
+    - `nodes`: disaggregation nodes grouped per level, ordered from lower to higher
+        level (root to leaves).
+    - `levels`: contiguous level range corresponding to `nodes`, with increasing
+        order from root to leaves.
+    - `storenode`: boolean marker per tree node indicating whether that node
+        receives and stores a moment directly or if one of its ancestors does so.
+    - `rootoffset`: offset used to map node ids to 1-based storage indices.
+    - `tree`: tree on which disaggregation is defined.
+"""
 struct DisaggregatePlan{T} <: AbstractDisaggregationPlan
     nodes::Vector{Vector{Int}} # Disaggregation nodes
     levels::UnitRange{Int} # Disaggregation levels
@@ -6,6 +22,18 @@ struct DisaggregatePlan{T} <: AbstractDisaggregationPlan
     tree::T
 end
 
+"""
+        DisaggregatePlan(tree, disaggregatenode)
+
+    Build a `DisaggregatePlan` on `tree` using `disaggregatenode`.
+
+`disaggregatenode` marks nodes that store moments directly; nodes below a marked
+ancestor are included in the disaggregation traversal even when they do not
+store directly.
+
+This constructor is defined for non-`BlockTree` trees. For block trees, select
+the corresponding test or trial tree first.
+"""
 function DisaggregatePlan(tree, disaggregatenode)
     return DisaggregatePlan(tree, disaggregatenode, treetrait(tree))
 end

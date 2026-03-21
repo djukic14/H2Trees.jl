@@ -1,3 +1,12 @@
+"""
+    splitplan(tree, plan)
+
+Split a translating plan into two subplans at `hybridlevel(tree)`.
+
+The function returns `(upperplan, lowerplan)`, both with the same concrete plan
+type as `plan`, where level sets are partitioned into levels at or above the
+hybrid level and levels below it.
+"""
 function splitplan(tree, plan::AggregateTranslatePlan)
     startlevel, endlevel = levels(plan)[end], levels(plan)[begin]
     hybridlevel = H2Trees.hybridlevel(tree)

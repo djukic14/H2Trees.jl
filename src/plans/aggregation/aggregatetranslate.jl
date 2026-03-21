@@ -1,3 +1,22 @@
+"""
+        AggregateTranslatePlan
+
+Aggregation translation plan for a tree.
+
+This is a translating plan used during upward traversal to compute and store moments that contribute to translation.
+The matching disaggregation plan is a `DisaggregateTranslatePlan`.
+
+Fields:
+
+  - `receivingnodes`: Per level, a dictionary mapping receiving nodes (not necessarily in `tree`) to
+    source aggregation node ids (in `tree`) whose moments translate to the receiver.
+  - `nodes`: Per level, nodes that must be visited during aggregation (from leaves to root).
+  - `levels`: Aggregation levels ordered from leaves to root.
+  - `istranslatingnode`: Boolean flag per node index indicating whether the node
+    contributes as a translating/source node.
+  - `rootoffset`: Offset used to convert node ids to 1-based storage indices.
+  - `tree`: Tree for which the plan is built.
+"""
 struct AggregateTranslatePlan{T} <: AbstractAggregationPlan
     receivingnodes::Vector{Dict{Int,Vector{Int}}} # receivingnodes[leveltolevelid(level)][disaggregationnode] = [translatingaggregationnodes]
     nodes::Vector{Vector{Int}} # Aggregation nodes
@@ -11,6 +30,26 @@ function plantranslationtrait(::AggregateTranslatePlan)
     return IsTranslatingPlan()
 end
 
+"""
+        AggregateTranslatePlan(tree, TranslatingNodesIterator)
+        AggregateTranslatePlan(testtree, trialtree, TranslatingNodesIterator)
+
+Build an `AggregateTranslatePlan` from an iterator/functor that provides translating
+target nodes for a source aggregation node.
+
+Single-tree form:
+
+  - `TranslatingNodesIterator(node)` yields receiving nodes in `tree` that receive
+    translated information from `node`.
+
+Two-tree form:
+
+  - `TranslatingNodesIterator(testnode)` is wrapped so the resulting plan is built on
+    `testtree`, while receiving nodes are selected using `trialtree`.
+
+For block trees, the tree used for aggregation must be specified explicitly via the
+two-tree constructor.
+"""
 function AggregateTranslatePlan(tree, TranslatingNodesIterator)
     return AggregateTranslatePlan(tree, TranslatingNodesIterator, treetrait(tree))
 end

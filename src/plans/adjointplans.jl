@@ -1,3 +1,9 @@
+"""
+    adjointplans(aggregationplan, disaggregationplan)
+
+Return the adjoint pair `(adjointaggregation, adjointdisaggregation)` associated
+with the provided forward `aggregationplan` and `disaggregationplan`.
+"""
 function adjointplans(aggregationplan, disaggregationplan)
     return adjointaggregation(aggregationplan, disaggregationplan),
     adjointdisaggregation(aggregationplan, disaggregationplan)

@@ -19,6 +19,19 @@ function (p::PetrovDisaggregationFunctor)(nodetree, node::Int)
     return p.translatingnodesiterator(p.blocktree)(p.notnodetree, nodetree, node)
 end
 
+"""
+        petrovplans(tree, aggregatenode, translatingnodesiterator, aggregationmode)
+
+Construct the four Petrov-Galerkin plans for a block tree `tree`:
+`testaggregationplan`, `trialaggregationplan`, `testdisaggregationplan`, and
+`trialdisaggregationplan`.
+
+The returned named tuple also contains:
+
+  - `relevantlevels`: levels where all generated plans are simultaneously relevant.
+  - `mintranslationlevel`: first level where translations appear in both test and
+    trial disaggregation plans.
+"""
 function petrovplans(tree, aggregatenode, translatingnodesiterator, aggregationmode)
     trialtree = H2Trees.trialtree(tree)
     testtree = H2Trees.testtree(tree)

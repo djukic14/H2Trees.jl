@@ -1,3 +1,22 @@
+"""
+        DisaggregateTranslatePlan
+
+Disaggregation translation plan for a single tree.
+
+This is a translating plan used during downward traversal. The matching aggregation plan is an `AggregatePlan`.
+
+Fields:
+
+    - `translatingnodes`: Per level, a dictionary mapping receiving nodes (in `tree`) to
+        source nodes, which do not have to be in `tree`.
+    - `nodes`: Per level, nodes that must be visited during disaggregation.
+    - `levels`: Contiguous disaggregation levels ordered from coarse to fine (root to leaves).
+    - `isdisaggregationnode`: Boolean flag per node indicating whether the node is
+        reached by the disaggregation traversal (either directly receiving translated data or
+        via its ancestors).
+    - `rootoffset`: Offset used to convert node ids to 1-based storage indices
+    - `tree`: Tree for which the plan is built.
+"""
 struct DisaggregateTranslatePlan{T} <: AbstractDisaggregationPlan
     translatingnodes::Vector{Dict{Int,Vector{Int}}} # Translating nodes
     nodes::Vector{Vector{Int}} # Disaggregation nodes
@@ -11,6 +30,26 @@ function plantranslationtrait(::DisaggregateTranslatePlan)
     return IsTranslatingPlan()
 end
 
+"""
+        DisaggregateTranslatePlan(tree, TranslatingNodesIterator)
+        DisaggregateTranslatePlan(testtree, trialtree, TranslatingNodesIterator)
+
+Build a `DisaggregateTranslatePlan` from an iterator/functor that provides translating
+source nodes for a receiving node.
+
+Single-tree form:
+
+  - `TranslatingNodesIterator(node)` yields source nodes in `tree` that translate to
+    `node`.
+
+Two-tree form:
+
+  - `TranslatingNodesIterator(testnode)` is wrapped so the resulting plan is built on
+    `testtree`, while source nodes are selected using `trialtree`.
+
+For block trees, the tree used for disaggregation must be specified explicitly via the
+two-tree constructor.
+"""
 function DisaggregateTranslatePlan(tree, TranslatingNodesIterator)
     return DisaggregateTranslatePlan(tree, TranslatingNodesIterator, treetrait(tree))
 end
