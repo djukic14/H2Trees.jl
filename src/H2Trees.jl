@@ -366,10 +366,10 @@ function _adjustnodesatlevels!(tree)
     end
 end
 
-function numberofvalues(tree)
-    maxvalue = 0
-    for leaf in leaves(tree)
-        maxvalue = max(maxvalue, maximum(values(tree, leaf)))
+function numberofvalues(tree, node::Int=root(tree))
+    nvals = 0
+    for leaf in leaves(tree, node)
+        nvals += length(data(tree, leaf).values)
     end
     return nvals
 end

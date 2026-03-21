@@ -4,8 +4,9 @@
 Container holding a pair of trees used as test and trial clusters.
 
 Fields:
-- `testcluster::T`
-- `trialcluster::T`
+
+  - `testcluster::T`
+  - `trialcluster::T`
 """
 struct BlockTree{T}
     testcluster::T
