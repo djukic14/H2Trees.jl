@@ -26,5 +26,5 @@ using PlotlyJS
 m = meshsphere(1.0, 0.1)
 X = raviartthomas(m)
 Y = buffachristiansen(m)
-tree = TwoNTree(X, Y, 0.0; testmaxprotrusion=0.3,trialmaxprotrusion=0.3)
+tree = TwoNTree(X, Y, 0.0; testmaxprotrusion=0.3, trialmaxprotrusion=0.3)
 ```

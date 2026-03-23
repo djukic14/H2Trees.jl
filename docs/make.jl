@@ -25,7 +25,9 @@ import H2Trees:
     BoundingBallTree,
     tracecube,
     traceball,
-    SimpleHybridTree
+    SimpleHybridTree,
+    galerkinplans,
+    petrovplans
 
 DocMeta.setdocmeta!(H2Trees, :DocTestSetup, :(using H2Trees); recursive=true)
 
@@ -63,6 +65,9 @@ makedocs(;
             "Simple Hybrid Tree" => "simplehybridtree.md",
             "Iterators" => "iterators.md",
             "Plans" => [
+                "Plans Overview" => "plans/plans.md",
+                "Constructing Galerkin Plans" => "plans/galerkinplans.md",
+                "Constructing Petrov Plans" => "plans/petrovplans.md",
                 "Aggregate Plan" => "plans/aggregateplan.md",
                 "Disaggregate Translate Plan" => "plans/disaggregatetranslateplan.md",
                 "Aggregate Translate Plan" => "plans/aggregatetranslateplan.md",
