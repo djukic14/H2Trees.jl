@@ -1,5 +1,6 @@
 module H2Trees
 using LinearAlgebra
+using Graphs
 using BoundingSphere
 using StaticArrays
 import Base.Threads: @threads
@@ -484,6 +485,7 @@ include("trees/SimpleHybridTree.jl")
 include("trees/BoundingBallTree.jl")
 include("trees/BlockTree.jl")
 include("trees/KMeansTree.jl")
+include("trees/MetisTree.jl")
 
 function isgalerkinsymmetric(T)
     return isgalerkinsymmetric(typeof(T))
@@ -499,6 +501,7 @@ function adjacencygraph end # requires BEAST to load
 
 function MetisTree end
 function MetisForest end
+function metispartition end
 
 # for backwards compatibility with julia versions below 1.9
 if !isdefined(Base, :get_extension)

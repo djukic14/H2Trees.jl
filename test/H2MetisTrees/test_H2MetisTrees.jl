@@ -2,8 +2,8 @@ using Test
 using Metis, Graphs, LinearAlgebra, SparseArrays
 using CompScienceMeshes, BEAST
 using H2Trees
-H2MetisTrees = Base.get_extension(H2Trees, :H2MetisTrees)
-H2BEASTTrees = Base.get_extension(H2Trees, :H2BEASTTrees)
+# H2MetisTrees = Base.get_extension(H2Trees, :H2MetisTrees)
+# H2BEASTTrees = Base.get_extension(H2Trees, :H2BEASTTrees)
 meshes =
     [
         "cuboid",
@@ -56,13 +56,13 @@ X = lagrangecxd0(m)
 
 edges = setminus(skeleton(X.geo, 1), boundary(X.geo))
 
-areas = [volume(chart(X.geo, i)) for i in 1:numcells(X.geo)]
+areas = [CompScienceMeshes.volume(chart(X.geo, i)) for i in 1:numcells(X.geo)]
 Σ = connectivity(X.geo, edges, sign);
 ΣΣ = Σ' * Σ
 
 # Σ2 = getstars(X.geo);
 
-g, w = H2BEASTTrees.adjacencygraph(X);
+g, w = H2Trees.adjacencygraph(X);
 
 A = -ΣΣ
 A[diagind(A)] .= 0
@@ -76,15 +76,15 @@ gA = Graph(A)
 # g1 = Metis.graph(gΣΣ)
 # g2 = Metis.graph(gA)
 
-tree = H2MetisTrees.MetisTree(
+tree = H2Trees.MetisTree(
     BEAST.positions(X), gΣΣ, areas, 4; minvalues=1, splitunconnectedpartitions=true
-)
+);
 
-forest = H2Trees.MetisForest(X, 4; splitunconnectedpartitions=true)
+forest = H2Trees.MetisForest(X, 4);
 
 # forest = H2Trees.MetisForest(raviartthomas(m), 4; splitunconnectedpartitions=true)
 
-tree = H2Trees.MetisTree(X, 4; splitunconnectedpartitions=true)
+tree = H2Trees.MetisTree(X, 4);
 
 nodeareas = [
     sum(areas[H2Trees.values(tree, node)]) for node in 1:H2Trees.numberofnodes(tree)

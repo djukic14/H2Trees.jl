@@ -1,27 +1,11 @@
 module H2MetisTrees
 
-using BoundingSphere
 using StaticArrays
 using Graphs
 using Metis
 using Metis.LibMetis: idx_t, @check, METIS_PartGraphKway
-using H2Trees
-import H2Trees:
-    BoundingBallTree,
-    BoundingBallData,
-    values,
-    data,
-    lastnode,
-    level,
-    _adjustnodesatlevels!,
-    updateradii!,
-    _updatechild!,
-    _updatenextsibling!,
-    Forest,
-    leaves,
-    adjacencygraph
 
-import H2Trees: MetisForest, MetisTree
+import H2Trees: metispartition
 
 """
     fallbackmetisoptions
@@ -157,7 +141,7 @@ function metispartition(
         end
 
         partitionid = 0
-        newpart = zeros(Vector{Int}, 0)
+        newpart = zeros(Int, length(part))
         for p in eachindex(partitions)
             subgraph, localtoglobal = induced_subgraph(G, partitions[p])
             components = connected_components(subgraph)
@@ -176,135 +160,6 @@ function metispartition(
     end
 
     return part
-end
-
-function MetisForest(
-    points,
-    graph,
-    weights,
-    numdivisions::Int;
-    splitunconnectedpartitions=false,
-    minlevel::Int=1,
-    minvalues::Int=numdivisions,
-    root::Int=1,
-    balldata=BoundingBallData,
-)
-    trees = []
-    for components in connected_components(graph)
-        subgraph, localtoglobal = induced_subgraph(graph, components)
-
-        tree = MetisTree(
-            points[components],
-            subgraph,
-            weights[components],
-            numdivisions;
-            splitunconnectedpartitions=splitunconnectedpartitions,
-            minlevel=minlevel,
-            minvalues=minvalues,
-            root=root,
-            balldata=balldata,
-        )
-        _updatevalues!(tree, localtoglobal)
-        push!(trees, tree)
-    end
-    trees = SVector{length(trees),typeof(trees[begin])}(trees)
-    return Forest(trees)
-end
-
-function _updatevalues!(tree, localtoglobal)
-    for leaf in leaves(tree)
-        globalindices = localtoglobal[values(tree, leaf)]
-        empty!(values(tree, leaf))
-        append!(values(tree, leaf), globalindices)
-    end
-    return tree
-end
-
-function MetisTree(
-    points::AbstractVector{SVector{N,T}},
-    graph,
-    pointgraphweights,
-    numdivisions::Int;
-    splitunconnectedpartitions=false,
-    minlevel::Int=1,
-    minvalues::Int=numdivisions,
-    root::Int=1,
-    balldata=BoundingBallData,
-) where {N,T}
-    center, radius = boundingsphere(points)
-
-    #TODO: return vector of trees: one for each connected component of the graph
-    tree = BoundingBallTree(center, radius; minlevel=minlevel, root=root, balldata=balldata)
-    append!(values(data(tree, root)), collect(1:length(points)))
-
-    splitnode!(
-        tree,
-        points,
-        pointgraphweights,
-        graph,
-        root,
-        numdivisions;
-        splitunconnectedpartitions=splitunconnectedpartitions,
-        minvalues=minvalues,
-        balldata=balldata,
-    )
-    _adjustnodesatlevels!(tree)
-    # updateradii!(tree; update=updateradii)
-    return tree
-end
-
-function splitnode!(
-    tree::BoundingBallTree,
-    points::AbstractVector{SVector{N,T}},
-    pointgraphweights,
-    graph,
-    node,
-    numdivisions::Int;
-    minvalues::Int=numdivisions,
-    splitunconnectedpartitions=false,
-    balldata=BoundingBallData,
-) where {N,T}
-    length(values(tree, node)) <= max(minvalues, numdivisions) && return tree
-
-    subgraph, _ = induced_subgraph(graph, values(tree, node))
-    part = metispartition(subgraph, pointgraphweights[values(tree, node)], numdivisions)
-
-    partitions = [Vector{Int}() for _ in 1:maximum(part)]
-    for (i, part) in enumerate(part)
-        push!(partitions[part], values(tree, node)[i])
-    end
-
-    centers = Vector{SVector{N,T}}(undef, length(partitions))
-    radii = Vector{T}(undef, length(partitions))
-
-    for i in eachindex(partitions)
-        centers[i], radii[i] = boundingsphere(points[partitions[i]])
-    end
-
-    _updatechild!(tree, node, lastnode(tree) + 1)
-
-    for i in eachindex(partitions)
-        dat = balldata(partitions[i], centers[i], radii[i], level(tree, node) + 1)
-        childnode = lastnode(tree) + 1
-        push!(tree.nodes, Node(dat, 0, node, 0))
-        splitnode!(
-            tree,
-            points,
-            pointgraphweights,
-            graph,
-            childnode,
-            numdivisions;
-            minvalues=minvalues,
-            splitunconnectedpartitions=splitunconnectedpartitions,
-            balldata=balldata,
-        )
-        _updatenextsibling!(
-            tree, childnode, i == last(eachindex(centers)) ? 0 : lastnode(tree) + 1
-        )
-    end
-    empty!(values(data(tree, node)))
-
-    return tree
 end
 
 end # module H2MetisTrees
