@@ -1,6 +1,7 @@
 module H2Trees
-using StaticArrays
 using LinearAlgebra
+using BoundingSphere
+using StaticArrays
 import Base.Threads: @threads
 
 abstract type H2ClusterTree end
@@ -9,6 +10,8 @@ function traceball end # requires PlotlyJS to load
 function tracecube end # requires PlotlyJS to load
 
 export traceball, tracecube
+
+include("forests/forest.jl")
 
 include("treetraits.jl")
 
