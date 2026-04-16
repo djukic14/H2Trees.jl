@@ -48,16 +48,21 @@ ms = [
     m in meshes
 ]
 
-m = ms[1]
+m = ms[5]
+# m = meshicosphere(100)
 # m = meshsphere(1.0, 0.1)
-# m = meshrectangle(1.0, 1.0, 0.1)
+# m = meshrectangle(1.0, 1.0, 0.01)
 X = lagrangecxd0(m)
 
 edges = setminus(skeleton(X.geo, 1), boundary(X.geo))
 
 areas = [volume(chart(X.geo, i)) for i in 1:numcells(X.geo)]
-Σ = connectivity(X.geo, edges, sign)
+Σ = connectivity(X.geo, edges, sign);
 ΣΣ = Σ' * Σ
+
+# Σ2 = getstars(X.geo);
+
+g, w = H2BEASTTrees.adjacencygraph(X);
 
 A = -ΣΣ
 A[diagind(A)] .= 0
@@ -66,12 +71,20 @@ A[diagind(A)] .= 0
 gΣΣ = Graph(ΣΣ)
 gA = Graph(A)
 
-g1 = Metis.graph(gΣΣ)
-g2 = Metis.graph(gA)
+@test g == gA
+@test maximum(abs, areas - w) < 1e-10
+# g1 = Metis.graph(gΣΣ)
+# g2 = Metis.graph(gA)
 
 tree = H2MetisTrees.MetisTree(
     BEAST.positions(X), gΣΣ, areas, 4; minvalues=1, splitunconnectedpartitions=true
 )
+
+forest = H2Trees.MetisForest(X, 4; splitunconnectedpartitions=true)
+
+# forest = H2Trees.MetisForest(raviartthomas(m), 4; splitunconnectedpartitions=true)
+
+tree = H2Trees.MetisTree(X, 4; splitunconnectedpartitions=true)
 
 nodeareas = [
     sum(areas[H2Trees.values(tree, node)]) for node in 1:H2Trees.numberofnodes(tree)

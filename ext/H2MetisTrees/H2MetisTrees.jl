@@ -16,7 +16,13 @@ import H2Trees:
     _adjustnodesatlevels!,
     updateradii!,
     _updatechild!,
-    _updatenextsibling!
+    _updatenextsibling!,
+    Forest,
+    leaves,
+    adjacencygraph
+
+import H2Trees: MetisForest, MetisTree
+
 """
     fallbackmetisoptions
 
@@ -170,6 +176,48 @@ function metispartition(
     end
 
     return part
+end
+
+function MetisForest(
+    points,
+    graph,
+    weights,
+    numdivisions::Int;
+    splitunconnectedpartitions=false,
+    minlevel::Int=1,
+    minvalues::Int=numdivisions,
+    root::Int=1,
+    balldata=BoundingBallData,
+)
+    trees = []
+    for components in connected_components(graph)
+        subgraph, localtoglobal = induced_subgraph(graph, components)
+
+        tree = MetisTree(
+            points[components],
+            subgraph,
+            weights[components],
+            numdivisions;
+            splitunconnectedpartitions=splitunconnectedpartitions,
+            minlevel=minlevel,
+            minvalues=minvalues,
+            root=root,
+            balldata=balldata,
+        )
+        _updatevalues!(tree, localtoglobal)
+        push!(trees, tree)
+    end
+    trees = SVector{length(trees),typeof(trees[begin])}(trees)
+    return Forest(trees)
+end
+
+function _updatevalues!(tree, localtoglobal)
+    for leaf in leaves(tree)
+        globalindices = localtoglobal[values(tree, leaf)]
+        empty!(values(tree, leaf))
+        append!(values(tree, leaf), globalindices)
+    end
+    return tree
 end
 
 function MetisTree(

@@ -17,6 +17,13 @@
 # this is the graph we want to partition with METIS
 # weights for the graph are the areas of the triangles in the support of each basis function,
 # divided by the number of basis functions supported on each triangle (so that the total weight of each triangle is equal to its area)
+
+struct SignFunctor end
+
+function (f::SignFunctor)(e)
+    return sign(e)
+end
+
 function adjacencygraph(X)
     σ = lagrangecxd0(geometry(X))
 
@@ -26,8 +33,14 @@ function adjacencygraph(X)
         @assert length(fn) == 1
         @assert fn[1].cellid == i
     end
-    edges = BEAST.setminus(BEAST.skeleton(geometry(σ), 1), BEAST.boundary(geometry(σ)))
-    Σ = BEAST.connectivity(geometry(σ), edges, sign)
+    # edges = BEAST.setminus(BEAST.skeleton(geometry(σ), 1), BEAST.boundary(geometry(σ)))
+    # Σ = BEAST.connectivity(geometry(σ), edges, SignFunctor())
+
+    # this is not the actual Σ matrix because it does not work for open geometries,
+    # but it works to get the adjacency graph (I hope so)
+    edges = BEAST.skeleton(geometry(X), 1)
+    faces = BEAST.skeleton(geometry(X), 2)
+    Σ = BEAST.connectivity(faces, edges, SignFunctor())
     ΣΣ = Σ' * Σ
     gσ = Graph(ΣΣ) # graph that tells us if two triangles touch each other
 
@@ -47,6 +60,7 @@ function adjacencygraph(X)
                     iszero(a) && continue
                     for (functionidb, b) in ad[elementb][i]
                         iszero(b) && continue
+                        functionida == functionidb && continue
                         add_edge!(gX, functionida, functionidb)
                     end
                 end
@@ -59,11 +73,57 @@ function adjacencygraph(X)
     functionsperelements = [length(ad[i]) for i in 1:length(elements)]
 
     for i in 1:numfunctions(X)
-        for fn in σ.fns[i]
+        for fn in X.fns[i]
             c = fn.cellid
             graphweights[i] +=
-                BEAST.volume(BEAST.chart(geometry(σ), c)) / functionsperelements[c]
+                BEAST.volume(BEAST.chart(geometry(X), c)) / functionsperelements[c]
         end
     end
     return gX, graphweights
+end
+
+function MetisForest(
+    basis::BEAST.Space,
+    numdivisions::Int;
+    splitunconnectedpartitions=false,
+    minlevel::Int=1,
+    minvalues::Int=numdivisions,
+    root::Int=1,
+    balldata=BoundingBallData,
+    graphweights=adjacencygraph(basis),
+)
+    return MetisForest(
+        positions(basis),
+        graphweights[1],
+        graphweights[2],
+        numdivisions;
+        splitunconnectedpartitions=splitunconnectedpartitions,
+        minlevel=minlevel,
+        minvalues=minvalues,
+        root=root,
+        balldata=balldata,
+    )
+end
+
+function MetisTree(
+    basis::BEAST.Space,
+    numdivisions::Int;
+    splitunconnectedpartitions=false,
+    minlevel::Int=1,
+    minvalues::Int=numdivisions,
+    root::Int=1,
+    balldata=BoundingBallData,
+    graphweights=adjacencygraph(basis),
+)
+    return MetisTree(
+        positions(basis),
+        graphweights[1],
+        graphweights[2],
+        numdivisions;
+        splitunconnectedpartitions=splitunconnectedpartitions,
+        minlevel=minlevel,
+        minvalues=minvalues,
+        root=root,
+        balldata=balldata,
+    )
 end
