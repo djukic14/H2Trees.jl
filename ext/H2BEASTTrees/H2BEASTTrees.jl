@@ -6,7 +6,7 @@ using Graphs
 
 import H2Trees: TwoNTree, boundingbox, numberoflevels, isgalerkinsymmetric
 import H2Trees: BEASTProtrusionFunctor, halfsize, center, adjacencygraph
-import H2Trees: MetisForest, MetisTree
+import H2Trees: MetisForest, MetisTree, noboundingsphereupdate
 """
     TwoNTree(space::BEAST.Space, minhalfsize; kwargs...)
 

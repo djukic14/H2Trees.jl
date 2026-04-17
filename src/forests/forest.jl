@@ -1,3 +1,20 @@
+"""
+        Forest{N,T}
+
+A container for multiple trees.
+
+`Forest` stores a fixed-size collection of trees in an `SVector` and provides
+basic indexing and iteration.
+
+# Type Parameters
+
+    - `N`: Number of trees in the forest.
+    - `T`: Type of each tree.
+
+# Fields
+
+    - `trees::SVector{N,T}`: Fixed-size collection of trees.
+"""
 struct Forest{N,T}
     trees::SVector{N,T}
 end

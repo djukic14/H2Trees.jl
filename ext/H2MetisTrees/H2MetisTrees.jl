@@ -44,6 +44,26 @@ const metisoptions = begin
     SVector{Metis.METIS_NOPTIONS}(_options)
 end
 
+"""
+        partition(G::Metis.Graph, nparts::Integer; alg=:KWAY, options=metisoptions, vertexweights=true)
+
+Partition a METIS graph into `nparts` parts.
+
+This is a thin wrapper around METIS partitioning routines that supports both
+recursive bisection (`:RECURSIVE`) and k-way partitioning (`:KWAY`).
+
+# Arguments
+
+    - `G::Metis.Graph`: Input graph in METIS format.
+    - `nparts::Integer`: Number of requested partitions.
+    - `alg`: Partitioning algorithm (`:KWAY` or `:RECURSIVE`, default: `:KWAY`).
+    - `options`: METIS options vector (default: `metisoptions`).
+    - `vertexweights`: Whether to use `G.vwgt` as vertex weights (default: `true`).
+
+# Returns
+
+A vector of partition labels with one entry per vertex.
+"""
 function partition(
     G::Metis.Graph, nparts::Integer; alg=:KWAY, options=metisoptions, vertexweights=true
 )
@@ -92,6 +112,25 @@ function partition(
     return part
 end
 
+"""
+        computemetisweights(::Type{T}, weights, targetmax=1000) where {T}
+
+Convert floating-point-like weights into positive integer METIS vertex weights.
+
+The input is transformed with `log1p`, normalized to `[0, 1]`, scaled by
+`targetmax`, and rounded to integers. The output is clamped to be at least `1`,
+as required by METIS.
+
+# Arguments
+
+    - `::Type{T}`: Target integer type for METIS weights.
+    - `weights`: Input vertex weights.
+    - `targetmax`: Maximum scale used before rounding (default: `1000`).
+
+# Returns
+
+A vector of type `T` containing strictly positive integer weights.
+"""
 function computemetisweights(::Type{T}, weights, targetmax=1000) where {T}
     w = Float64.(weights)
 
@@ -109,6 +148,27 @@ function computemetisweights(::Type{T}, weights, targetmax=1000) where {T}
     return T.(vwgt)
 end
 
+"""
+        metispartition(G::Graphs.SimpleGraph, vertexweights, numberofdivisions::Int; splitunconnectedpartitions::Bool=false)
+
+Partition a simple graph using METIS with optional post-processing of disconnected parts.
+
+The function converts `G` to a METIS graph, computes integer vertex weights,
+and runs weighted partitioning first. If METIS returns a single part, it retries
+without vertex weights using `fallbackmetisoptions`. Optionally, each resulting
+part can be split into connected components.
+
+# Arguments
+
+    - `G::Graphs.SimpleGraph`: Input graph to partition.
+    - `vertexweights`: Vertex weights used to bias partitioning.
+    - `numberofdivisions::Int`: Number of requested partitions.
+    - `splitunconnectedpartitions::Bool`: Split each METIS part into connected components (default: `false`).
+
+# Returns
+
+A vector of partition labels with one entry per vertex.
+"""
 function metispartition(
     G::Graphs.SimpleGraph,
     vertexweights,

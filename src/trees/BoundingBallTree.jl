@@ -35,6 +35,34 @@ function BoundingBallTree(
     return BoundingBallTree([rootnode], root, center, radius, [Int[]])
 end
 
+"""
+        BoundingBallTree(points::AbstractVector{SVector{N,T}}, splitwrapper, numsplits::Int; minvalues::Int=numsplits, minlevel::Int=1, root::Int=1, balldata=BoundingBallData, updateradii=boundingsphere, kwargs...)
+
+Construct a `BoundingBallTree` by recursively splitting points into partitions.
+
+This function initializes a root bounding ball over all points and repeatedly calls
+`splitwrapper` to partition node values until the stopping criterion is met.
+
+# Arguments
+
+    - `points::AbstractVector{SVector{N,T}}`: Array of points to partition.
+    - `splitwrapper`: Callable that returns `(partitions, centers, radii)` for a split.
+    - `numsplits::Int`: Number of partitions requested at each split.
+    - `minvalues::Int`: Minimum number of points required before splitting a node (default: `numsplits`).
+    - `minlevel::Int`: Minimum tree level (default: 1).
+    - `root::Int`: Index of root node (default: 1).
+    - `balldata`: Data structure for storing bounding ball information (default: `BoundingBallData`).
+    - `updateradii`: Function for updating node radii after tree construction (default: `boundingsphere`).
+    - `kwargs...`: Additional arguments passed to `splitwrapper`.
+
+# Returns
+
+A `BoundingBallTree` with points organized hierarchically according to `splitwrapper`.
+
+# See also
+
+`KMeansTree`, `MetisTree`, `MetisForest`.
+"""
 function BoundingBallTree(
     points::AbstractVector{SVector{N,T}},
     splitwrapper,

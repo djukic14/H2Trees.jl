@@ -499,10 +499,6 @@ export TwoNTree, BlockTree, SimpleHybridTree, KMeansTree
 
 function adjacencygraph end # requires BEAST to load
 
-function MetisTree end
-function MetisForest end
-function metispartition end
-
 # for backwards compatibility with julia versions below 1.9
 if !isdefined(Base, :get_extension)
     include("../ext/H2BEASTTrees/H2BEASTTrees.jl")
