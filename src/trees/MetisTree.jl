@@ -19,7 +19,7 @@ This function first splits the input graph into connected components, constructs
     - `minvalues::Int`: Minimum number of values required before splitting a node (default: `numdivisions`).
     - `root::Int`: Index of root node (default: 1).
     - `balldata`: Data structure for storing bounding ball information (default: `BoundingBallData`).
-    - `updateradii`: Function for updating node radii in each component tree (default: `noboundingsphereupdate`).
+    - `updateradii`: Function for updating node radii in each component tree (default: `boundingsphere`).
 
 # Returns
 
@@ -35,7 +35,7 @@ function MetisForest(
     minvalues::Int=numdivisions,
     root::Int=1,
     balldata=BoundingBallData,
-    updateradii=noboundingsphereupdate,
+    updateradii=boundingsphere,
 )
     trees = []
     for components in connected_components(graph)
@@ -79,7 +79,7 @@ subgraph of point indices and assigning each partition to a child node.
   - `minlevel::Int`: Minimum tree level (default: 1).
   - `root::Int`: Index of root node (default: 1).
   - `balldata`: Data structure for storing bounding ball information (default: `BoundingBallData`).
-  - `updateradii`: Function for updating node radii (default: `noboundingsphereupdate`).
+  - `updateradii`: Function for updating node radii (default: `boundingsphere`).
 
 # Returns
 
@@ -95,7 +95,7 @@ function MetisTree(
     minvalues::Int=numdivisions,
     root::Int=1,
     balldata=BoundingBallData,
-    updateradii=noboundingsphereupdate,
+    updateradii=boundingsphere,
 ) where {N,T}
     splitwrapper = MetisSplitWrapper(graph, pointgraphweights, splitunconnectedpartitions)
     return BoundingBallTree(
@@ -153,6 +153,8 @@ function metiswrapper(
     for (i, p) in enumerate(part)
         push!(partitions[p], globalpointids[i])
     end
+
+    filter!(!isempty, partitions)
     centers = Vector{SVector{N,T}}(undef, length(partitions))
     radii = Vector{T}(undef, length(partitions))
 

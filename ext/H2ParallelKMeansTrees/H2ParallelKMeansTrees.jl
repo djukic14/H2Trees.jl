@@ -1,6 +1,6 @@
 module H2ParallelKMeansTrees
 using ParallelKMeans
-using StaticArrays
+using StaticArrays, LinearAlgebra
 using H2Trees
 import H2Trees: kmeanswrapper
 

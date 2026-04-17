@@ -1,5 +1,5 @@
 using H2Trees
-using CompScienceMeshes, PlotlyJS, ParallelKMeans, BEAST
+using CompScienceMeshes, PlotlyJS, ParallelKMeans, BEAST, Metis, Graphs
 using Documenter
 import H2Trees:
     DepthFirstIterator,
@@ -27,13 +27,20 @@ import H2Trees:
     traceball,
     SimpleHybridTree,
     galerkinplans,
-    petrovplans
+    petrovplans,
+    MetisTree,
+    MetisForest
 
 DocMeta.setdocmeta!(H2Trees, :DocTestSetup, :(using H2Trees); recursive=true)
 
 makedocs(;
     modules=[
         H2Trees,
+        if isdefined(Base, :get_extension)
+            Base.get_extension(H2Trees, :H2MetisTrees)
+        else
+            H2Trees.H2MetisTrees
+        end,
         if isdefined(Base, :get_extension)
             Base.get_extension(H2Trees, :H2BEASTTrees)
         else
@@ -74,9 +81,11 @@ makedocs(;
                 "Disaggregate Plan" => "plans/disaggregateplan.md",
             ],
             "Translations" => "translations.md",
+            "Forest" => "forest.md",
         ],
         "Extensions" => [
             "BEAST" => "ext/h2beasttrees.md",
+            "Metis" => "ext/h2metistrees.md",
             "ParallelKMeans" => "ext/h2parallelkmeanstrees.md",
             "PlotlyJS" => "ext/h2plotlyjstrees.md",
         ],
