@@ -14,6 +14,8 @@ The H2Trees package provides a range of features, including
 * **Computation of translations**: Algorithms for computing translations between different tree levels.
 * **Plotting**: An interface to [PlotlyJS.jl](https://github.com/JuliaPlots/PlotlyJS.jl) for visualizing tree data structures.
 * **Interface to BEAST**: An interface to the [BEAST](https://github.com/krcools/BEAST.jl) package for clustering of basis functions.
+* **Interface to METIS**: An interface to [Metis.jl](https://github.com/JuliaSparse/Metis.jl) for graph-based partitioning strategies.
+* **Interface to ParallelKMeans**: An interface to [ParallelKMeans.jl](https://github.com/PyDataBlog/ParallelKMeans.jl) for k-means based partitioning strategies.
 
 ## Goals
 

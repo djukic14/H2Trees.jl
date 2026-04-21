@@ -2,9 +2,11 @@ module H2BEASTTrees
 using StaticArrays
 using BEAST
 using H2Trees
+using Graphs
 
 import H2Trees: TwoNTree, boundingbox, numberoflevels, isgalerkinsymmetric
-import H2Trees: BEASTProtrusionFunctor, halfsize, center
+import H2Trees: BEASTProtrusionFunctor, halfsize, center, adjacencygraph
+import H2Trees: MetisForest, MetisTree, noboundingsphereupdate
 """
     TwoNTree(space::BEAST.Space, minhalfsize; kwargs...)
 
@@ -91,4 +93,6 @@ function isgalerkinsymmetric(::Type{<:BEAST.MWDoubleLayer3D})
     return true
 end
 
+# Metis ####################################################################################
+include("metis.jl")
 end # module H2BEASTTrees

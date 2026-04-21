@@ -1,6 +1,8 @@
 module H2Trees
-using StaticArrays
 using LinearAlgebra
+using Graphs
+using BoundingSphere
+using StaticArrays
 import Base.Threads: @threads
 
 abstract type H2ClusterTree end
@@ -9,6 +11,8 @@ function traceball end # requires PlotlyJS to load
 function tracecube end # requires PlotlyJS to load
 
 export traceball, tracecube
+
+include("forests/forest.jl")
 
 include("treetraits.jl")
 
@@ -481,6 +485,7 @@ include("trees/SimpleHybridTree.jl")
 include("trees/BoundingBallTree.jl")
 include("trees/BlockTree.jl")
 include("trees/KMeansTree.jl")
+include("trees/MetisTree.jl")
 
 function isgalerkinsymmetric(T)
     return isgalerkinsymmetric(typeof(T))
@@ -491,6 +496,8 @@ function isgalerkinsymmetric(::Type{T}) where {T}
 end
 
 export TwoNTree, BlockTree, SimpleHybridTree, KMeansTree
+
+function adjacencygraph end # requires BEAST to load
 
 # for backwards compatibility with julia versions below 1.9
 if !isdefined(Base, :get_extension)

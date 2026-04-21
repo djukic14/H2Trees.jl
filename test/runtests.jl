@@ -48,6 +48,12 @@ end
 
 @testitem "H2BEASTTrees" begin
     include("H2BEASTTrees/test_operators.jl")
+    include("H2BEASTTrees/test_adjacencygraphs.jl")
+end
+
+@testitem "H2MetisTrees" begin
+    include("H2MetisTrees/test_H2MetisTrees.jl")
+    include("H2MetisTrees/test_H2MetisForest.jl")
 end
 
 @testitem "Code quality (Aqua.jl)" begin

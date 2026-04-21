@@ -7,6 +7,11 @@
 Modules = [ 
         H2Trees,
         if isdefined(Base, :get_extension)
+            Base.get_extension(H2Trees, :H2MetisTrees)
+        else
+            H2Trees.H2MetisTrees
+        end,
+        if isdefined(Base, :get_extension)
             Base.get_extension(H2Trees, :H2BEASTTrees)
         else
             H2Trees.H2BEASTTrees
