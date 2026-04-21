@@ -49,15 +49,16 @@ function adjacencygraph(X::BEAST.Space)
     ΣΣ = Σ' * Σ
     gσ = Graph(ΣΣ) # graph that tells us if two triangles touch each other
 
-    elements, ad, _ = assemblydata(X)
-
+    elements, ad, _ = assemblydata(X; onlyactives=false)
     # @assert length(elements) == size(Σ, 2)
 
     gX = SimpleGraph(numfunctions(X))
     for e in Graphs.edges(gσ)
         elementa, elementb = src(e), dst(e)
-        J = length(ad[elementa])
-        I = length(ad[elementb])
+        # J = length(ad[elementa])
+        # I = length(ad[elementb])
+        J = size(view(ad.data,:,:,elementa), 2)
+        I = size(view(ad.data,:,:,elementb), 2)
         for j in 1:J
             for i in 1:I
                 for (functionida, a) in view(ad.data[:, j, elementa])

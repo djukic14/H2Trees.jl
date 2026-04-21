@@ -3,7 +3,7 @@ module H2MetisTrees
 using StaticArrays
 using Graphs
 using Metis
-using Metis.LibMetis: idx_t, @check, METIS_PartGraphKway
+using Metis.LibMetis: idx_t, @check, METIS_PartGraphKway, METIS_PartGraphRecursive
 
 import H2Trees: metispartition
 
@@ -149,7 +149,7 @@ function computemetisweights(::Type{T}, weights, targetmax=1000) where {T}
 end
 
 """
-        metispartition(G::Graphs.SimpleGraph, vertexweights, numberofdivisions::Int; splitunconnectedpartitions::Bool=false)
+        metispartition(G::Graphs.SimpleGraph, vertexweights, numberofdivisions::Int; splitunconnectedpartitions::Bool=false, alg=:KWAY)
 
 Partition a simple graph using METIS with optional post-processing of disconnected parts.
 
@@ -164,6 +164,7 @@ part can be split into connected components.
     - `vertexweights`: Vertex weights used to bias partitioning.
     - `numberofdivisions::Int`: Number of requested partitions.
     - `splitunconnectedpartitions::Bool`: Split each METIS part into connected components (default: `false`).
+    - `alg`: Partitioning algorithm to use (`:KWAY` or `:RECURSIVE`, default: `:KWAY`).
 
 # Returns
 
@@ -174,6 +175,7 @@ function metispartition(
     vertexweights,
     numberofdivisions::Int;
     splitunconnectedpartitions::Bool=false,
+    alg=:KWAY,
 )
     metisG = Metis.graph(G)
     metisG = Metis.Graph(
@@ -184,7 +186,9 @@ function metispartition(
         metisG.adjwgt,
     )
 
-    part = partition(metisG, numberofdivisions; options=metisoptions, vertexweights=true)
+    part = partition(
+        metisG, numberofdivisions; options=metisoptions, vertexweights=true, alg=alg
+    )
 
     if maximum(part) == minimum(part)
         @warn "METIS partitioning failed to produce multiple parts, retrying without vertex weights"
