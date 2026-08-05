@@ -3,7 +3,9 @@
 In 𝓗² methods, these plans describe how information moves through the tree hierarchy during matrix-vector products.
 It defines where values are aggregated, where translations are applied, and how results are disaggregated back to the required space.
 
-The constructors [`galerkinplans`](@ref) and [`petrovplans`](@ref) produce compatible plan sets for both forward and transpose products.
+[`buildplans`](@ref) with a [`PlanBuilder`](@ref) is the public entry point: it builds a
+Galerkin [`PlanSet`](@ref) for a single tree or a Petrov [`PlanSet`](@ref) for a `BlockTree`,
+dispatching automatically on which one `tree` is.
 
 ## Core Ingredients
 
@@ -16,7 +18,7 @@ Independent of Galerkin or Petrov formulation, plan construction uses:
 
 ## Plan Families
 
-Each constructed plan set contains these plan objects:
+Each constructed [`PlanSet`](@ref) contains these public entries:
 
 - `trialaggregationplan`
 - `testdisaggregationplan`
@@ -25,6 +27,31 @@ Each constructed plan set contains these plan objects:
 - `relevantlevels`
 
 For Petrov planning, `mintranslationlevel` is additionally provided.
+
+The entries can be accessed by property, by symbol key, or through the accessor
+functions:
+
+```julia
+plans.trialaggregationplan
+plans[:trialaggregationplan]
+H2Trees.trialaggregationplan(plans)
+```
+
+`PlanSet` is a concrete return type so dispatch can distinguish Galerkin and
+Petrov plan metadata without sentinel symbols. Code that needs raw named-tuple
+interoperability can use `NamedTuple(plans)`, keyword splatting with
+`(; plans...)`, or `merge` with named tuples in either argument order.
+
+```julia
+nt = NamedTuple(plans)
+kwargs = (; plans...)
+extended = merge(plans, (label=:forward,))
+```
+
+!!! note
+    Older code that only accessed plan fields by name should continue to work.
+    Code that dispatches on `NamedTuple` should convert explicitly with
+    `NamedTuple(plans)`.
 
 ## Aggregation Modes
 

@@ -1,24 +1,15 @@
 """
-        AggregateTranslatePlan
+    AggregateTranslatePlan
 
-Aggregation translation plan for a tree.
+Upward traversal plan for translating/source moments.
 
-This is a translating plan used during upward traversal to compute and store moments that contribute to translation.
-The matching disaggregation plan is a `DisaggregateTranslatePlan`.
-
-Fields:
-
-  - `receivingnodes`: Per level, a dictionary mapping receiving nodes (not necessarily in `tree`) to
-    source aggregation node ids (in `tree`) whose moments translate to the receiver.
-  - `nodes`: Per level, nodes that must be visited during aggregation (from leaves to root).
-  - `levels`: Aggregation levels ordered from leaves to root.
-  - `istranslatingnode`: Boolean flag per node index indicating whether the node
-    contributes as a translating/source node.
-  - `rootoffset`: Offset used to convert node ids to 1-based storage indices.
-  - `tree`: Tree for which the plan is built.
+The plan records which aggregation nodes must produce moments for far-field
+translation and groups them by receiving node and level. The matching downward
+non-translating plan is [`DisaggregatePlan`](@ref).
 """
 struct AggregateTranslatePlan{T} <: AbstractAggregationPlan
     receivingnodes::Vector{Dict{Int,Vector{Int}}} # receivingnodes[leveltolevelid(level)][disaggregationnode] = [translatingaggregationnodes]
+    receivingnodes_by_level::Vector{Vector{Int}}
     nodes::Vector{Vector{Int}} # Aggregation nodes
     levels::StepRange{Int,Int} # Aggregation levels
     istranslatingnode::Vector{Bool} # Does the aggregationnode translate its moment?
@@ -26,63 +17,63 @@ struct AggregateTranslatePlan{T} <: AbstractAggregationPlan
     tree::T
 end
 
+function AggregateTranslatePlan(
+    receivingnodes::Vector{Dict{Int,Vector{Int}}},
+    nodes::Vector{Vector{Int}},
+    levels::StepRange{Int,Int},
+    istranslatingnode::Vector{Bool},
+    rootoffset::Int,
+    tree,
+)
+    return _makeaggregatetranslateplan(
+        receivingnodes, nodes, levels, istranslatingnode, rootoffset, tree
+    )
+end
+
 function plantranslationtrait(::AggregateTranslatePlan)
     return IsTranslatingPlan()
 end
 
 """
-        AggregateTranslatePlan(tree, TranslatingNodesIterator)
-        AggregateTranslatePlan(testtree, trialtree, TranslatingNodesIterator)
+    AggregateTranslatePlan(tree, TranslatingNodesIterator)
+    AggregateTranslatePlan(testtree, trialtree, TranslatingNodesIterator)
 
-Build an `AggregateTranslatePlan` from an iterator/functor that provides translating
-target nodes for a source aggregation node.
+Build an `AggregateTranslatePlan` from a translating-node iterator.
 
-Single-tree form:
+For a single tree, `TranslatingNodesIterator(node)` yields the receiving nodes
+that receive translated information from `node`.
 
-  - `TranslatingNodesIterator(node)` yields receiving nodes in `tree` that receive
-    translated information from `node`.
-
-Two-tree form:
-
-  - `TranslatingNodesIterator(testnode)` is wrapped so the resulting plan is built on
-    `testtree`, while receiving nodes are selected using `trialtree`.
-
-For block trees, the tree used for aggregation must be specified explicitly via the
-two-tree constructor.
+For two trees, the plan is built on the first tree, while receiving nodes are
+selected from the second. Block trees must be unwrapped explicitly with this
+two-tree form.
 """
 function AggregateTranslatePlan(tree, TranslatingNodesIterator)
     return AggregateTranslatePlan(tree, TranslatingNodesIterator, treetrait(tree))
 end
 
 function AggregateTranslatePlan(testtree, trialtree, TranslatingNodesIterator)
-    return _AggregateTranslatePlan(
-        testtree,
-        trialtree,
-        TranslatingNodesIterator,
-        treetrait(testtree),
-        treetrait(trialtree),
-    )
+    return _buildaggregatetranslateplan(testtree, trialtree, TranslatingNodesIterator)
 end
 
 function AggregateTranslatePlan(tree, TranslatingNodesIterator, ::isBlockTree)
-    return error(
-        "BlockTrees are not supported for AggregateTranslatePlan. Please specify which tree is used
-        for the disaggregation.",
+    return throw(
+        ArgumentError(
+            "BlockTrees are not supported for AggregateTranslatePlan. Please specify which tree is used
+            for the disaggregation.",
+        ),
     )
 end
 
 function AggregateTranslatePlan(tree, TranslatingNodesIterator, ::AbstractTreeTrait)
-    return _AggregateTranslatePlan(
+    return _buildaggregatetranslateplan(
         tree, _TranslatingFunctor(tree, TranslatingNodesIterator)
     )
 end
 
-function _AggregateTranslatePlan(
-    testtree, trialtree, TranslatingNodesIterator, ::AbstractTreeTrait, ::AbstractTreeTrait
-)
-    return _AggregateTranslatePlan(
+function _buildaggregatetranslateplan(testtree, trialtree, TranslatingNodesIterator)
+    return _buildaggregatetranslateplan(
         testtree,
-        _TranslatingBlockTreeFunctor(testtree, trialtree, TranslatingNodesIterator);
+        _TranslatingBlockTreeFunctor(testtree, trialtree, TranslatingNodesIterator),
     )
 end
 
@@ -90,83 +81,34 @@ function mintranslationlevel(plan::AggregateTranslatePlan)
     return minlevel(plan)
 end
 
-function _AggregateTranslatePlan(tree, TranslatingNodesIterator)
-    aggregationlevels = zeros(Int, numberoflevels(tree))
-    aggregationnodes = Vector{Vector{Int}}(undef, length(aggregationlevels))
-    receivingnodes = Vector{Dict{Int,Vector{Int}}}(undef, length(aggregationlevels))
+function _receivingnodes_by_level(receivingnodes)
+    return [collect(keys(levelreceivingnodes)) for levelreceivingnodes in receivingnodes]
+end
 
-    rootoffset = H2Trees.root(tree) - 1
-    levels = collect(H2Trees.levels(tree))
-
-    lk = Threads.SpinLock()
-    for level in levels
-        levelaggregationnodes = Int[]
-        levelreceivingnodes = Dict{Int,Vector{Int}}()
-        levelid = numberoflevels(tree) - level + minimumlevel(tree)
-
-        @threads for node in LevelIterator(tree, level)
-            nodehastobevisited = false
-
-            tfnodes = collect(Int, TranslatingNodesIterator(node))
-
-            !isempty(tfnodes) && (nodehastobevisited = true)
-
-            if !nodehastobevisited
-                for parent in ParentUpwardsIterator(tree, node)
-                    for node in TranslatingNodesIterator(parent)
-                        nodehastobevisited = true
-                        break
-                    end
-                end
-            end
-
-            if nodehastobevisited
-                lock(lk) do
-                    push!(levelaggregationnodes, node)
-                    for tfnode in tfnodes
-                        if !haskey(levelreceivingnodes, tfnode)
-                            levelreceivingnodes[tfnode] = [node]
-                        else
-                            push!(levelreceivingnodes[tfnode], node)
-                        end
-                    end
-                end
-            end
-
-            (isempty(levelaggregationnodes) && isempty(levelreceivingnodes)) && continue
-            aggregationlevels[levelid] = level
-            aggregationnodes[levelid] = levelaggregationnodes
-            receivingnodes[levelid] = levelreceivingnodes
-        end
-    end
-
-    indicestodelete = Int[]
-    for i in eachindex(aggregationnodes)
-        if !isassigned(aggregationnodes, i)
-            push!(indicestodelete, i)
-        end
-    end
-
-    deleteat!(aggregationlevels, indicestodelete)
-    deleteat!(aggregationnodes, indicestodelete)
-    deleteat!(receivingnodes, indicestodelete)
-
-    aggregationlevels = if !isempty(aggregationlevels)
-        @assert aggregationlevels == maximum(aggregationlevels):-1:minimum(aggregationlevels)
-        maximum(aggregationlevels):-1:minimum(aggregationlevels)
-    end
-
-    (isempty(aggregationnodes) || isempty(aggregationlevels)) &&
-        error("Empty AggregatePlan not supported.")
-
+function _makeaggregatetranslateplan(
+    receivingnodes, nodes, levels, istranslatingnode, rootoffset, tree
+)
     return AggregateTranslatePlan(
         receivingnodes,
-        aggregationnodes,
-        aggregationlevels,
-        _computeistranslatingnodes(receivingnodes, tree),
+        _receivingnodes_by_level(receivingnodes),
+        nodes,
+        _validatedaggregationlevels(levels),
+        istranslatingnode,
         rootoffset,
         tree,
     )
+end
+
+function refreshreceivingnodes!(plan::AggregateTranslatePlan)
+    resize!(plan.receivingnodes_by_level, length(plan.receivingnodes))
+    for levelid in eachindex(plan.receivingnodes)
+        plan.receivingnodes_by_level[levelid] = collect(keys(plan.receivingnodes[levelid]))
+    end
+    return plan
+end
+
+function _buildaggregatetranslateplan(tree, TranslatingNodesIterator)
+    return _buildtranslateplan(AggregateTranslateBuild(), tree, TranslatingNodesIterator)
 end
 
 function _computeistranslatingnodes(receivingnodes, tree)
@@ -186,7 +128,9 @@ function receivingnodes(plan::AggregateTranslatePlan)
 end
 
 function receivingnodes(plan::AggregateTranslatePlan, level::Int)
-    return keys(plan.receivingnodes[leveltolevelid(plan, level)])
+    # Return the cached Vector, not Dict keys: threaded chunking downstream
+    # requires an indexable collection.
+    return plan.receivingnodes_by_level[leveltolevelid(plan, level)]
 end
 
 function translatingnodes(plan::AggregateTranslatePlan, receivingnode::Int, level::Int)
@@ -194,7 +138,7 @@ function translatingnodes(plan::AggregateTranslatePlan, receivingnode::Int, leve
 end
 
 function Base.getindex(plan::AggregateTranslatePlan, receivingnode::Int, level::Int)
-    level < H2Trees.mintranslationlevel(plan) && return Int[]
+    level < mintranslationlevel(plan) && return Int[]
     tfnodes = plan.receivingnodes[leveltolevelid(plan, level)]
 
     if haskey(tfnodes, receivingnode)

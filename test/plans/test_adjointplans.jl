@@ -24,18 +24,25 @@ using H2Trees
         X = raviartthomas(mx)
         for my in [m, m1, m2, m3]
             Y = raviartthomas(my)
-            tree = TwoNTree(X, Y, λ / 10)
+            tree = buildtree(
+                X,
+                Y;
+                builder=BlockTreeBuilder(;
+                    test=TwoNTreeBuilder(; minhalfsize=λ / 10, minvalues=0),
+                    trial=TwoNTreeBuilder(; minhalfsize=λ / 10, minvalues=0),
+                ),
+            )
             TFIterator = H2Trees.TranslatingNodesIterator(; isnear=H2Trees.isnear())
             aggregatenode = H2Trees.istranslatingnode(; TranslatingNodesIterator=TFIterator)
 
             testtree = H2Trees.testtree(tree)
             trialtree = H2Trees.trialtree(tree)
 
-            @test_throws ErrorException H2Trees.DisaggregateTranslatePlan(
+            @test_throws ArgumentError H2Trees.DisaggregateTranslatePlan(
                 tree, H2Trees.TranslatingNodesIterator
             )
 
-            @test_throws ErrorException H2Trees.AggregateTranslatePlan(
+            @test_throws ArgumentError H2Trees.AggregateTranslatePlan(
                 tree, H2Trees.TranslatingNodesIterator
             )
 
@@ -46,7 +53,24 @@ using H2Trees
             testdisaggregatetranslateplan = H2Trees.DisaggregateTranslatePlan(
                 testtree, trialtree, H2Trees.TranslatingNodesIterator
             )
-            @test testdisaggregatetranslateplan[1, 1] == Int[]
+            # Root-level translating nodes are NOT always absent -- that was an artifact of the
+            # legacy centre-distance predicate, whose `sqrt(12)*halfsize` acceptance sphere is far
+            # larger than the box it stands for and so called every root pair near. Under the
+            # box-gap predicate a root pair is far whenever the two root boxes are genuinely
+            # separated: `sphere6` and `spherewithcenter14` are disjoint spheres whose roots have a
+            # clear gap of 3.60 against a 3.20 halfsize, so their whole interaction legitimately
+            # compresses into a single root <-> root translation.
+            # Both roots must also sit at level 1 for the plan to pair them at all (a `BlockTree`
+            # side with a smaller root box starts at level 2 -- see `adjusttwontreeblocktreeparameters`).
+            rootsonlevelone =
+                H2Trees.level(testtree, 1) == 1 && H2Trees.level(trialtree, 1) == 1
+            expectedroottranslations =
+                if rootsonlevelone && !H2Trees.isnear(testtree, trialtree, 1, 1)
+                    [1]
+                else
+                    Int[]
+                end
+            @test testdisaggregatetranslateplan[1, 1] == expectedroottranslations
 
             atestaggregatetranslateplan, atrialdisaggregateplan = H2Trees.adjointplans(
                 trialaggregateplan, testdisaggregatetranslateplan
@@ -67,10 +91,10 @@ using H2Trees
             @test H2Trees.translatingplan(
                 testaggregatetranslateplan, trialdisaggregateplan
             ) == testaggregatetranslateplan
-            @test_throws ErrorException H2Trees.translatingplan(
+            @test_throws ArgumentError H2Trees.translatingplan(
                 trialaggregateplan, trialdisaggregateplan
             )
-            @test_throws ErrorException H2Trees.translatingplan(
+            @test_throws ArgumentError H2Trees.translatingplan(
                 testaggregatetranslateplan, testdisaggregatetranslateplan
             )
 
@@ -80,6 +104,12 @@ using H2Trees
                 H2Trees.rootoffset(testaggregatetranslateplan)
             @test H2Trees.tree(atestaggregatetranslateplan) ==
                 H2Trees.tree(testaggregatetranslateplan)
+            for level in H2Trees.aggregationlevels(atestaggregatetranslateplan)
+                @test H2Trees.receivingnodes(atestaggregatetranslateplan, level) ===
+                    atestaggregatetranslateplan.receivingnodes_by_level[H2Trees.leveltolevelid(
+                    atestaggregatetranslateplan, level
+                )]
+            end
 
             for level in H2Trees.aggregationlevels(testaggregatetranslateplan)
                 @test sort(H2Trees.aggregationnodes(atestaggregatetranslateplan, level)) ==

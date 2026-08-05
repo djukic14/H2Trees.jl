@@ -1,36 +1,7 @@
-import Base.insert!
-
-function update!(f, tree, state, data, target; kwargs...)
-    while true
-        next_state = route!(tree, state, target; kwargs...)
-        next_state == state && break
-        state = next_state
-    end
-    node = first(state)
-    f(tree, node, data)
-    return node
-end
-
 """
-    DepthFirstIterator{T,N<:Integer}
+    DepthFirstIterator(tree, node=root(tree))
 
-Traverses the tree in a depth first manner. If no node is specified the tree is
-traversed from the root node.
-
-# Fields
-
-  - `tree::T`: The tree.
-  - `node::Int`: The node from which the tree is traversed.
-
-# Methods
-
-## `DepthFirstIterator(tree, node)`
-
-Creates a new `DepthFirstIterator` instance, traversing the tree from the specified `node`.
-
-## `DepthFirstIterator(tree)`
-
-Creates a new `DepthFirstIterator` instance, traversing the tree from the root node.
+Iterate over `node` and all of its descendants in depth-first order.
 """
 struct DepthFirstIterator{T,N<:Integer}
     tree::T
@@ -70,44 +41,38 @@ function Base.iterate(itr::DepthFirstIterator, stack)
     end
 end
 
+"""
+    _LeafFunctor(tree)
+
+Callable predicate returning `isleaf(tree, node)`.
+"""
 struct _LeafFunctor{T}
     tree::T
 end
 
 function (f::_LeafFunctor)(node::Int)
-    return H2Trees.isleaf(f.tree, node)
+    return isleaf(f.tree, node)
 end
 
 """
     leaves(tree, node::Int)
 
-Returns an iterator over the leaf nodes in the tree, starting from the specified `node`. If
-no node is specified the tree is traversed from the root node.
+Return the leaf nodes below `node`.
 
-# Arguments
-
-  - `tree`: The tree to search for leaf nodes.
-  - `node::Int`: The node from which to start the search.
-
-# Returns
-
-An iterator over the leaf nodes in the tree.
+When `node` is the root, the cached [`TreeIndex`](@ref) leaf list is reused and
+copied for caller ownership.
 """
 function leaves(tree, node::Int=H2Trees.root(tree))
+    node == H2Trees.root(tree) && return copy(treeindex(tree).leaves)
     return collect(
-        Int, Iterators.filter(_LeafFunctor(tree), H2Trees.DepthFirstIterator(tree, node))
+        Int, Iterators.filter(_LeafFunctor(tree), DepthFirstIterator(tree, node))
     )
 end
 
 """
-    ChildIterator{T,N<:Integer}
+    ChildIterator(tree, node)
 
-An iterator over the children of a node in a tree.
-
-# Fields
-
-  - `tree::T`: The tree.
-  - `node::N`: The node whose children are being iterated over.
+Iterate over the direct children of `node`.
 """
 struct ChildIterator{T,N<:Integer}
     tree::T
@@ -118,15 +83,9 @@ Base.IteratorSize(cv::ChildIterator) = Base.SizeUnknown()
 Base.eltype(::ChildIterator{T,N}) where {T,N} = N
 
 """
-    ParentUpwardsIterator{T,N<:Int}
+    ParentUpwardsIterator(tree, node)
 
-ParentUpwardsIterator is an iterator that iterates over all parent nodes of a given node in
-a tree until the root is reached. The last node is the node 0.
-
-# Fields
-
-  - `tree::T`: The tree.
-  - `node::Int`: The node over which parents is iterated.
+Iterate from `parent(tree, node)` upward until the root has been reached.
 """
 struct ParentUpwardsIterator{T,N<:Integer}
     tree::T
@@ -142,28 +101,25 @@ function Base.iterate(itr::ParentUpwardsIterator{T,N}) where {T,N}
     end
 
     prnt = parent(itr.tree, itr.node)
-
-    stack = N[prnt]
-    return prnt, stack
+    return prnt, prnt
 end
 
-function Base.iterate(itr::ParentUpwardsIterator, stack)
-    isempty(stack) && return nothing
-
-    node = stack[begin]
-    popfirst!(stack)
+function Base.iterate(itr::ParentUpwardsIterator, node)
     prnt = parent(itr.tree, node)
     if iszero(prnt)
         return nothing
-    else
-        pushfirst!(stack, prnt)
     end
 
-    return prnt, stack
+    return prnt, prnt
 end
 
 # Utils DepthFirstIterator #################################################################
 
+"""
+    NodeInformation(info)
+
+Typed wrapper for a child-iterator state, including `nothing`.
+"""
 struct NodeInformation{N}
     info::Union{Nothing,N}
     function NodeInformation(info)
@@ -183,6 +139,11 @@ state(next::NodeInformation) = next.info[2]
 
 Base.isnothing(x::NodeInformation) = isnothing(x.info)
 
+"""
+    StackElement(childreniterator, information)
+
+Stack frame used by [`DepthFirstIterator`](@ref).
+"""
 struct StackElement{C,N}
     chitr::C
     info::NodeInformation{N}
@@ -201,25 +162,6 @@ childreniterator(s::StackElement) = s.chitr
 information(s::StackElement) = s.info
 
 #TODO: hilbert_positions and hilbert_states for N≠3
-struct Router{T,P,S}
-    smallest_box_size::T
-    target_points::P
-    subdividefunctor::S
-    pointid::Int
-end
-
-function targetpoint(router::Router)
-    return router.target_points[router.pointid]
-end
-
-function smallestboxsize(router::Router)
-    return router.smallest_box_size
-end
-
-function subdivide(router::Router)
-    return router.subdividefunctor
-end
-
 const hilbert_states = [
     [1, 2, 3, 2, 4, 5, 3, 5],
     [2, 6, 0, 7, 8, 8, 0, 7],
@@ -272,85 +214,60 @@ function Base.iterate(itr::ChildIterator{<:H2ClusterTree}, st=start(itr))
     return done(itr, st) ? nothing : next(itr, st)
 end
 
-struct CheckSubdivideFunctor{P}
-    pointmaxlevel::P
-end
+# Buckets `ids` by `sectorcentersize`'s sector (always `0:2^N-1`, see `_uniformseparationdepth`
+# for why a plain `Vector` + `isassigned` beats a `Dict` here). Callers reconstruct a bucket's
+# child center on demand via `sectorcenter(sector, center, childhalfsize)` instead of this
+# function also allocating/returning a `centers` vector alongside the buckets -- `sectorcenter` is
+# a handful of arithmetic ops, cheaper than the allocation it replaces.
+"""
+    _bucketbysector(points, ids, center, halfsize, nsectors)
 
-struct NoCheckFunctor end
+Group point ids by their child sector relative to `center` and `halfsize`.
 
-function CheckSubdivideFunctor()
-    return CheckSubdivideFunctor(NoCheckFunctor())
-end
-
-function CheckSubdivideFunctor(
-    minvalues::Int, maxprotrusion, computeprotrusion, points, root, minlevel, roothalfsize
-)
-    (iszero(minvalues) && isnan(maxprotrusion)) && return CheckSubdivideFunctor()
-
-    # we subdivide if number of values >= minvalues
-    # we do not subdivide if function protrudes more than maxprotrusion after subdivision
-
-    comptree = comparisonTwoNTree(points, root, roothalfsize, minlevel)
-    pointmaxlevel = fill(minlevel - 1, length(points))
-    conformingnodes = zeros(Bool, numberofnodes(comptree))
-    conformingnodes[1] = true
-
-    for child in children(comptree, root)
-        for val in values(comptree, child)
-            if computeprotrusion(comptree, child, val) >= maxprotrusion
-                conformingnodes[1] = false
-                break
-            end
+Only assigned buckets are initialized. Callers reconstruct child centers from
+the sector id when needed.
+"""
+function _bucketbysector(points, ids, center, halfsize, nsectors)
+    buckets = Vector{Vector{Int}}(undef, nsectors)
+    # A crude but cheap even split: better than starting every bucket from empty and repeatedly
+    # doubling as it grows, without tracking exact per-sector counts up front.
+    buckethint = max(1, length(ids) ÷ nsectors)
+    for i in ids
+        sc, _, _ = sectorcentersize(points[i], center, halfsize)
+        idx = sc + 1
+        if !isassigned(buckets, idx)
+            buckets[idx] = sizehint!(Int[], buckethint)
         end
+        push!(buckets[idx], i)
     end
-
-    for level in levels(comptree)[2:end]
-        for node in LevelIterator(comptree, level)
-            #if parent is not conforming, this node is not conforming and we skip checks
-
-            conforming = true
-
-            if conformingnodes[parent(comptree, node) - H2Trees.root(comptree) + 1]
-                vals = values(comptree, node)
-                if length(vals) <= minvalues
-                    conforming = false
-                end
-
-                if conforming && !isnan(maxprotrusion)
-
-                    # we need to check if after splitting the protrusion is acceptable
-                    for child in children(comptree, node)
-                        for val in values(comptree, child)
-                            if computeprotrusion(comptree, child, val) >= maxprotrusion
-                                conforming = false
-                                break
-                            end
-                        end
-                    end
-                end
-
-                if !conforming
-                    for val in vals
-                        pointmaxlevel[val] = max(pointmaxlevel[val], level - 1)
-                    end
-                end
-                conformingnodes[node - H2Trees.root(comptree) + 1] = conforming
-            end
-
-            if conformingnodes[node - H2Trees.root(comptree) + 1] && isleaf(comptree, node)
-                for val in values(comptree, node)
-                    pointmaxlevel[val] = max(pointmaxlevel[val], level - 1)
-                end
-            end
-        end
-    end
-    return CheckSubdivideFunctor(pointmaxlevel)
+    return buckets
 end
 
-function (f::CheckSubdivideFunctor)(point, level)
-    return f.pointmaxlevel[point] >= level
+"""
+    _anyprotrudes(points, ids, center, halfsize, maxprotrusion, computeprotrusion)
+
+Return whether any point id protrudes beyond the accepted protrusion threshold.
+"""
+function _anyprotrudes(points, ids, center, halfsize, maxprotrusion, computeprotrusion)
+    for id in ids
+        computeprotrusion(center, halfsize, id) >= maxprotrusion && return true
+    end
+    return false
 end
 
-function (f::CheckSubdivideFunctor{<:NoCheckFunctor})(point, level)
-    return true
+"""
+    _validateprotrusion(protrusion)
+
+Validate the protrusion-check object used by bulk `TwoNTree` construction.
+"""
+function _validateprotrusion(protrusion)
+    protrusion isa NoProtrusionCheck ||
+        protrusion isa ProtrusionCheck ||
+        throw(
+            ArgumentError(
+                "protrusion must be a `NoProtrusionCheck` or `ProtrusionCheck`, got " *
+                "$(typeof(protrusion))",
+            ),
+        )
+    return nothing
 end

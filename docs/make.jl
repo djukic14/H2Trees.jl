@@ -26,8 +26,16 @@ import H2Trees:
     tracecube,
     traceball,
     SimpleHybridTree,
-    galerkinplans,
-    petrovplans,
+    PlanBuilder,
+    PlanSet,
+    buildplans,
+    TwoNTreeBuilder,
+    BlockTreeBuilder,
+    BoundingBallTreeBuilder,
+    KMeansTreeBuilder,
+    MetisTreeBuilder,
+    MetisForestBuilder,
+    SimpleHybridTreeBuilder,
     MetisTree,
     MetisForest
 
@@ -64,12 +72,22 @@ makedocs(;
         canonical="https://djukic14.github.io/H2Trees.jl",
         edit_link="main",
         assets=String[],
+        # The full API reference is one long, legitimately large page (every public and
+        # internal docstring across the core package and its four extensions); exempt it
+        # from the page-size budget that guards against accidentally-bloated manual pages.
+        size_threshold_ignore=["apiref.md"],
     ),
     pages=[
         "Home" => "index.md",
         "Manual" => [
+            "Builder Workflow" => "builders.md",
+            "Tree Families" => "tree_families.md",
             "TwoNTree" => "twontree.md",
+            "BlockTree and Petrov Trees" => "blocktree_petrov.md",
             "Simple Hybrid Tree" => "simplehybridtree.md",
+            "Protrusion Policy" => "protrusion.md",
+            "Tree Access and Values" => "tree_access.md",
+            "Near and Far Predicates" => "near_far.md",
             "Iterators" => "iterators.md",
             "Plans" => [
                 "Plans Overview" => "plans/plans.md",
@@ -80,8 +98,10 @@ makedocs(;
                 "Aggregate Translate Plan" => "plans/aggregatetranslateplan.md",
                 "Disaggregate Plan" => "plans/disaggregateplan.md",
             ],
+            "Admissibility Diagnostics" => "admissibility.md",
             "Translations" => "translations.md",
             "Forest" => "forest.md",
+            "Printing" => "printing.md",
         ],
         "Extensions" => [
             "BEAST" => "ext/h2beasttrees.md",

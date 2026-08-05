@@ -8,12 +8,13 @@ The following implementations of the [`AbstractTranslationTrait`](@ref) are avai
 | [`DirectionInvariance`](@ref)            | Treat translations with the same length and direction as identical.                    |
 | [`DirectionInvariancePerLevel`](@ref)    | Treat translations on the same level with the same length and direction as identical.  |
 
-The translations can be computed with the [`translations`](@ref) function.
-The result is a tuple containing two vectors:
+The translations can be computed with the [`translations`](@ref) function, which returns a plain
+3-tuple `(translationinfos, translationdirections, relevantlevels)`:
 
-- The first vector contains `NamedTuple`s with fields `receivingnode`, `translatingnode`, and `translationID`.
+- `translationinfos`: a vector of vectors containing `NamedTuple`s with fields `receivingnode`, `translatingnode`, and `translationID`, grouped by receiving level.
     The `translationID` is the id of the translation in the translation directions.
-- The second vector contains the translation directions.
+- `translationdirections`: the unique translation directions.
+- `relevantlevels`: the levels covered by the translations.
 
 This can for example look like
 
@@ -22,17 +23,20 @@ using CompScienceMeshes # hide
 using H2Trees # hide
 
 m = meshsphere(1.0, 0.1)
-tree = TwoNTree(vertices(m), 0.1)
+tree = buildtree(vertices(m); builder=TwoNTreeBuilder(; minhalfsize=0.1))
 
-# define iterator, which specifies which translations occur (we use the default isnear() function) 
-tfiterator = H2Trees.TranslatingNodesIterator(; isnear=H2Trees.isnear())
-# we are going to aggregate all nodes, even though that might not be needed and we use the AggregateMode
-plans = H2Trees.galerkinplans(tree, H2Trees.AggregateAllNodesFunctor(), tfiterator, H2Trees.AggregateMode())
+# we are going to aggregate all nodes, even though that might not be needed, and we use the
+# AggregateMode; the default isnear() function decides which translations occur
+plans = H2Trees.buildplans(
+    tree; builder=H2Trees.PlanBuilder(; aggregatenode=H2Trees.AggregateAllNodesFunctor())
+)
 
 # the translations can be found in the testdisaggregationplan in AggregateMode
 for translationtrait in [H2Trees.AllTranslations(), H2Trees.DirectionInvariance(),  H2Trees.DirectionInvariancePerLevel()]
-    translationinfo, translations = H2Trees.translations(tree, plans.testdisaggregationplan, translationtrait)
-    println("For translationtrait $(typeof(translationtrait)) we have $(length(translations)) unique translations.")
+    infos, directions, relevantlevels = H2Trees.translations(
+        tree, plans.testdisaggregationplan, translationtrait
+    )
+    println("For translationtrait $(typeof(translationtrait)) we have $(length(directions)) unique translations.")
 end
 ```
 
@@ -45,19 +49,22 @@ using H2Trees # hide
 mx = meshsphere(1.0, 0.1)
 my = meshsphere(2.0, 0.1)
 
-tree = TwoNTree(vertices(mx), vertices(my), 0.1)
+tree = buildtree(vertices(mx), vertices(my); builder=BlockTreeBuilder(; test=TwoNTreeBuilder(; minhalfsize=0.1), trial=TwoNTreeBuilder(; minhalfsize=0.1)))
 testtree = H2Trees.testtree(tree)
 trialtree = H2Trees.trialtree(tree)
 
-# define iterator, which specifies which translations occur (we use the default isnear() function) 
-tfiterator = H2Trees.TranslatingNodesIterator(; isnear=H2Trees.isnear())
-
-# we are going to aggregate all nodes, even though that might not be needed and we use the AggregateMode
-plans = H2Trees.petrovplans(tree, H2Trees.AggregateAllNodesFunctor(), tfiterator, H2Trees.AggregateMode())
+# we are going to aggregate all nodes, even though that might not be needed, and we use the
+# AggregateMode; the default isnear() function decides which translations occur; buildplans
+# dispatches to the Petrov path automatically since `tree` is a BlockTree
+plans = H2Trees.buildplans(
+    tree; builder=H2Trees.PlanBuilder(; aggregatenode=H2Trees.AggregateAllNodesFunctor())
+)
 
 # the translations can be found in the testdisaggregationplan in AggregateMode
 for translationtrait in [H2Trees.AllTranslations(), H2Trees.DirectionInvariance(),  H2Trees.DirectionInvariancePerLevel()]
-    translationinfo, translations = H2Trees.translations(tree, plans.testdisaggregationplan, translationtrait)
-    println("For translationtrait $(typeof(translationtrait)) we have $(length(translations)) unique translations.")
+    infos, directions, relevantlevels = H2Trees.translations(
+        tree, plans.testdisaggregationplan, translationtrait
+    )
+    println("For translationtrait $(typeof(translationtrait)) we have $(length(directions)) unique translations.")
 end
 ```

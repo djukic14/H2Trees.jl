@@ -10,7 +10,15 @@ using H2Trees
         joinpath(pkgdir(H2Trees), "test", "assets", "in", "sphere6.in")
     )
     X = raviartthomas(m)
-    tree = SimpleHybridTree(TwoNTree(X, λ / 10); hybridhalfsize=λ / 5)
+    tree = buildtree(
+        buildtree(
+            X;
+            builder=TwoNTreeBuilder(;
+                minhalfsize=λ / 10, minvalues=0, protrusion=NoProtrusionCheck()
+            ),
+        );
+        builder=SimpleHybridTreeBuilder(; hybridhalfsize=λ / 5),
+    )
 
     TFIterator = H2Trees.TranslatingNodesIterator(; isnear=H2Trees.isnear())(tree)
     aggregatetranslateplan = H2Trees.AggregateTranslatePlan(tree, TFIterator)
@@ -22,6 +30,14 @@ using H2Trees
 
     @test H2Trees.tree(upperplan) === tree
     @test H2Trees.tree(lowerplan) === tree
+    for level in H2Trees.levels(upperplan)
+        @test H2Trees.receivingnodes(upperplan, level) ===
+            upperplan.receivingnodes_by_level[H2Trees.leveltolevelid(upperplan, level)]
+    end
+    for level in H2Trees.levels(lowerplan)
+        @test H2Trees.receivingnodes(lowerplan, level) ===
+            lowerplan.receivingnodes_by_level[H2Trees.leveltolevelid(lowerplan, level)]
+    end
 
     for nodes in H2Trees.nodes(upperplan)
         for node in nodes
@@ -60,7 +76,15 @@ end
         joinpath(pkgdir(H2Trees), "test", "assets", "in", "sphere6.in")
     )
     X = raviartthomas(m)
-    tree = SimpleHybridTree(TwoNTree(X, λ / 10); hybridhalfsize=λ / 5)
+    tree = buildtree(
+        buildtree(
+            X;
+            builder=TwoNTreeBuilder(;
+                minhalfsize=λ / 10, minvalues=0, protrusion=NoProtrusionCheck()
+            ),
+        );
+        builder=SimpleHybridTreeBuilder(; hybridhalfsize=λ / 5),
+    )
 
     disaggregationplan = H2Trees.DisaggregateTranslatePlan(
         tree, H2Trees.TranslatingNodesIterator(; isnear=H2Trees.isnear())(tree)
@@ -70,6 +94,14 @@ end
 
     @test upperplan.isdisaggregationnode == disaggregationplan.isdisaggregationnode
     @test lowerplan.isdisaggregationnode == disaggregationplan.isdisaggregationnode
+    for level in H2Trees.levels(upperplan)
+        @test H2Trees.receivingnodes(upperplan, level) ===
+            upperplan.receivingnodes_by_level[H2Trees.leveltolevelid(upperplan, level)]
+    end
+    for level in H2Trees.levels(lowerplan)
+        @test H2Trees.receivingnodes(lowerplan, level) ===
+            lowerplan.receivingnodes_by_level[H2Trees.leveltolevelid(lowerplan, level)]
+    end
 
     @test H2Trees.levels(upperplan) == 3:H2Trees.hybridlevel(tree)
     @test H2Trees.levels(lowerplan) ==

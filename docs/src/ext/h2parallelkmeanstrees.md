@@ -1,6 +1,6 @@
 # KMeansTree
 
-`KMeansTree(points, numberofclusters; ...)` builds a `BoundingBallTree` by recursively
+`KMeansTree(points; builder=KMeansTreeBuilder(...))` builds a `BoundingBallTree` by recursively
 partitioning points with k-means.
 
 Construction outline:
@@ -11,6 +11,18 @@ Construction outline:
 3. Children store point indices and their local center/radius.
 4. Internal-node point lists are emptied after splitting, and node ordering is adjusted.
 5. Node radii are finalized via `updateradii!` (default: `boundingsphere`).
+
+Pass a [`KMeansTreeBuilder`](@ref), which stores all construction settings explicitly:
+
+```julia
+tree = KMeansTree(
+    points;
+    builder=KMeansTreeBuilder(;
+        numberofclusters=numberofclusters,
+        minvalues=60,
+    ),
+)
+```
 
 !!! warning
 
@@ -26,7 +38,7 @@ using PlotlyJS
 using ParallelKMeans
 
 m = meshsphere(1.0, 0.1)
-tree = KMeansTree(vertices(m), 4; minvalues=60)
+tree = KMeansTree(vertices(m); builder=KMeansTreeBuilder(; numberofclusters=4, minvalues=60))
 
 traces = [wireframe(skeleton(m, 1))] #hide
 
@@ -67,10 +79,10 @@ using ParallelKMeans
 m = meshsphere(1.0, 0.1)
 with_logger(NullLogger()) do #hide
 tree = KMeansTree(
-    vertices(m),
-    4;
-    minvalues=60,
-    updateradii=H2Trees.noboundingsphereupdate,
+    vertices(m);
+    builder=KMeansTreeBuilder(;
+        numberofclusters=4, minvalues=60, updateradii=H2Trees.noboundingsphereupdate
+    ),
 )
 
 traces = [wireframe(skeleton(m, 1))] #hide
@@ -113,10 +125,12 @@ using ParallelKMeans
 m = meshsphere(1.0, 0.1)
 with_logger(NullLogger()) do #hide
 tree = KMeansTree(
-    vertices(m),
-    4;
-    minvalues=60,
-    updateradii=H2Trees.unsafemaxradiusboundingsphere
+    vertices(m);
+    builder=KMeansTreeBuilder(;
+        numberofclusters=4,
+        minvalues=60,
+        updateradii=H2Trees.unsafemaxradiusboundingsphere,
+    ),
 )
 
 traces = [wireframe(skeleton(m, 1))] #hide

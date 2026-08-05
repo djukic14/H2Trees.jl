@@ -3,8 +3,10 @@
 In the Galerkin case, the test tree and trial tree are the same.
 For distinct test and trial trees, see [Petrov Plans](petrovplans.md).
 
-This page shows how to build Galerkin plans with [`galerkinplans`](@ref).
+This page shows how to build Galerkin plans with [`buildplans`](@ref).
 The single input space `X` is used for both test and trial roles, so one tree is sufficient.
+The result is a [`PlanSet`](@ref); see [Plans Overview](plans.md) for accessors
+and named-tuple interoperability.
 
 ```@example GalerkinPlans
 using CompScienceMeshes 
@@ -13,28 +15,26 @@ using H2Trees
 
 m = meshicosphere(25, 1.0)
 X = raviartthomas(m)
-tree = TwoNTree(X, 0.0; minvalues=100)
+tree = buildtree(X; builder=TwoNTreeBuilder(; minhalfsize=0.0, minvalues=100))
 ```
 
-## 1. Define the translating nodes iterator
+## 1. Construct plans in `AggregateMode()`
 
 ```@example GalerkinPlans
-tfiterator = H2Trees.TranslatingNodesIterator(;
-    isnear=H2Trees.isnear(; additionalbufferboxes=1)
+plans = H2Trees.buildplans(
+    tree;
+    builder=H2Trees.PlanBuilder(;
+        isnear=H2Trees.isnear(; additionalbufferboxes=1),
+        aggregationmode=H2Trees.AggregateMode(),
+    ),
 )
-
-aggregatenode = H2Trees.istranslatingnode(; TranslatingNodesIterator=tfiterator)
-```
-
-- `tfiterator` defines how near and far interactions are separated.
-- `aggregatenode` marks which nodes should be treated as translating nodes in the plan construction.
-
-## 2. Construct plans in `AggregateMode()`
-
-```@example GalerkinPlans
-plans = H2Trees.galerkinplans(tree, aggregatenode, tfiterator, H2Trees.AggregateMode())
 nothing #hide
 ```
+
+`PlanBuilder`'s `translatingnodesiterator` and `aggregatenode` both default from `isnear`, so
+overriding `isnear` alone (as above) keeps them consistent without reconstructing either by
+hand. Pass `translatingnodesiterator`/`aggregatenode` explicitly only when they need to differ
+from what `isnear` alone would produce.
 
 In `AggregateMode()` the forward pair is:
 
@@ -47,11 +47,19 @@ The transposed plans are built automatically:
 - `trialdisaggregationplan`: `DisaggregatePlan`
 
 The `relevantlevels` field contains the levels where the operations are active.
+Equivalent accessors such as `H2Trees.relevantlevels(plans)` and
+`H2Trees.trialaggregationplan(plans)` are also available.
 
-## 3. Construct plans in `AggregateTranslateMode()`
+## 2. Construct plans in `AggregateTranslateMode()`
 
 ```@example GalerkinPlans
-plans = H2Trees.galerkinplans(tree, aggregatenode, tfiterator, H2Trees.AggregateTranslateMode())
+plans = H2Trees.buildplans(
+    tree;
+    builder=H2Trees.PlanBuilder(;
+        isnear=H2Trees.isnear(; additionalbufferboxes=1),
+        aggregationmode=H2Trees.AggregateTranslateMode(),
+    ),
+)
 nothing #hide
 ```
 

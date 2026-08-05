@@ -9,22 +9,26 @@ hybrid level and levels below it.
 """
 function splitplan(tree, plan::AggregateTranslatePlan)
     startlevel, endlevel = levels(plan)[end], levels(plan)[begin]
-    hybridlevel = H2Trees.hybridlevel(tree)
+    hybridlevel_ = hybridlevel(tree)
 
-    upperrange = hybridlevel:-1:startlevel
-    lowerrange = endlevel:-1:(hybridlevel + 1)
+    upperrange = hybridlevel_:-1:startlevel
+    lowerrange = endlevel:-1:(hybridlevel_ + 1)
+    upperids = leveltolevelid.(Ref(plan), upperrange)
+    lowerids = leveltolevelid.(Ref(plan), lowerrange)
 
     return AggregateTranslatePlan(
-        plan.receivingnodes[leveltolevelid.(Ref(plan), upperrange)],
-        plan.nodes[leveltolevelid.(Ref(plan), upperrange)],
+        plan.receivingnodes[upperids],
+        plan.receivingnodes_by_level[upperids],
+        plan.nodes[upperids],
         upperrange,
         plan.istranslatingnode,
         plan.rootoffset,
         tree,
     ),
     AggregateTranslatePlan(
-        plan.receivingnodes[leveltolevelid.(Ref(plan), lowerrange)],
-        plan.nodes[leveltolevelid.(Ref(plan), lowerrange)],
+        plan.receivingnodes[lowerids],
+        plan.receivingnodes_by_level[lowerids],
+        plan.nodes[lowerids],
         lowerrange,
         plan.istranslatingnode,
         plan.rootoffset,
@@ -34,22 +38,26 @@ end
 
 function splitplan(tree, plan::DisaggregateTranslatePlan)
     startlevel, endlevel = levels(plan)[begin], levels(plan)[end]
-    hybridlevel = H2Trees.hybridlevel(tree)
+    hybridlevel_ = hybridlevel(tree)
 
-    upperrange = startlevel:hybridlevel
-    lowerrange = (hybridlevel + 1):endlevel
+    upperrange = startlevel:hybridlevel_
+    lowerrange = (hybridlevel_ + 1):endlevel
+    upperids = leveltolevelid.(Ref(plan), upperrange)
+    lowerids = leveltolevelid.(Ref(plan), lowerrange)
 
     return DisaggregateTranslatePlan(
-        plan.translatingnodes[leveltolevelid.(Ref(plan), upperrange)],
-        plan.nodes[leveltolevelid.(Ref(plan), upperrange)],
+        plan.translatingnodes[upperids],
+        plan.receivingnodes_by_level[upperids],
+        plan.nodes[upperids],
         upperrange,
         plan.isdisaggregationnode,
         plan.rootoffset,
         plan.tree,
     ),
     DisaggregateTranslatePlan(
-        plan.translatingnodes[leveltolevelid.(Ref(plan), lowerrange)],
-        plan.nodes[leveltolevelid.(Ref(plan), lowerrange)],
+        plan.translatingnodes[lowerids],
+        plan.receivingnodes_by_level[lowerids],
+        plan.nodes[lowerids],
         lowerrange,
         plan.isdisaggregationnode,
         plan.rootoffset,
