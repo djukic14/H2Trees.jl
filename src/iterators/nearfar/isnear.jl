@@ -20,6 +20,15 @@ function (f::IsNearFunctor)(tree)
     return isnear(tree, treetrait(tree); f.kwargs...)
 end
 
+"""
+    isnear(; kwargs...)
+
+Return a near-predicate factory.
+
+The returned object resolves to the appropriate one-tree or block-tree predicate
+when called with a tree. Keyword arguments are forwarded to the concrete
+geometric predicate.
+"""
 function isnear(; kwargs...)
     return IsNearFunctor(kwargs)
 end
@@ -118,8 +127,8 @@ function isnear(
     minlevel::Int=level(testtree, root(testtree)),
     kwargs...,
 )
-    H2Trees.level(testtree, testnode) < minlevel && return true
-    H2Trees.level(trialtree, trialnode) < minlevel && return true
+    level(testtree, testnode) < minlevel && return true
+    level(trialtree, trialnode) < minlevel && return true
 
     return isnear(
         testtree,
@@ -162,10 +171,11 @@ function isnear(
     additionalbufferboxes::Int=0,
     kwargs...,
 )
-    return isnearhalfsize(
+    return isneargap(
         center(tree, testnode),
         center(tree, trialnode),
         halfsize(tree, testnode),
+        halfsize(tree, trialnode),
         additionalbufferboxes;
         kwargs...,
     )
@@ -181,15 +191,87 @@ function isnear(
     additionalbufferboxes::Int=0,
     kwargs...,
 )
-    return isnearhalfsize(
+    # Keep each side's own halfsize; independently built trees can carry
+    # different box sizes at the same raw level.
+    return isneargap(
         center(testtree, testnode),
         center(trialtree, trialnode),
-        max(halfsize(trialtree, trialnode), halfsize(testtree, testnode)),
+        halfsize(testtree, testnode),
+        halfsize(trialtree, trialnode),
         additionalbufferboxes;
         kwargs...,
     )
 end
 
+"""
+    NEARGAPRELTOL
+
+Relative tolerance for the box-gap near predicate.
+
+This is only the numerical slack around the admissibility margin. The margin
+itself is [`DEFAULTNEARGAPBOXES`](@ref).
+"""
+const NEARGAPRELTOL = 1e-3
+
+"""
+    DEFAULTNEARGAPBOXES
+
+Default admissibility margin for [`isneargap`](@ref), measured in units of the
+smaller box's halfsize.
+
+The value `1.0` is the midpoint between touching boxes and the next
+non-neighbour on a common grid: those gaps are `0` and `2h`, so every threshold
+in `(0, 2h)` preserves the usual 3^d near neighbourhood. The midpoint also gives
+independently built block-tree sides a real separation buffer without placing
+the boundary on a common-grid lattice value. `additionalbufferboxes` adds more
+half-sizes on top.
+"""
+const DEFAULTNEARGAPBOXES = 1.0
+
+"""
+    isneargap(center_a, center_b, halfsize_a, halfsize_b, additionalbufferboxes;
+              gapboxes=DEFAULTNEARGAPBOXES, reltol=NEARGAPRELTOL)
+
+Box-gap near predicate: near when the axis-aligned gap between the two boxes is at most
+`(gapboxes + additionalbufferboxes) * min(halfsize)`, plus a small relative tolerance.
+
+Preferred over [`isnearhalfsize`](@ref) for admissibility. It measures the *actual* geometric gap
+between the two boxes, using each side's own halfsize, rather than asking whether the centre
+distance falls inside a sphere -- so it stays correct when the two boxes come from independently
+built trees that share no grid. See [`DEFAULTNEARGAPBOXES`](@ref) for why the default margin is one
+half-size rather than "touching".
+"""
+function isneargap(
+    center_a::AbstractVector,
+    center_b::AbstractVector,
+    halfsize_a::T,
+    halfsize_b,
+    additionalbufferboxes::Int;
+    gapboxes=DEFAULTNEARGAPBOXES,
+    reltol=NEARGAPRELTOL,
+    kwargs...,
+) where {T}
+    reach = halfsize_a + halfsize_b
+    gapsquared = zero(T)
+    for i in eachindex(center_a)
+        gap = abs(center_a[i] - center_b[i]) - reach
+        gap > 0 && (gapsquared += gap * gap)
+    end
+    # The margin follows the smaller box; the tolerance follows the larger box
+    # so it stays a true relative slack.
+    allowance = (gapboxes + additionalbufferboxes) * min(halfsize_a, halfsize_b)
+    return sqrt(gapsquared) <= allowance + reltol * max(halfsize_a, halfsize_b)
+end
+
+"""
+    isnearhalfsize(center_a, center_b, halfsize, additionalbufferboxes)
+
+LEGACY centre-distance near predicate: near when the centres lie within `sqrt((n+1)*12)*halfsize`.
+
+Retained as a named predicate, but not used for default admissibility. It
+assumes both boxes share one `halfsize`; use [`isneargap`](@ref) for
+independently built trees.
+"""
 function isnearhalfsize(
     center_a::AbstractVector,
     center_b::AbstractVector,
@@ -218,7 +300,15 @@ function isnearhalfsize(
 end
 
 function isin(tree, node, point, ::isTwoNTree)
-    return isnearhalfsize(center(tree, node), point, halfsize(tree, node), 0, 0)
+    nodecenter = center(tree, node)
+    nodehalfsize = halfsize(tree, node)
+    tolerance = 100 * eps(typeof(nodehalfsize)) * nodehalfsize
+
+    for i in eachindex(nodecenter)
+        abs(point[i] - nodecenter[i]) <= nodehalfsize + tolerance || return false
+    end
+
+    return true
 end
 
 # BoundingBallTree #########################################################################
@@ -251,7 +341,15 @@ function isnear(
     )
 end
 
-# η has to be >= 1
+"""
+    isnearradius(center1, center2, radius1, radius2; η=1)
+
+Ball near predicate.
+
+Two balls are near when one contains the other, or when their center distance is
+at most `2η * max(radius1, radius2)` up to numerical slack. `η` must be at
+least one.
+"""
 function isnearradius(
     center1::AbstractVector,
     center2::AbstractVector,
@@ -260,7 +358,9 @@ function isnearradius(
     η::T=one(T),
     kwargs...,
 ) where {T}
-    @assert η >= one(T)
+    if η < one(T)
+        throw(ArgumentError("η must be greater than or equal to 1, got $η"))
+    end
     difference = center1 - center2
     differencenorm = norm(difference)
 

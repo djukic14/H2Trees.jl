@@ -59,12 +59,14 @@ using BEAST #hide
 using H2Trees #hide
 m = meshicosphere(25, 1.0) #hide
 X = raviartthomas(m) #hide
-tree = TwoNTree(X, 0.0; minvalues=100) #hide
-tfiterator = H2Trees.TranslatingNodesIterator(; #hide
-    isnear=H2Trees.isnear(; additionalbufferboxes=1) #hide
-) #hide
-aggregatenode = H2Trees.istranslatingnode(; TranslatingNodesIterator=tfiterator) #hide
-plans = H2Trees.galerkinplans(tree, aggregatenode, tfiterator, H2Trees.AggregateTranslateMode())
+tree = buildtree(X; builder=TwoNTreeBuilder(; minhalfsize=0.0, minvalues=100)) #hide
+plans = H2Trees.buildplans(
+    tree;
+    builder=H2Trees.PlanBuilder(;
+        isnear=H2Trees.isnear(; additionalbufferboxes=1),
+        aggregationmode=H2Trees.AggregateTranslateMode(),
+    ),
+)
 aggregatetranslateplan = plans.trialaggregationplan
 aggregatetranslateplan
 ```

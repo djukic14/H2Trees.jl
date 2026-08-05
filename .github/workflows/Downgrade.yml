@@ -1,29 +1,39 @@
 name: Downgrade
+
 on:
-  pull_request:
-    branches: [master, main]
-    paths-ignore:
-      - 'docs/**'
   push:
-    branches: [master, main]
-    paths-ignore:
-      - 'docs/**'
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ (github.ref != 'refs/heads/main') || github.run_number }}
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
+
+permissions:
+  contents: read
+
 env:
   PYTHON: ~
+
 jobs:
   test:
+    name: Minimum Julia and dependencies
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        version: ['1.10']
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v6
       - uses: julia-actions/setup-julia@v3
         with:
-          version: ${{ matrix.version }}
+          version: min
       - uses: julia-actions/julia-downgrade-compat@v2
         with:
-          skip: Pkg,TOML,InteractiveUtils,Random,LinearAlgebra
+          mode: direct
+          julia_version: min
+          skip: Pkg,TOML,InteractiveUtils,Random,LinearAlgebra,SparseArrays,Test
       - uses: julia-actions/cache@v3
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
+        env:
+          JULIA_NUM_THREADS: '1'

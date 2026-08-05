@@ -1,48 +1,143 @@
+"""
+    _CenterFunctor(tree)
+
+Callable wrapper returning `center(tree, node)`.
+"""
 struct _CenterFunctor{T}
     tree::T
 end
 
 function (f::_CenterFunctor)(node::Int)
-    return H2Trees.center(f.tree, node)
+    return center(f.tree, node)
 end
 
+"""
+    _HalfSizeFunctor(tree)
+
+Callable wrapper returning `halfsize(tree, node)`.
+"""
 struct _HalfSizeFunctor{T}
     tree::T
 end
 
 function (f::_HalfSizeFunctor)(node::Int)
-    return H2Trees.halfsize(f.tree, node)
+    return halfsize(f.tree, node)
 end
 
+"""
+    _LevelFunctor(tree)
+
+Callable wrapper returning `level(tree, node)`.
+"""
 struct _LevelFunctor{T}
     tree::T
 end
 
 function (f::_LevelFunctor)(node::Int)
-    return H2Trees.level(f.tree, node)
+    return level(f.tree, node)
 end
 
 """
-    function translations(tree, translatingplan::AbstractPlan, translationtrait)
+    foreachtranslationpair(f, translatingplan, relevantlevels, receivinglevel)
 
-Compute the translations of the tree based on the given translating plan and translation trait.
+Call `f(levelid, receivingnode, translatingnode)` for every pair scheduled by a
+translating plan.
 
-# Arguments
+`levelid` indexes `relevantlevels` according to the receiving node's level.
+"""
+function foreachtranslationpair(
+    f, translatingplan::AbstractPlan, relevantlevels, receivinglevel
+)
+    relevantlevelsdict = Dict(zip(relevantlevels, collect(eachindex(relevantlevels))))
 
-  - `tree`: The tree
-  - `translatingplan::AbstractPlan`: The plan describing the translations in the tree
-  - `translationtrait`: The trait describing the translations
+    for level in relevantlevels
+        for receivingnode in receivingnodes(translatingplan, level)
+            rlevelid = relevantlevelsdict[receivinglevel(receivingnode)]
+            for translatingnode in translatingplan[receivingnode, level]
+                f(rlevelid, receivingnode, translatingnode)
+            end
+        end
+    end
 
-# Returns
+    return nothing
+end
 
-A tuple containing two vectors:
+"""
+    _translationinfo(receivingnode, translatingnode, translationID)
 
-  - The first vector contains `NamedTuple`s with fields `receivingnode`, `translatingnode`, and `translationID`.
-    The `translationID` is the id of the translation in the translation directions.
-  - The second vector contains the translation directions.
+Create the compact metadata record stored in `translationinfos`.
+"""
+function _translationinfo(receivingnode::Int, translatingnode::Int, translationID::Int)
+    return (
+        receivingnode=receivingnode,
+        translatingnode=translatingnode,
+        translationID=translationID,
+    )
+end
+
+"""
+    settranslationinfo!(translationinfos, rlevelid, levelindex, receivingnode,
+        translatingnode, translationID)
+
+Store one translation metadata record at a known level-local index.
+"""
+function settranslationinfo!(
+    translationinfos,
+    rlevelid::Int,
+    levelindex::Int,
+    receivingnode::Int,
+    translatingnode::Int,
+    translationID::Int,
+)
+    translationinfos[rlevelid][levelindex] = _translationinfo(
+        receivingnode, translatingnode, translationID
+    )
+    return nothing
+end
+
+"""
+    appendtranslationinfo!(translationinfos, rlevelid, receivingnode,
+        translatingnode, translationID)
+
+Append one translation metadata record to a level-local vector.
+"""
+function appendtranslationinfo!(
+    translationinfos,
+    rlevelid::Int,
+    receivingnode::Int,
+    translatingnode::Int,
+    translationID::Int,
+)
+    push!(
+        translationinfos[rlevelid],
+        _translationinfo(receivingnode, translatingnode, translationID),
+    )
+    return nothing
+end
+
+"""
+    translations(tree, translatingplan, translationtrait)
+
+Compute translation vectors for a translating plan.
+
+Returns `(translationinfos, translationdirections, relevantlevels)`.
+`translationinfos[levelid]` stores named tuples with `receivingnode`,
+`translatingnode`, and `translationID`; `translationdirections[translationID]`
+stores the vector used by that pair.
+
+The `translationtrait` controls how directions are deduplicated:
+
+  - [`AllTranslations`](@ref): every scheduled pair gets its own direction.
+  - [`DirectionInvariancePerLevel`](@ref): equal directions are shared within a level.
+  - [`DirectionInvariance`](@ref): equal directions are shared across all relevant levels.
+
+For `BlockTree`s, receiving and translating sides are resolved from the
+translating plan.
 """
 function translations(tree, translatingplan::AbstractPlan, translationtrait)
-    @assert istranslatingplan(translatingplan)
+    if !istranslatingplan(translatingplan)
+        throw(ArgumentError("translations require a translating plan"))
+    end
     return translations(tree, treetrait(tree), translatingplan, translationtrait)
 end
 
@@ -51,14 +146,17 @@ function translations(
 )
     relevantlevels = mintranslationlevel(translatingplan):(H2Trees.levels(tree)[end])
 
-    return _translations(
-        translatingplan,
+    return (
+        _translations(
+            translatingplan,
+            relevantlevels,
+            _CenterFunctor(tree),
+            _CenterFunctor(tree),
+            _LevelFunctor(tree),
+            Val{eltype(tree)}(),
+            translationtrait,
+        )...,
         relevantlevels,
-        _CenterFunctor(tree),
-        _CenterFunctor(tree),
-        _LevelFunctor(tree),
-        Val{eltype(tree)}(),
-        translationtrait,
     )
 end
 
@@ -67,15 +165,18 @@ function translations(
 )
     relevantlevels = mintranslationlevel(translatingplan):(levels(tree)[end])
 
-    return _translations(
-        translatingplan,
+    return (
+        _translations(
+            translatingplan,
+            relevantlevels,
+            _CenterFunctor(tree),
+            _CenterFunctor(tree),
+            _HalfSizeFunctor(tree),
+            _LevelFunctor(tree),
+            Val{eltype(tree)}(),
+            DirectionInvariancePerLevel(),
+        )...,
         relevantlevels,
-        _CenterFunctor(tree),
-        _CenterFunctor(tree),
-        _HalfSizeFunctor(tree),
-        _LevelFunctor(tree),
-        Val{eltype(tree)}(),
-        DirectionInvariancePerLevel(),
     )
 end
 
@@ -84,24 +185,29 @@ function translations(
 )
     relevantlevels = mintranslationlevel(translatingplan):(levels(tree)[end])
 
-    return _translations(
-        translatingplan,
+    return (
+        _translations(
+            translatingplan,
+            relevantlevels,
+            _CenterFunctor(tree),
+            _CenterFunctor(tree),
+            minhalfsize(tree),
+            _LevelFunctor(tree),
+            Val{eltype(tree)}(),
+            DirectionInvariance(),
+        )...,
         relevantlevels,
-        _CenterFunctor(tree),
-        _CenterFunctor(tree),
-        H2Trees.minhalfsize(tree),
-        _LevelFunctor(tree),
-        Val{eltype(tree)}(),
-        DirectionInvariance(),
     )
 end
 
 function translations(tree, ::isBlockTree, translatingplan::AbstractPlan, translationtrait)
+    receive = receivingtree(tree, translatingplan)
+    translate = translatingtree(tree, translatingplan)
     return translations(
-        testtree(tree),
-        trialtree(tree),
-        treetrait(testtree(tree)),
-        treetrait(trialtree(tree)),
+        receive,
+        translate,
+        treetrait(receive),
+        treetrait(translate),
         translatingplan,
         translationtrait,
     )
@@ -118,14 +224,17 @@ function translations(
     leaflevel = min(levels(receivetree)[end], levels(translatingtree)[end])
     relevantlevels = mintranslationlevel(translatingplan):leaflevel
 
-    return _translations(
-        translatingplan,
+    return (
+        _translations(
+            translatingplan,
+            relevantlevels,
+            _CenterFunctor(receivetree),
+            _CenterFunctor(translatingtree),
+            _LevelFunctor(receivetree),
+            Val{promote_type(eltype(receivetree), eltype(translatingtree))}(),
+            translationtrait,
+        )...,
         relevantlevels,
-        _CenterFunctor(receivetree),
-        _CenterFunctor(translatingtree),
-        _LevelFunctor(receivetree),
-        Val{promote_type(eltype(receivetree), eltype(translatingtree))}(),
-        translationtrait,
     )
 end
 
@@ -140,17 +249,20 @@ function translations(
     leaflevel = min(levels(receivetree)[end], levels(translatingtree)[end])
     relevantlevels = mintranslationlevel(translatingplan):leaflevel
 
-    return _translations(
-        translatingplan,
+    return (
+        _translations(
+            translatingplan,
+            relevantlevels,
+            _CenterFunctor(receivetree),
+            _CenterFunctor(translatingtree),
+            _HalfSizeFunctor(receivetree),
+            _LevelFunctor(receivetree),
+            Val{promote_type(eltype(receivetree), eltype(translatingtree))}(),
+            DirectionInvariancePerLevel();
+            offset=H2Trees.center(receivetree, H2Trees.root(receivetree)) -
+                   H2Trees.center(translatingtree, H2Trees.root(translatingtree)),
+        )...,
         relevantlevels,
-        _CenterFunctor(receivetree),
-        _CenterFunctor(translatingtree),
-        _HalfSizeFunctor(receivetree),
-        _LevelFunctor(receivetree),
-        Val{promote_type(eltype(receivetree), eltype(translatingtree))}(),
-        DirectionInvariancePerLevel();
-        offset=H2Trees.center(receivetree, H2Trees.root(receivetree)) -
-               H2Trees.center(translatingtree, H2Trees.root(translatingtree)),
     )
 end
 
@@ -165,20 +277,28 @@ function translations(
     leaflevel = min(levels(receivetree)[end], levels(translatingtree)[end])
     relevantlevels = mintranslationlevel(translatingplan):leaflevel
 
-    return _translations(
-        translatingplan,
+    return (
+        _translations(
+            translatingplan,
+            relevantlevels,
+            _CenterFunctor(receivetree),
+            _CenterFunctor(translatingtree),
+            min(minhalfsize(receivetree), minhalfsize(translatingtree)),
+            _LevelFunctor(receivetree),
+            Val{promote_type(eltype(receivetree), eltype(translatingtree))}(),
+            DirectionInvariance();
+            offset=center(receivetree, root(receivetree)) -
+                   center(translatingtree, root(translatingtree)),
+        )...,
         relevantlevels,
-        _CenterFunctor(receivetree),
-        _CenterFunctor(translatingtree),
-        min(H2Trees.minhalfsize(receivetree), H2Trees.minhalfsize(translatingtree)),
-        _LevelFunctor(receivetree),
-        Val{promote_type(eltype(receivetree), eltype(translatingtree))}(),
-        DirectionInvariance();
-        offset=H2Trees.center(receivetree, H2Trees.root(receivetree)) -
-               H2Trees.center(translatingtree, H2Trees.root(translatingtree)),
     )
 end
 
+"""
+    _translations(..., ::AllTranslations)
+
+Materialize one translation direction per scheduled pair.
+"""
 function _translations(
     translatingplan::AbstractPlan,
     relevantlevels,
@@ -188,16 +308,13 @@ function _translations(
     ::Val{ELTYPE},
     ::AllTranslations,
 ) where {ELTYPE}
-    relevantlevelsdict = Dict(zip(relevantlevels, collect(eachindex(relevantlevels))))
-
     # count number of translations on each level
     ntranslationsperlevel = zeros(Int, length(relevantlevels))
-    for level in levels(translatingplan)
-        for receivingnode in receivingnodes(translatingplan, level)
-            ntranslationsperlevel[relevantlevelsdict[receivinglevel(receivingnode)]] += length(
-                translatingplan[receivingnode, level]
-            )
-        end
+    foreachtranslationpair(
+        translatingplan, relevantlevels, receivinglevel
+    ) do rlevelid, _, _
+        ntranslationsperlevel[rlevelid] += 1
+        return nothing
     end
 
     # allocate required memory
@@ -206,11 +323,11 @@ function _translations(
     }(
         undef, length(relevantlevels)
     )
-    for level in relevantlevels
-        translationinfos[relevantlevelsdict[level]] = Vector{
+    for levelid in eachindex(relevantlevels)
+        translationinfos[levelid] = Vector{
             @NamedTuple{receivingnode::Int,translatingnode::Int,translationID::Int}
         }(
-            undef, ntranslationsperlevel[relevantlevelsdict[level]]
+            undef, ntranslationsperlevel[levelid]
         )
     end
     translations = Vector{ELTYPE}(undef, sum(ntranslationsperlevel))
@@ -218,31 +335,35 @@ function _translations(
     # compute translations
     translationID = 1
     translationIDlevel = ones(Int, length(relevantlevels))
-    for level in relevantlevels
-        for receivingnode in receivingnodes(translatingplan, level)
-            rlevelid = relevantlevelsdict[receivinglevel(receivingnode)]
-            rcenter = receivecenter(receivingnode)
-            for translationnode in translatingplan[receivingnode, level]
-                translation = rcenter - translatingcenter(translationnode)
+    foreachtranslationpair(
+        translatingplan, relevantlevels, receivinglevel
+    ) do rlevelid, receivingnode, translatingnode
+        translation = receivecenter(receivingnode) - translatingcenter(translatingnode)
 
-                translations[translationID] = translation
+        translations[translationID] = translation
 
-                translationinfo = (
-                    receivingnode=receivingnode,
-                    translatingnode=translationnode,
-                    translationID=translationID,
-                )
-                translationinfos[rlevelid][translationIDlevel[rlevelid]] = translationinfo
+        settranslationinfo!(
+            translationinfos,
+            rlevelid,
+            translationIDlevel[rlevelid],
+            receivingnode,
+            translatingnode,
+            translationID,
+        )
 
-                translationID += 1
-                translationIDlevel[rlevelid] += 1
-            end
-        end
+        translationID += 1
+        translationIDlevel[rlevelid] += 1
+        return nothing
     end
 
     return translationinfos, translations
 end
 
+"""
+    _translations(..., ::DirectionInvariancePerLevel)
+
+Deduplicate equal translation vectors separately on each relevant level.
+"""
 function _translations(
     translatingplan::AbstractPlan,
     relevantlevels,
@@ -253,8 +374,6 @@ function _translations(
     ::DirectionInvariancePerLevel;
     isapprox=Base.isapprox,
 ) where {ELTYPE}
-    relevantlevelsdict = Dict(zip(relevantlevels, collect(eachindex(relevantlevels))))
-
     translations = [ELTYPE[] for _ in relevantlevels]
     translationIDs = [Int[] for _ in relevantlevels]
     translationinfos = [
@@ -265,33 +384,25 @@ function _translations(
     translationID = 1
     temptranslationID = 0
 
-    for level in relevantlevels
-        for receivenode in receivingnodes(translatingplan, level)
-            rlevelid = relevantlevelsdict[receivinglevel(receivenode)]
-            rcenter = receivecenter(receivenode)
-            for translationnode in translatingplan[receivenode, level]
-                translation = rcenter - translatingcenter(translationnode)
-                translationindexinarray = findfirst(
-                    isapprox(translation), translations[rlevelid]
-                )
+    foreachtranslationpair(
+        translatingplan, relevantlevels, receivinglevel
+    ) do rlevelid, receivingnode, translatingnode
+        translation = receivecenter(receivingnode) - translatingcenter(translatingnode)
+        translationindexinarray = findfirst(isapprox(translation), translations[rlevelid])
 
-                if isnothing(translationindexinarray)
-                    push!(translations[rlevelid], translation)
-                    push!(translationIDs[rlevelid], translationID)
-                    temptranslationID = translationID
-                    translationID += 1
-                else
-                    temptranslationID = translationIDs[rlevelid][translationindexinarray]
-                end
-                translationinfo = (
-                    receivingnode=receivenode,
-                    translatingnode=translationnode,
-                    translationID=temptranslationID,
-                )
-
-                push!(translationinfos[rlevelid], translationinfo)
-            end
+        if isnothing(translationindexinarray)
+            push!(translations[rlevelid], translation)
+            push!(translationIDs[rlevelid], translationID)
+            temptranslationID = translationID
+            translationID += 1
+        else
+            temptranslationID = translationIDs[rlevelid][translationindexinarray]
         end
+
+        appendtranslationinfo!(
+            translationinfos, rlevelid, receivingnode, translatingnode, temptranslationID
+        )
+        return nothing
     end
 
     translationarray = Vector{ELTYPE}(undef, translationID - 1)
@@ -305,6 +416,11 @@ function _translations(
     return translationinfos, translationarray
 end
 
+"""
+    _translations(..., ::DirectionInvariance)
+
+Deduplicate equal translation vectors across all relevant levels.
+"""
 function _translations(
     translatingplan::AbstractPlan,
     relevantlevels,
@@ -315,8 +431,6 @@ function _translations(
     ::DirectionInvariance;
     isapprox=Base.isapprox,
 ) where {ELTYPE}
-    relevantlevelsdict = Dict(zip(relevantlevels, collect(eachindex(relevantlevels))))
-
     translations = ELTYPE[]
     translationIDs = Int[]
     translationinfos = [
@@ -327,36 +441,37 @@ function _translations(
     translationID = 1
     temptranslationID = 0
 
-    for level in relevantlevels
-        for receivenode in receivingnodes(translatingplan, level)
-            rlevelid = relevantlevelsdict[receivinglevel(receivenode)]
-            rcenter = receivecenter(receivenode)
-            for translationnode in translatingplan[receivenode, level]
-                translation = rcenter - translatingcenter(translationnode)
-                translationindexinarray = findfirst(isapprox(translation), translations)
+    foreachtranslationpair(
+        translatingplan, relevantlevels, receivinglevel
+    ) do rlevelid, receivingnode, translatingnode
+        translation = receivecenter(receivingnode) - translatingcenter(translatingnode)
+        translationindexinarray = findfirst(isapprox(translation), translations)
 
-                if isnothing(translationindexinarray)
-                    push!(translations, translation)
-                    push!(translationIDs, translationID)
-                    temptranslationID = translationID
-                    translationID += 1
-                else
-                    temptranslationID = translationIDs[translationindexinarray]
-                end
-
-                translationinfo = (
-                    receivingnode=receivenode,
-                    translatingnode=translationnode,
-                    translationID=temptranslationID,
-                )
-
-                push!(translationinfos[rlevelid], translationinfo)
-            end
+        if isnothing(translationindexinarray)
+            push!(translations, translation)
+            push!(translationIDs, translationID)
+            temptranslationID = translationID
+            translationID += 1
+        else
+            temptranslationID = translationIDs[translationindexinarray]
         end
+
+        appendtranslationinfo!(
+            translationinfos, rlevelid, receivingnode, translatingnode, temptranslationID
+        )
+        return nothing
     end
     return translationinfos, translations
 end
 
+"""
+    _translations(..., ::DirectionInvariancePerLevel; offset=zero(ELTYPE))
+
+Deduplicate `TwoNTree` translations by integer offsets from the level halfsize.
+
+For a block tree with offset roots, `offset` shifts both sides to the same grid
+before the integer direction key is computed.
+"""
 function _translations(
     translatingplan::AbstractPlan,
     relevantlevels,
@@ -368,8 +483,6 @@ function _translations(
     ::DirectionInvariancePerLevel;
     offset=zero(ELTYPE),
 ) where {ELTYPE}
-    relevantlevelsdict = Dict(zip(relevantlevels, collect(eachindex(relevantlevels))))
-
     translationinfos = [
         @NamedTuple{receivingnode::Int, translatingnode::Int, translationID::Int}[] for
         _ in relevantlevels
@@ -393,41 +506,35 @@ function _translations(
 
     halfsizeperlevel = Vector{eltype(ELTYPE)}(undef, length(relevantlevels))
 
-    for level in relevantlevels
-        for receivenode in receivingnodes(translatingplan, level)
-            rlevelid = relevantlevelsdict[receivinglevel(receivenode)]
-            rcenter = receivecenter(receivenode)
-            rhalfsize = receivinghalfsize(receivenode)
+    foreachtranslationpair(
+        translatingplan, relevantlevels, receivinglevel
+    ) do rlevelid, receivingnode, translatingnode
+        rhalfsize = receivinghalfsize(receivingnode)
 
-            halfsizeperlevel[rlevelid] = rhalfsize
-            translationperhalfsizelevel[end] = rlevelid
+        halfsizeperlevel[rlevelid] = rhalfsize
+        translationperhalfsizelevel[end] = rlevelid
 
-            for translationnode in translatingplan[receivenode, level]
-                translation .= rcenter - translatingcenter(translationnode) - offset
+        translation .=
+            receivecenter(receivingnode) - translatingcenter(translatingnode) - offset
 
-                for i in eachindex(translation)
-                    translationperhalfsize[i] = round(Int, translation[i] / rhalfsize)
-                end
-
-                view(translationperhalfsizelevel, vectorindices) .= translationperhalfsize
-
-                if haskey(translationsdict, translationperhalfsizelevel)
-                    temptranslationID = translationsdict[translationperhalfsizelevel]
-                else
-                    translationsdict[deepcopy(translationperhalfsizelevel)] = translationID
-                    temptranslationID = translationID
-                    translationID += 1
-                end
-
-                translationinfo = (
-                    receivingnode=receivenode,
-                    translatingnode=translationnode,
-                    translationID=temptranslationID,
-                )
-
-                push!(translationinfos[rlevelid], translationinfo)
-            end
+        for i in eachindex(translation)
+            translationperhalfsize[i] = round(Int, translation[i] / rhalfsize)
         end
+
+        view(translationperhalfsizelevel, vectorindices) .= translationperhalfsize
+
+        if haskey(translationsdict, translationperhalfsizelevel)
+            temptranslationID = translationsdict[translationperhalfsizelevel]
+        else
+            translationsdict[deepcopy(translationperhalfsizelevel)] = translationID
+            temptranslationID = translationID
+            translationID += 1
+        end
+
+        appendtranslationinfo!(
+            translationinfos, rlevelid, receivingnode, translatingnode, temptranslationID
+        )
+        return nothing
     end
     ntranslations = length(keys(translationsdict))
     translationarray = Vector{ELTYPE}(undef, ntranslations)
@@ -440,6 +547,12 @@ function _translations(
     return translationinfos, translationarray
 end
 
+"""
+    _translations(..., ::DirectionInvariance; offset=zero(ELTYPE))
+
+Deduplicate `TwoNTree` translations by integer offsets from the minimum
+halfsize shared by all relevant levels.
+"""
 function _translations(
     translatingplan::AbstractPlan,
     relevantlevels,
@@ -451,8 +564,6 @@ function _translations(
     ::DirectionInvariance;
     offset=zero(ELTYPE),
 ) where {ELTYPE}
-    relevantlevelsdict = Dict(zip(relevantlevels, collect(eachindex(relevantlevels))))
-
     translationinfos = [
         @NamedTuple{receivingnode::Int, translatingnode::Int, translationID::Int}[] for
         _ in relevantlevels
@@ -468,35 +579,28 @@ function _translations(
     # array used as storage for (translation-offset) per halfsize
     translationperhalfsize = Vector{Int}(undef, length(ELTYPE))
 
-    for level in relevantlevels
-        for receivenode in receivingnodes(translatingplan, level)
-            rlevelid = relevantlevelsdict[receivinglevel(receivenode)]
-            rcenter = receivecenter(receivenode)
+    foreachtranslationpair(
+        translatingplan, relevantlevels, receivinglevel
+    ) do rlevelid, receivingnode, translatingnode
+        translation .=
+            receivecenter(receivingnode) - translatingcenter(translatingnode) - offset
 
-            for translationnode in translatingplan[receivenode, level]
-                translation .= rcenter - translatingcenter(translationnode) - offset
-
-                for i in eachindex(translation)
-                    translationperhalfsize[i] = round(Int, translation[i] / minhalfsize)
-                end
-
-                if haskey(translationsdict, translationperhalfsize)
-                    temptranslationID = translationsdict[translationperhalfsize]
-                else
-                    translationsdict[deepcopy(translationperhalfsize)] = translationID
-                    temptranslationID = translationID
-                    translationID += 1
-                end
-
-                translationinfo = (
-                    receivingnode=receivenode,
-                    translatingnode=translationnode,
-                    translationID=temptranslationID,
-                )
-
-                push!(translationinfos[rlevelid], translationinfo)
-            end
+        for i in eachindex(translation)
+            translationperhalfsize[i] = round(Int, translation[i] / minhalfsize)
         end
+
+        if haskey(translationsdict, translationperhalfsize)
+            temptranslationID = translationsdict[translationperhalfsize]
+        else
+            translationsdict[deepcopy(translationperhalfsize)] = translationID
+            temptranslationID = translationID
+            translationID += 1
+        end
+
+        appendtranslationinfo!(
+            translationinfos, rlevelid, receivingnode, translatingnode, temptranslationID
+        )
+        return nothing
     end
 
     ntranslations = length(keys(translationsdict))

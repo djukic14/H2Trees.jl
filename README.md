@@ -14,24 +14,43 @@
 
 ## Introduction
 
-The [H2Trees](https://github.com/djukic14/H2Trees.jl) package provides a Julia implementation of tree data structures and algorithms for efficient computation in the context of 𝓗² methods.
+The [H2Trees](https://github.com/djukic14/H2Trees.jl) package provides Julia tree data
+structures, traversal plans, and diagnostics for efficient computation in the context of
+𝓗² methods.
 
-H2Trees builds upon ideas from [ClusterTrees](https://github.com/krcools/ClusterTrees.jl) and provides a range of tree data structures, including:
+H2Trees builds upon ideas from [ClusterTrees](https://github.com/krcools/ClusterTrees.jl) and
+provides several tree families:
 
-* [`TwoNTree`](@ref): A 2ⁿ-tree data structure for organizing points in ℝⁿ.
-* [`SimpleHybridTree`](@ref): A tree data structure that splits a tree
-* [`BoundingBallTree`](@ref): A tree data structure using bounding balls.
+* `TwoNTree`: an axis-aligned 2ⁿ-tree for organizing points or supported basis functions.
+* `BlockTree`: a pair of test/trial trees for Petrov-Galerkin workflows.
+* `BoundingBallTree`: a generic bounding-ball cluster tree.
+* `KMeansTree`: a bounding-ball tree built from k-means clusters.
+* `MetisTree` and `MetisForest`: graph-partitioned trees and forests for connected or disconnected geometries.
+* `SimpleHybridTree`: a tree wrapper that separates upper and lower levels.
 
-The H2Trees package provides a range of features, including
+Tree construction uses a builder workflow:
+
+```julia
+using H2Trees
+
+tree = buildtree(points; builder=TwoNTreeBuilder())
+blocktree = buildtree(testpoints, trialpoints; builder=BlockTreeBuilder())
+```
+
+High-level builders provide sensible defaults. For example, `TwoNTreeBuilder()` builds an
+adaptive tree with `minhalfsize=0` and `minvalues=70`, while BEAST spaces automatically resolve
+to a protrusion-aware `TwoNTree` policy.
+
+The package also provides:
 
 * **Aggregation and disaggregation**: Plans for implementing aggregation and disaggregation algorithms for efficient computation.
 * **Computation of translations**: Algorithms for computing translations between different tree levels.
+* **Near/far diagnostics**: Tools such as `checkadmissibility` for validating assembled plans.
 * **Plotting**: An interface to [PlotlyJS.jl](https://github.com/JuliaPlots/PlotlyJS.jl) for visualizing tree data structures.
 * **Interface to BEAST**: An interface to the [BEAST](https://github.com/krcools/BEAST.jl) package for clustering of basis functions.
-* **Interface to METIS**: An interface to [Metis.jl](https://github.com/JuliaSparse/Metis.jl) for graph-based tree construction.
-* **Interface to ParallelKMeans**: An interface to [ParallelKMeans.jl](https://github.com/PyDataBlog/ParallelKMeans.jl) for k-means based tree construction.
+* **Interfaces to METIS and ParallelKMeans**: Optional extensions for graph- and clustering-based trees.
 
 ## Documentation
 
 * Documentation for the [latest stable version](https://djukic14.github.io/H2Trees.jl/stable/).
-* Documentation for the [development version](https://djukic14.github.io/H2Trees.jl/dev/)
+* Documentation for the [development version](https://djukic14.github.io/H2Trees.jl/dev/).

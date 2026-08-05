@@ -4,6 +4,27 @@ The METIS extension provides graph-based partitioning for tree construction.
 Once `Metis.jl` is loaded, H2Trees can use `metispartition` internally and expose
 high-level constructors such as [`MetisTree`](@ref) and [`MetisForest`](@ref).
 
+Pass explicit builders. [`MetisTreeBuilder`](@ref) and [`MetisForestBuilder`](@ref) store the
+partitioning options explicitly.
+
+```julia
+tree = MetisTree(
+    X;
+    builder=MetisTreeBuilder(;
+        numdivisions=4,
+    ),
+)
+
+forest = MetisForest(
+    X;
+    builder=MetisForestBuilder(;
+        treebuilder=MetisTreeBuilder(;
+            numdivisions=4,
+        ),
+    ),
+)
+```
+
 ## Adjacency Graph and Weights
 
 For BEAST spaces, the graph and weights are typically built with
@@ -45,7 +66,7 @@ using PlotlyJS
 m = meshicosphere(10)
 X = lagrangecxd0(m)
 
-tree = H2Trees.MetisTree(X, 4)
+tree = H2Trees.MetisTree(X; builder=H2Trees.MetisTreeBuilder(; numdivisions=4))
 
 childcolors = [
     "rgb(0.5490196078431373, 0.00784313725490196, 0.45098039215686275)",
@@ -105,7 +126,9 @@ m = CompScienceMeshes.readmesh(
 )
 X = lagrangecxd0(m)
 
-forest = H2Trees.MetisForest(X, 4)
+forest = H2Trees.MetisForest(
+    X; builder=H2Trees.MetisForestBuilder(; treebuilder=H2Trees.MetisTreeBuilder(; numdivisions=4))
+)
 
 childcolors = [
     "rgb(0.5490196078431373, 0.00784313725490196, 0.45098039215686275)",

@@ -12,7 +12,7 @@ using CompScienceMeshes # hide
 using H2Trees # hide
 
 m = meshsphere(1.0, 0.1)
-tree = TwoNTree(vertices(m), 0.1)
+tree = TwoNTree(vertices(m); builder=TwoNTreeBuilder(; minhalfsize=0.1, minvalues=0))
 println(collect(H2Trees.DepthFirstIterator(tree)))
 ```
 
@@ -26,7 +26,7 @@ using CompScienceMeshes # hide
 using H2Trees # hide
 
 m = meshsphere(1.0, 0.1)
-tree = TwoNTree(vertices(m), 0.1)
+tree = TwoNTree(vertices(m); builder=TwoNTreeBuilder(; minhalfsize=0.1, minvalues=0))
 println(collect(H2Trees.ParentUpwardsIterator(tree, 373)))
 ```
 
@@ -39,7 +39,7 @@ using CompScienceMeshes # hide
 using H2Trees # hide
 
 m = meshsphere(1.0, 0.1)
-tree = TwoNTree(vertices(m), 0.1)
+tree = TwoNTree(vertices(m); builder=TwoNTreeBuilder(; minhalfsize=0.1, minvalues=0))
 println(collect(H2Trees.children(tree, H2Trees.root(tree))))
 ```
 
@@ -53,7 +53,7 @@ using CompScienceMeshes # hide
 using H2Trees # hide
 
 m = meshsphere(1.0, 0.1)
-tree = TwoNTree(vertices(m), 0.1)
+tree = TwoNTree(vertices(m); builder=TwoNTreeBuilder(; minhalfsize=0.1, minvalues=0))
 println(collect(H2Trees.leaves(tree)))
 ```
 
@@ -66,7 +66,7 @@ using CompScienceMeshes # hide
 using H2Trees # hide
 
 m = meshsphere(1.0, 0.1)
-tree = TwoNTree(vertices(m), 0.1)
+tree = TwoNTree(vertices(m); builder=TwoNTreeBuilder(; minhalfsize=0.1, minvalues=0))
 println(collect(H2Trees.LevelIterator(tree,2)))
 ```
 
@@ -79,7 +79,7 @@ using CompScienceMeshes # hide
 using H2Trees # hide
 
 m = meshsphere(1.0, 0.1)
-tree = TwoNTree(vertices(m), 0.1)
+tree = TwoNTree(vertices(m); builder=TwoNTreeBuilder(; minhalfsize=0.1, minvalues=0))
 println(collect(H2Trees.SameLevelIterator(tree,3)))
 ```
 
@@ -93,7 +93,7 @@ using CompScienceMeshes # hide
 using H2Trees # hide
 
 m = meshsphere(1.0, 0.1)
-tree = TwoNTree(vertices(m), 0.1)
+tree = TwoNTree(vertices(m); builder=TwoNTreeBuilder(; minhalfsize=0.1, minvalues=0))
 println("node 4 is at level ", H2Trees.level(tree, 4))
 println("nodes near to node 4: ", collect(H2Trees.NearNodeIterator(tree, 4)))
 ```
@@ -108,8 +108,8 @@ using H2Trees # hide
 mx = meshsphere(1.0, 0.1)
 my = meshsphere(2.0, 0.1)
 
-testtree = TwoNTree(vertices(mx), 0.1)
-trialtree = TwoNTree(vertices(my), 0.1)
+testtree = TwoNTree(vertices(mx); builder=TwoNTreeBuilder(; minhalfsize=0.1, minvalues=0))
+trialtree = TwoNTree(vertices(my); builder=TwoNTreeBuilder(; minhalfsize=0.1, minvalues=0))
 println("trial node 4 is at level ", H2Trees.level(trialtree, 4))
 println("nodes near to trial node 4: ", collect(H2Trees.NearNodeIterator(testtree, trialtree, 4)))
 ```
@@ -134,7 +134,7 @@ using CompScienceMeshes # hide
 using H2Trees # hide
 
 m = meshsphere(1.0, 0.1)
-tree = KMeansTree(vertices(m), 4; minvalues=60)
+tree = KMeansTree(vertices(m); builder=KMeansTreeBuilder(; numberofclusters=4, minvalues=60))
 
 # Using the WellSeparatedIterator with the default isnear() function
 println("First iterator\t", collect(H2Trees.WellSeparatedIterator(tree, 3)))
@@ -171,7 +171,14 @@ using H2Trees # hide
 mx = meshsphere(1.0, 0.1)
 my = meshsphere(2.0, 0.1)
 
-tree = TwoNTree(vertices(mx), vertices(my), 0.1)
+tree = BlockTree(
+    vertices(mx),
+    vertices(my);
+    builder=BlockTreeBuilder(;
+        test=TwoNTreeBuilder(; minhalfsize=0.1, minvalues=0),
+        trial=TwoNTreeBuilder(; minhalfsize=0.1, minvalues=0),
+    ),
+)
 
 # Using the WellSeparatedIterator with the default isnear() function
 println("First iterator\t", collect(H2Trees.WellSeparatedIterator(tree, 4)))
@@ -215,7 +222,7 @@ using CompScienceMeshes # hide
 using H2Trees # hide
 
 m = meshsphere(1.0, 0.1)
-tree = TwoNTree(vertices(m), 0.1)
+tree = TwoNTree(vertices(m); builder=TwoNTreeBuilder(; minhalfsize=0.1, minvalues=0))
 println(collect(H2Trees.NodeFilterIterator(tree, 3, (tree, nodea, nodeb)-> iseven(nodea))))
 ```
 
@@ -228,7 +235,14 @@ using H2Trees # hide
 mx = meshsphere(1.0, 0.1)
 my = meshsphere(2.0, 0.1)
 
-tree = TwoNTree(vertices(mx), vertices(my), 0.1)
+tree = BlockTree(
+    vertices(mx),
+    vertices(my);
+    builder=BlockTreeBuilder(;
+        test=TwoNTreeBuilder(; minhalfsize=0.1, minvalues=0),
+        trial=TwoNTreeBuilder(; minhalfsize=0.1, minvalues=0),
+    ),
+)
 testtree = H2Trees.testtree(tree)
 trialtree = H2Trees.trialtree(tree)
 println(collect(H2Trees.NodeFilterIterator(tree, 3, (testree, trialtree, testnode, trialnode)-> iseven(testnode))))
@@ -243,7 +257,14 @@ using H2Trees # hide
 mx = meshsphere(1.0, 0.1)
 my = meshsphere(2.0, 0.1)
 
-tree = TwoNTree(vertices(mx), vertices(my), 0.1)
+tree = BlockTree(
+    vertices(mx),
+    vertices(my);
+    builder=BlockTreeBuilder(;
+        test=TwoNTreeBuilder(; minhalfsize=0.1, minvalues=0),
+        trial=TwoNTreeBuilder(; minhalfsize=0.1, minvalues=0),
+    ),
+)
 testtree = H2Trees.testtree(tree)
 trialtree = H2Trees.trialtree(tree)
 println(collect(H2Trees.NodeFilterIterator(testtree, trialtree, 3, (testree, trialtree, testnode, trialnode)-> iseven(testnode))))

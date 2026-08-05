@@ -3,24 +3,27 @@
 
 Compute the maximum protrusion per tree level.
 
-For each leaf, this evaluates `computeprotrusion(tree, leaf, value)` for all values in the
-leaf and stores the leaf maximum on its level. The level-wise protrusion is then propagated
-upwards so each coarser level is at least half of the next finer level.
+For each leaf, this evaluates the protrusion of every stored value relative to
+the leaf box and records the maximum on that leaf's level. Specialized
+protrusion functors can use the allocation-friendly
+`f(center, halfsize, value)` form.
 
-A warning is emitted when a level protrusion is greater than or equal to `0.5`.
-
-# Returns
-
-A vector with one protrusion value per level in `levels(tree)`.
+The level-wise values are propagated upward so each coarser level is at least
+half of the next finer level. A warning is emitted for values greater than or
+equal to `0.5`. The result has one entry per level in `levels(tree)`.
 """
-function maxprotrusion(tree; computeprotrusion=ComputeProtrusionFunctor)
+function maxprotrusion(tree; computeprotrusion=ComputeProtrusionFunctor())
     T = eltype(eltype(tree))
     protrusion = zeros(T, length(levels(tree)))
 
-    for leaf in H2Trees.leaves(tree)
+    for leaf in leaves(tree)
         leafprotrusion = zero(T)
-        for val in H2Trees.values(tree, leaf)
-            leafprotrusion = max(leafprotrusion, computeprotrusion(tree, leaf, val))
+        leafcenter = center(tree, leaf)
+        leafhalfsize = halfsize(tree, leaf)
+        for val in values(data(tree, leaf))
+            leafprotrusion = max(
+                leafprotrusion, computeprotrusion(leafcenter, leafhalfsize, val)
+            )
         end
 
         levelid = leveltolevelid(tree, level(tree, leaf))
@@ -44,33 +47,62 @@ function maxprotrusion(tree; computeprotrusion=ComputeProtrusionFunctor)
 end
 
 """
+    levelprotrusions(tree; compute=ComputeProtrusionFunctor())
+
+Return the level-wise protrusion vector for `tree`.
+
+This is the public keyword spelling used by tree-building diagnostics; it
+delegates to [`maxprotrusion`](@ref).
+"""
+function levelprotrusions(tree; compute=ComputeProtrusionFunctor())
+    return maxprotrusion(tree; computeprotrusion=compute)
+end
+
+"""
+    protrusionreport(tree; compute=ComputeProtrusionFunctor())
+
+Return the level with the largest protrusion and its value.
+
+The result is a named tuple `(level, value)`.
+"""
+function protrusionreport(tree; compute=ComputeProtrusionFunctor())
+    protrusions = levelprotrusions(tree; compute=compute)
+    isempty(protrusions) && return (level=0, value=zero(eltype(eltype(tree))))
+    levelid = argmax(protrusions)
+    return (level=levels(tree)[levelid], value=protrusions[levelid])
+end
+
+"""
     ComputeProtrusionFunctor
 
 Default protrusion evaluator.
 
-This functor represents relative protrusion normalized by `2 * halfsize` of a box.
-The base implementation returns zero and is intended as a lightweight fallback and
-extension point.
+The center/halfsize call form represents relative protrusion normalized by
+`2 * halfsize` of a box. The base implementation returns zero and is intended
+as a lightweight fallback and extension point.
 """
 struct ComputeProtrusionFunctor end
 
-function (f::ComputeProtrusionFunctor)(tree, leaf::Int, value::Int)
-    return f(center(tree, leaf), halfsize(tree, leaf), value)
-end
+"""
+    (f::ComputeProtrusionFunctor)(center, halfsize, value)
 
+Return the normalized protrusion of `value` relative to a candidate box.
+
+The default implementation returns zero.
+"""
 function (f::ComputeProtrusionFunctor)(
     center::A, halfsize::T, value::Int
 ) where {T,A<:AbstractVector{T}}
     return zero(T)
 end
 
-# needs H2BEASTTrees extension
 """
     BEASTProtrusionFunctor(space)
 
 Protrusion evaluator backed by a BEAST space.
 
-Concrete call methods for this type are provided by the H2BEASTTrees extension.
+Concrete call methods for this type are provided by the H2BEASTTrees extension,
+which can evaluate basis-function support against candidate tree boxes.
 """
 struct BEASTProtrusionFunctor{S}
     space::S

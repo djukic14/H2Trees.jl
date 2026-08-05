@@ -21,7 +21,9 @@ m = CompScienceMeshes.readmesh( # hide
 
 X = lagrangecxd0(m) # hide
 
-forest = H2Trees.MetisForest(X, 4; updateradii=H2Trees.boundingsphere) # hide
+forest = H2Trees.MetisForest( # hide
+    X; builder=H2Trees.MetisForestBuilder(; treebuilder=H2Trees.MetisTreeBuilder(; numdivisions=4)) # hide
+) # hide
 
 @show length(forest)
 
