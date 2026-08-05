@@ -12,7 +12,7 @@ using H2Trees
 using PlotlyJS
 
 m = meshsphere(1.0, 0.1)
-tree = TwoNTree(vertices(m), 0.1)
+tree = TwoNTree(vertices(m); builder=TwoNTreeBuilder(; minhalfsize=0.1, minvalues=0))
 
 traces = [wireframe(skeleton(m, 1))]
 
@@ -51,7 +51,7 @@ using PlotlyJS
 using ParallelKMeans
 
 m = meshsphere(1.0, 0.1)
-tree = KMeansTree(vertices(m), 4; minvalues=60)
+tree = KMeansTree(vertices(m); builder=KMeansTreeBuilder(; numberofclusters=4, minvalues=60))
 
 traces = [wireframe(skeleton(m, 1))]
 

@@ -10,23 +10,41 @@ using H2Trees
 
     points = vertices(m)
 
-    tree = TwoNTree(points, 0.1; root=2, minlevel=2, minvalues=10)
+    tree = buildtree(
+        points; builder=TwoNTreeBuilder(; minhalfsize=0.1, root=2, minlevel=2, minvalues=10)
+    )
 
-    @test_throws ErrorException hybridtree = SimpleHybridTree(tree; hybridhalfsize=0.1)
+    @test_throws ArgumentError hybridtree = buildtree(
+        tree; builder=SimpleHybridTreeBuilder(; hybridhalfsize=0.1)
+    )
 
-    @test_throws ErrorException hybridtree = SimpleHybridTree(tree; hybridhalfsize=0.01)
+    @test_throws ArgumentError hybridtree = buildtree(
+        tree; builder=SimpleHybridTreeBuilder(; hybridhalfsize=0.01)
+    )
 
-    hybridtree = SimpleHybridTree(tree; hybridhalfsize=0.2)
+    hybridtree = buildtree(tree; builder=SimpleHybridTreeBuilder(; hybridhalfsize=0.2))
     @test H2Trees.hybridlevel(hybridtree) == 4
+
+    buildertree = SimpleHybridTree(
+        tree; builder=SimpleHybridTreeBuilder(; hybridhalfsize=0.2)
+    )
+    @test H2Trees.hybridlevel(buildertree) == H2Trees.hybridlevel(hybridtree)
+    @test buildertree.tree === tree
 
     @test_nowarn println(hybridtree)
     @test_nowarn display(hybridtree)
     @test_nowarn show(hybridtree)
 
+    compact = sprint(show, hybridtree)
+    @test !occursin('\n', compact)
+    @test occursin("SimpleHybridTree(hybridlevel=", compact)
+    @test occursin("TwoNTree{", compact)
+
     @test H2Trees.numberoflevels(hybridtree) == H2Trees.numberoflevels(tree)
     @test H2Trees.numberofnodes(hybridtree) == H2Trees.numberofnodes(tree)
     @test eltype(hybridtree) == eltype(tree)
     @test H2Trees.treetrait(hybridtree) == H2Trees.treetrait(tree)
+    @test H2Trees.treeindex(hybridtree) === H2Trees.treeindex(tree)
 
     hybridlevel = 4
     @test H2Trees.hybridlevel(hybridtree) == hybridlevel

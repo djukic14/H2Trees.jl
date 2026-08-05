@@ -1,8 +1,10 @@
 # Petrov Plans
 
-This page shows how to build Petrov plans with [`petrovplans`](@ref).
+This page shows how to build Petrov plans with [`buildplans`](@ref).
 In the Petrov case, the test tree and trial tree are generally different.
 For identical test and trial trees, see [Galerkin Plans](galerkinplans.md).
+The result is a [`PlanSet`](@ref); see [Plans Overview](plans.md) for accessors
+and named-tuple interoperability.
 
 Because test and trial spaces are different (`X` and `Y`), the construction uses distinct test and trial trees.
 
@@ -18,28 +20,33 @@ translate!(my, [0.0, 0.0, 5.0])
 X = raviartthomas(mx)
 Y = raviartthomas(my)
 
-tree = TwoNTree(X, Y, 0.0; testminvalues=100, trialminvalues=100)
-```
-
-## 1. Define the translating nodes iterator
-
-```@example PetrovPlans
-tfiterator = H2Trees.TranslatingNodesIterator(;
-    isnear=H2Trees.isnear(; additionalbufferboxes=1)
+tree = buildtree(
+    X,
+    Y;
+    builder=BlockTreeBuilder(;
+        test=TwoNTreeBuilder(; minhalfsize=0.0, minvalues=100),
+        trial=TwoNTreeBuilder(; minhalfsize=0.0, minvalues=100),
+    ),
 )
-
-aggregatenode = H2Trees.istranslatingnode(; TranslatingNodesIterator=tfiterator)
 ```
 
-- `tfiterator` defines how near and far interactions are separated.
-- `aggregatenode` marks which nodes should be treated as translating nodes in the plan construction.
-
-## 2. Construct plans in `AggregateMode()`
+## 1. Construct plans in `AggregateMode()`
 
 ```@example PetrovPlans
-plans = H2Trees.petrovplans(tree, aggregatenode, tfiterator, H2Trees.AggregateMode())
+plans = H2Trees.buildplans(
+    tree;
+    builder=H2Trees.PlanBuilder(;
+        isnear=H2Trees.isnear(; additionalbufferboxes=1),
+        aggregationmode=H2Trees.AggregateMode(),
+    ),
+)
 nothing #hide
 ```
+
+`buildplans` dispatches on `tree`'s `treetrait`, so the same call builds Petrov plans here for
+a `BlockTree`, and Galerkin plans for a plain tree (see [Galerkin Plans](galerkinplans.md)).
+`PlanBuilder`'s `translatingnodesiterator` and `aggregatenode` both default from `isnear`, so
+overriding `isnear` alone (as above) keeps them consistent without reconstructing either by hand.
 
 In `AggregateMode()` the forward pair is:
 
@@ -53,11 +60,19 @@ The transposed companion plans are built automatically:
 
 The `relevantlevels` field contains the levels where the operations are active.
 The `mintranslationlevel` field gives the first level where translations occur.
+Equivalent accessors such as `H2Trees.relevantlevels(plans)` and
+`H2Trees.mintranslationlevel(plans)` are also available.
 
-## 3. Construct plans in `AggregateTranslateMode()`
+## 2. Construct plans in `AggregateTranslateMode()`
 
 ```@example PetrovPlans
-plans = H2Trees.petrovplans(tree, aggregatenode, tfiterator, H2Trees.AggregateTranslateMode())
+plans = H2Trees.buildplans(
+    tree;
+    builder=H2Trees.PlanBuilder(;
+        isnear=H2Trees.isnear(; additionalbufferboxes=1),
+        aggregationmode=H2Trees.AggregateTranslateMode(),
+    ),
+)
 nothing #hide
 ```
 

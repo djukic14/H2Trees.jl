@@ -57,14 +57,17 @@ using H2Trees
                 for maxprotrusion in [0.1, 0.5, 1.0]
                     for minvalues in [0, 10, 100]
                         for minhalfsize in [0.0, 0.1]
-                            tree = TwoNTree(
-                                X,
-                                minhalfsize;
-                                minlevel=minlevel,
-                                root=root,
-                                minvalues=minvalues,
-                                maxprotrusion=maxprotrusion,
-                                computeprotrusion=protrusion,
+                            tree = buildtree(
+                                X;
+                                builder=TwoNTreeBuilder(;
+                                    minlevel=minlevel,
+                                    root=root,
+                                    minvalues=minvalues,
+                                    minhalfsize=minhalfsize,
+                                    protrusion=ProtrusionCheck(;
+                                        max=maxprotrusion, compute=protrusion
+                                    ),
+                                ),
                             )
 
                             _maxprotrusion = H2Trees.maxprotrusion(
@@ -143,14 +146,27 @@ end
                                 println(
                                     "Testing with meshes $ix and $iy, testmaxprotrusion=$testmaxprotrusion, trialmaxprotrusion=$trialmaxprotrusion, testminvalues=$testminvalues, trialminvalues=$trialminvalues, minhalfsize=$minhalfsize",
                                 )
-                                tree = TwoNTree(
+                                tree = buildtree(
                                     X,
-                                    Y,
-                                    minhalfsize;
-                                    testminvalues=testminvalues,
-                                    trialminvalues=trialminvalues,
-                                    testmaxprotrusion=testmaxprotrusion,
-                                    trialmaxprotrusion=trialmaxprotrusion,
+                                    Y;
+                                    builder=BlockTreeBuilder(;
+                                        test=TwoNTreeBuilder(;
+                                            minhalfsize=minhalfsize,
+                                            minvalues=testminvalues,
+                                            protrusion=ProtrusionCheck(;
+                                                max=testmaxprotrusion,
+                                                compute=testprotrusion,
+                                            ),
+                                        ),
+                                        trial=TwoNTreeBuilder(;
+                                            minhalfsize=minhalfsize,
+                                            minvalues=trialminvalues,
+                                            protrusion=ProtrusionCheck(;
+                                                max=trialmaxprotrusion,
+                                                compute=trialprotrusion,
+                                            ),
+                                        ),
+                                    ),
                                 )
                                 testtree = H2Trees.testtree(tree)
                                 trialtree = H2Trees.trialtree(tree)
@@ -209,4 +225,86 @@ end
             end
         end
     end
+end
+
+@testset "BEAST spaces resolve automatic protrusion defaults" begin
+    m = CompScienceMeshes.readmesh(
+        joinpath(pkgdir(H2Trees), "test", "assets", "in", "cuboid.in")
+    )
+    X = raviartthomas(m)
+
+    # Plain point collections keep the builder default as a no-op protrusion policy.
+    pointsbuilder = H2Trees._resolve_builder_protrusion(
+        TwoNTreeBuilder(), BEAST.positions(X)
+    )
+    @test pointsbuilder.protrusion == NoProtrusionCheck()
+
+    # BEAST spaces turn the automatic policy into the old space-constructor default: element
+    # protrusions with a conservative 0.25 threshold.
+    spacebuilder = H2Trees._resolve_builder_protrusion(TwoNTreeBuilder(; minvalues=120), X)
+    @test spacebuilder.protrusion.compute isa H2Trees.BEASTProtrusionFunctor
+    @test spacebuilder.protrusion.max == 0.25
+    @test spacebuilder.minvalues == 120
+
+    # Explicit max overrides keep the requested threshold while still using the BEAST functor.
+    override = TwoNTreeBuilder(; minvalues=120, protrusion=ProtrusionCheck(; max=0.5))
+    adjusted = H2Trees._resolve_builder_protrusion(override, X)
+    @test adjusted.protrusion.compute isa H2Trees.BEASTProtrusionFunctor
+    @test adjusted.protrusion.max == 0.5
+
+    # The direct constructor and the canonical builder path are the same API surface.
+    directtree = TwoNTree(X; builder=TwoNTreeBuilder(; minvalues=120))
+    autotree = buildtree(X; builder=TwoNTreeBuilder(; minvalues=120))
+    explicittree = buildtree(
+        X;
+        builder=TwoNTreeBuilder(;
+            minvalues=120,
+            protrusion=ProtrusionCheck(;
+                max=0.25, compute=H2Trees.BEASTProtrusionFunctor(X)
+            ),
+        ),
+    )
+    @test H2Trees.leaves(directtree) == H2Trees.leaves(autotree)
+    @test H2Trees.leaves(autotree) == H2Trees.leaves(explicittree)
+
+    # BlockTree(testspace, trialspace; builder) is the same API surface as buildtree, mirroring the
+    # single-space TwoNTree/buildtree parity checked above -- including that AutoProtrusionCheck
+    # resolves to the BEAST default on the direct-constructor path too, not only through buildtree.
+    blockbuilder = BlockTreeBuilder(;
+        test=TwoNTreeBuilder(; minvalues=120), trial=TwoNTreeBuilder(; minvalues=120)
+    )
+    explicitblockbuilder = BlockTreeBuilder(;
+        test=TwoNTreeBuilder(;
+            minvalues=120,
+            protrusion=ProtrusionCheck(;
+                max=0.25, compute=H2Trees.BEASTProtrusionFunctor(X)
+            ),
+        ),
+        trial=TwoNTreeBuilder(;
+            minvalues=120,
+            protrusion=ProtrusionCheck(;
+                max=0.25, compute=H2Trees.BEASTProtrusionFunctor(X)
+            ),
+        ),
+    )
+    directblock = BlockTree(X, X; builder=blockbuilder)
+    autoblock = buildtree(X, X; builder=blockbuilder)
+    explicitblock = buildtree(X, X; builder=explicitblockbuilder)
+    @test H2Trees.leaves(H2Trees.testtree(directblock)) ==
+        H2Trees.leaves(H2Trees.testtree(autoblock)) ==
+        H2Trees.leaves(H2Trees.testtree(explicitblock))
+    @test H2Trees.leaves(H2Trees.trialtree(directblock)) ==
+        H2Trees.leaves(H2Trees.trialtree(autoblock)) ==
+        H2Trees.leaves(H2Trees.trialtree(explicitblock))
+
+    @test_throws ArgumentError buildtree(
+        X; graphweights=(nothing, nothing), builder=TwoNTreeBuilder()
+    )
+
+    # Explicit opt-out and non-`TwoNTreeBuilder` builders are left untouched.
+    noprot = H2Trees._resolve_builder_protrusion(
+        TwoNTreeBuilder(; minhalfsize=0.1, protrusion=NoProtrusionCheck()), X
+    )
+    @test noprot.protrusion == NoProtrusionCheck()
+    @test H2Trees._resolve_builder_protrusion(KMeansTreeBuilder(), X) isa KMeansTreeBuilder
 end

@@ -13,21 +13,6 @@ Construct an adjacency graph and corresponding vertex weights for a BEAST space.
 Two basis functions are considered adjacent if they are supported on touching mesh
 elements. The graph weights are assembled from element areas, distributed across
 all basis functions supported on each element.
-
-# Arguments
-
-  - `X::BEAST.Space`: Basis function space used to build adjacency and weights.
-
-# Returns
-
-A tuple `(graph, graphweights)` where:
-
-  - `graph::SimpleGraph` is the adjacency graph between basis functions.
-  - `graphweights` contains one weight per basis function.
-
-# See also
-
-`MetisTree`, `MetisForest`.
 """
 function adjacencygraph(X::BEAST.Space)
     σ = lagrangecxd0(geometry(X))
@@ -57,8 +42,8 @@ function adjacencygraph(X::BEAST.Space)
         elementa, elementb = src(e), dst(e)
         # J = length(ad[elementa])
         # I = length(ad[elementb])
-        J = size(view(ad.data,:,:,elementa), 2)
-        I = size(view(ad.data,:,:,elementb), 2)
+        J = size(view(ad.data, :, :, elementa), 2)
+        I = size(view(ad.data, :, :, elementb), 2)
         for j in 1:J
             for i in 1:I
                 for (functionida, a) in view(ad.data[:, j, elementa])
@@ -88,55 +73,62 @@ function adjacencygraph(X::BEAST.Space)
 end
 
 """
-    MetisForest(basis::BEAST.Space, numdivisions::Int; graphweights=adjacencygraph(basis), kwargs...)
+    MetisForest(basis::BEAST.Space; graphweights=adjacencygraph(basis), builder=MetisForestBuilder())
 
 Construct a `Forest` of `MetisTree`s from a `BEAST.Space`.
 
 This method builds (or accepts) a function adjacency graph and graph weights for
-`basis`, then forwards to the point/graph `MetisForest` constructor.
-
-# Arguments
-
-  - `basis::BEAST.Space`: Function space used to build the partitioning graph.
-  - `numdivisions::Int`: Number of partitions requested at each split.
-  - `graphweights`: Tuple `(graph, weights)` used for partitioning (default: `adjacencygraph(basis)`).
-  - `kwargs...`: Additional keyword arguments forwarded to `MetisForest(points, graph, weights, ...)`.
-
-# Returns
-
-A `Forest` containing one `MetisTree` per connected component of the basis graph.
+`basis`, then delegates to the point/graph `MetisForest` constructor. The
+builder carries the METIS construction settings, such as the number of requested
+divisions per split.
 """
 function MetisForest(
-    basis::BEAST.Space, numdivisions::Int; graphweights=adjacencygraph(basis), kwargs...
+    basis::BEAST.Space;
+    graphweights=adjacencygraph(basis),
+    builder::MetisForestBuilder=MetisForestBuilder(),
 )
-    return MetisForest(
-        positions(basis), graphweights[1], graphweights[2], numdivisions; kwargs...
-    )
+    return MetisForest(positions(basis), graphweights[1], graphweights[2]; builder=builder)
 end
 
 """
-    MetisTree(basis::BEAST.Space, numdivisions::Int; graphweights=adjacencygraph(basis), kwargs...)
+    buildforest(basis::BEAST.Space; graphweights=nothing, builder=MetisForestBuilder())
 
-Construct a `BoundingBallTree` from a `BEAST.Space` using METIS graph partitioning.
+Build a METIS forest from a BEAST space using the builder workflow.
+
+When `graphweights` is omitted, `adjacencygraph(basis)` supplies both the graph
+and vertex weights. Passing explicit graph weights reuses them without
+rebuilding the adjacency graph.
+"""
+function buildforest(
+    basis::BEAST.Space;
+    graphweights=nothing,
+    builder::MetisForestBuilder=MetisForestBuilder(),
+)
+    graphweights = isnothing(graphweights) ? adjacencygraph(basis) : graphweights
+    return MetisForest(basis; graphweights=graphweights, builder=builder)
+end
+
+"""
+    MetisTree(basis::BEAST.Space; graphweights=adjacencygraph(basis), builder=MetisTreeBuilder())
+
+Construct a `MetisTree` from a BEAST space using METIS graph partitioning.
 
 This method builds (or accepts) a function adjacency graph and graph weights for
-`basis`, then forwards to the point/graph `MetisTree` constructor.
-
-# Arguments
-
-  - `basis::BEAST.Space`: Function space used to build the partitioning graph.
-  - `numdivisions::Int`: Number of partitions requested at each split.
-  - `graphweights`: Tuple `(graph, weights)` used for partitioning (default: `adjacencygraph(basis)`).
-  - `kwargs...`: Additional keyword arguments forwarded to `MetisTree(points, graph, weights, ...)`.
-
-# Returns
-
-A `BoundingBallTree` with basis-function positions organized hierarchically.
+`basis`, then delegates to the point/graph `MetisTree` constructor. The builder
+carries the METIS construction settings.
 """
 function MetisTree(
-    basis::BEAST.Space, numdivisions::Int; graphweights=adjacencygraph(basis), kwargs...
+    basis::BEAST.Space;
+    graphweights=adjacencygraph(basis),
+    builder::MetisTreeBuilder=MetisTreeBuilder(),
 )
-    return MetisTree(
-        positions(basis), graphweights[1], graphweights[2], numdivisions; kwargs...
-    )
+    return MetisTree(positions(basis), graphweights[1], graphweights[2]; builder=builder)
+end
+
+# Internal dispatch hook for the public
+# buildtree(basis::BEAST.Space; builder=MetisTreeBuilder(), graphweights=nothing)
+# route documented in H2BEASTTrees.jl.
+function _buildbeasttree(basis::BEAST.Space, builder::MetisTreeBuilder, graphweights)
+    graphweights = isnothing(graphweights) ? adjacencygraph(basis) : graphweights
+    return MetisTree(basis; graphweights=graphweights, builder=builder)
 end

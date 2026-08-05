@@ -1,9 +1,27 @@
+module TestNearInteractions
+
 using Test
 using CompScienceMeshes
 using StaticArrays
 using H2Trees
 using BEAST
 using SparseArrays
+
+@testset "Near interaction argument validation" begin
+    @test_throws(
+        ArgumentError("η must be greater than or equal to 1, got 0.5"),
+        H2Trees.isnearradius(SVector(0.0, 0.0), SVector(1.0, 1.0), 1.0, 1.0; η=0.5)
+    )
+
+    points = [SVector(0.0, 0.0), SVector(1.0, 0.0)]
+    tree = buildtree(points; builder=TwoNTreeBuilder(; minhalfsize=0.25, minvalues=1))
+    @test_throws(
+        ArgumentError(
+            "extractselfvalues is only supported for single-tree nearinteractions"
+        ),
+        H2Trees.nearinteractions(tree, tree; extractselfvalues=true)
+    )
+end
 
 @testset "Galerkin Nearinteractions" begin
     λ = 1.0
@@ -27,7 +45,9 @@ using SparseArrays
         X = raviartthomas(m)
 
         minhalfsize = λ / 9
-        tree = TwoNTree(X, minhalfsize; minvalues=10)
+        tree = buildtree(
+            X; builder=TwoNTreeBuilder(; minhalfsize=minhalfsize, minvalues=10)
+        )
 
         blocktree = H2Trees.BlockTree(tree, tree)
 
@@ -189,7 +209,14 @@ end
             Y = raviartthomas(my)
 
             minhalfsize = λ / 9
-            tree = TwoNTree(X, Y, minhalfsize; testminvalues=10)
+            tree = buildtree(
+                X,
+                Y;
+                builder=BlockTreeBuilder(;
+                    test=TwoNTreeBuilder(; minhalfsize=minhalfsize, minvalues=10),
+                    trial=TwoNTreeBuilder(; minhalfsize=minhalfsize, minvalues=10),
+                ),
+            )
             testtree = H2Trees.testtree(tree)
             trialtree = H2Trees.trialtree(tree)
 
@@ -249,3 +276,5 @@ end
         end
     end
 end
+
+end # module TestNearInteractions

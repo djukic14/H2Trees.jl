@@ -11,7 +11,9 @@ using H2Trees
     )
     X = raviartthomas(m)
     root = 2
-    tree = TwoNTree(X, λ / 10; root=root)
+    tree = buildtree(
+        X; builder=TwoNTreeBuilder(; minhalfsize=λ / 10, minvalues=0, root=root)
+    )
 
     aggregationplan = H2Trees.AggregatePlan(tree, H2Trees.AggregateAllNodesFunctor())
     storenodefunctor = H2Trees.StoreNodeFunctor(aggregationplan)
@@ -132,11 +134,18 @@ using H2Trees
         for my in [m, m1, m2, m3]
             Y = raviartthomas(my)
 
-            tree = TwoNTree(X, Y, λ / 10)
+            tree = buildtree(
+                X,
+                Y;
+                builder=BlockTreeBuilder(;
+                    test=TwoNTreeBuilder(; minhalfsize=λ / 10, minvalues=0),
+                    trial=TwoNTreeBuilder(; minhalfsize=λ / 10, minvalues=0),
+                ),
+            )
             testtree = H2Trees.testtree(tree)
             trialtree = H2Trees.trialtree(tree)
 
-            @test_throws ErrorException H2Trees.AggregatePlan(
+            @test_throws ArgumentError H2Trees.AggregatePlan(
                 tree, H2Trees.AggregateAllNodesFunctor()
             )
 
@@ -243,7 +252,12 @@ end
         joinpath(pkgdir(H2Trees), "test", "assets", "in", "sphere6.in")
     )
     X = raviartthomas(m)
-    tree = TwoNTree(X, λ / 10)
+    tree = buildtree(
+        X;
+        builder=TwoNTreeBuilder(;
+            minhalfsize=λ / 10, minvalues=0, protrusion=NoProtrusionCheck()
+        ),
+    )
 
     TFIterator = H2Trees.TranslatingNodesIterator(; isnear=H2Trees.isnear())(tree)
     aggregatetranslateplan = H2Trees.AggregateTranslatePlan(tree, TFIterator)
@@ -253,6 +267,28 @@ end
             @test H2Trees.istranslatingnode(aggregatetranslateplan, node)
         end
     end
+
+    compatibleplan = H2Trees.AggregateTranslatePlan(
+        H2Trees.receivingnodes(aggregatetranslateplan),
+        H2Trees.nodes(aggregatetranslateplan),
+        H2Trees.levels(aggregatetranslateplan),
+        aggregatetranslateplan.istranslatingnode,
+        H2Trees.rootoffset(aggregatetranslateplan),
+        H2Trees.tree(aggregatetranslateplan),
+    )
+    @test compatibleplan.receivingnodes_by_level ==
+        aggregatetranslateplan.receivingnodes_by_level
+    refreshlevel = first(H2Trees.aggregationlevels(compatibleplan))
+    refreshlevelid = H2Trees.leveltolevelid(compatibleplan, refreshlevel)
+    refreshdict = H2Trees.receivingnodes(compatibleplan)[refreshlevelid]
+    refreshnode = maximum(collect(keys(refreshdict))) + 1
+    refreshdict[refreshnode] = Int[]
+    @test refreshnode ∉ H2Trees.receivingnodes(compatibleplan, refreshlevel)
+    @test H2Trees.refreshreceivingnodes!(compatibleplan) === compatibleplan
+    @test refreshnode in H2Trees.receivingnodes(compatibleplan, refreshlevel)
+    delete!(refreshdict, refreshnode)
+    H2Trees.refreshreceivingnodes!(compatibleplan)
+    @test refreshnode ∉ H2Trees.receivingnodes(compatibleplan, refreshlevel)
 
     disaggregationplan = H2Trees.DisaggregateTranslatePlan(tree, TFIterator)
 
@@ -276,6 +312,15 @@ end
     for level in H2Trees.aggregationlevels(aggregatetranslateplan)
         @test sort(H2Trees.aggregationnodes(aggregatetranslateplan, level)) ==
             sort(H2Trees.aggregationnodes(aggregateplan, level))
+        @test sort(H2Trees.receivingnodes(aggregatetranslateplan, level)) == sort(
+            collect(
+                keys(
+                    H2Trees.receivingnodes(aggregatetranslateplan)[H2Trees.leveltolevelid(
+                        aggregatetranslateplan, level
+                    )],
+                ),
+            ),
+        )
     end
 
     N = length(H2Trees.aggregationlevels(aggregatetranslateplan))
@@ -316,14 +361,25 @@ end
         X = raviartthomas(mx)
         for my in [m, m1, m2, m3]
             Y = raviartthomas(my)
-            tree = TwoNTree(X, Y, λ / 10)
+            tree = buildtree(
+                X,
+                Y;
+                builder=BlockTreeBuilder(;
+                    test=TwoNTreeBuilder(;
+                        minhalfsize=λ / 10, minvalues=0, protrusion=NoProtrusionCheck()
+                    ),
+                    trial=TwoNTreeBuilder(;
+                        minhalfsize=λ / 10, minvalues=0, protrusion=NoProtrusionCheck()
+                    ),
+                ),
+            )
             TFIterator = H2Trees.TranslatingNodesIterator(; isnear=H2Trees.isnear())
             aggregatenode = H2Trees.istranslatingnode(; TranslatingNodesIterator=TFIterator)
 
             testtree = H2Trees.testtree(tree)
             trialtree = H2Trees.trialtree(tree)
 
-            @test_throws ErrorException H2Trees.AggregateTranslatePlan(
+            @test_throws ArgumentError H2Trees.AggregateTranslatePlan(
                 tree, H2Trees.TranslatingNodesIterator
             )
 
@@ -365,7 +421,7 @@ end
                 testtree, trialtree, H2Trees.TranslatingNodesIterator
             )
 
-            @test_throws ErrorException H2Trees.DisaggregateTranslatePlan(
+            @test_throws ArgumentError H2Trees.DisaggregateTranslatePlan(
                 tree, H2Trees.TranslatingNodesIterator
             )
 

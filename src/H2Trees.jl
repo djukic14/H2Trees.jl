@@ -3,10 +3,22 @@ using LinearAlgebra
 using Graphs
 using BoundingSphere
 using StaticArrays
+using Random
 import Base.Threads: @threads
 
+"""
+    H2ClusterTree
+
+Abstract supertype for concrete cluster-tree implementations.
+"""
 abstract type H2ClusterTree end
 
+"""
+    traceball(...)
+    tracecube(...)
+
+Extension hooks implemented by `H2PlotlyJSTrees`.
+"""
 function traceball end # requires PlotlyJS to load
 function tracecube end # requires PlotlyJS to load
 
@@ -16,21 +28,26 @@ include("forests/forest.jl")
 
 include("treetraits.jl")
 
+"""
+    FarMulMode
+
+Abstract supertype for far-field multiplication traversal modes.
+"""
 abstract type FarMulMode end
 
 """
     AggregateMode <: FarMulMode
 
-This mode uses `AggregatePlan` and `DisaggregateTranslatePlan` to perform the
-farmultiplication.
+Far-field traversal mode using [`AggregatePlan`](@ref) with
+[`DisaggregateTranslatePlan`](@ref).
 """
 struct AggregateMode <: FarMulMode end
 
 """
     AggregateTranslateMode <: FarMulMode
 
-This mode uses `AggregateTranslatePlan` and `DisaggregatePlan` to perform the
-farmultiplication.
+Far-field traversal mode using [`AggregateTranslatePlan`](@ref) with
+[`DisaggregatePlan`](@ref).
 """
 struct AggregateTranslateMode <: FarMulMode end
 
@@ -45,7 +62,14 @@ end
 export treetrait
 export isTwoNTree
 export isBlockTree
+export SameLevelFilteredIterator, NearNodesAtAnchorLevel, FarNodesAtAnchorLevel
+export appendvalues!, foreachvalue, anyvalue, appendnearnodevalues!, appendfarnodevalues!
 
+"""
+    Node(data, nextsibling, parent, firstchild)
+
+Topology record stored by cluster trees.
+"""
 struct Node{D}
     data::D
     nextsibling::Int
@@ -53,6 +77,11 @@ struct Node{D}
     firstchild::Int
 end
 
+"""
+    BoxData(sector, values, center, halfsize, level)
+
+Node payload for [`TwoNTree`](@ref)-style box trees.
+"""
 struct BoxData{N,T}
     sector::Int
     values::Vector{Int}
@@ -61,6 +90,11 @@ struct BoxData{N,T}
     level::Int
 end
 
+"""
+    BoundingBallData(values, center, radius, level)
+
+Node payload for [`BoundingBallTree`](@ref)-style ball trees.
+"""
 struct BoundingBallData{N,T}
     values::Vector{Int}
     center::SVector{N,T}
@@ -85,17 +119,29 @@ include("translations/translations.jl")
 
 include("printing.jl")
 
-include("testingutils/testingutils.jl")
-
 include("protrusion.jl")
+include("treebuilders.jl")
 
 export AggregatePlan, AggregateTranslatePlan, DisaggregatePlan, DisaggregateTranslatePlan
+export checkadmissibility, AdmissibilityReport, AdmissibilityFinding
+export PlanBuilder, PlanSet, buildplans
+export GalerkinPlanFamily, PetrovPlanFamily, planfamily
+export trialaggregationplan, testdisaggregationplan, testaggregationplan
+export trialdisaggregationplan, relevantlevels, mintranslationlevel
+export ownedtree, receivingtree, translatingtree
+export refreshreceivingnodes!
+export isgalerkin, ispetrov
 export AggregateMode, AggregateTranslateMode
 
+"""
+    leafclusters(tree)
+
+Return the leaf value vectors of `tree`.
+"""
 function leafclusters(tree)
     clusters = Vector{Vector{Int}}(undef, length(leaves(tree)))
     for (i, leaf) in enumerate(leaves(tree))
-        clusters[i] = values(tree, leaf)
+        clusters[i] = values(data(tree, leaf))
     end
 
     return clusters
@@ -106,65 +152,217 @@ end
 export BoundingBallData
 export BoxData
 export Node
+export balanceleaves!
+export AutoMinLevel
+export TwoNTreeBuilder, BlockTreeBuilder
+export BoundingBallTreeBuilder, KMeansTreeBuilder, MetisTreeBuilder, MetisForestBuilder
+export SimpleHybridTreeBuilder
+export buildtree, buildforest
+export NoProtrusionCheck, AutoProtrusionCheck, ProtrusionCheck
+export defaultprotrusioncheck, defaultprotrusionfunctor
+export TreeIndex, treeindex, depthfirstnodes, rebuildtreeindex!
+export levelprotrusions, protrusionreport
 
+"""
+    TreeIndex
+
+Cached topology views for a tree.
+
+`TreeIndex` stores nodes grouped by level, depth-first order, leaves, and the
+minimum/maximum levels. `rebuildtreeindex!` replaces the whole cached value in
+the tree's `Ref`, so callers never observe a half-updated index. The vectors
+inside the index are ordinary mutable arrays; treat them as read-only.
+"""
+struct TreeIndex
+    nodes_by_level::Vector{Vector{Int}}
+    depthfirstnodes::Vector{Int}
+    leaves::Vector{Int}
+    minlevel::Int
+    maxlevel::Int
+end
+
+"""
+    TreeIndex(tree)
+
+Compute cached topology views for `tree`.
+"""
+function TreeIndex(tree)
+    depthfirst = collect(Int, DepthFirstIterator(tree, root(tree)))
+    minlevel = isempty(depthfirst) ? 0 : minimum(level.(Ref(tree), depthfirst))
+    maxlevel = isempty(depthfirst) ? 0 : maximum(level.(Ref(tree), depthfirst))
+    nodes_by_level = [Int[] for _ in minlevel:maxlevel]
+    leafnodes = Int[]
+
+    for node in depthfirst
+        push!(nodes_by_level[level(tree, node) - minlevel + 1], node)
+        isleaf(tree, node) && push!(leafnodes, node)
+    end
+
+    for nodes in nodes_by_level
+        sort!(nodes)
+    end
+
+    return TreeIndex(nodes_by_level, depthfirst, leafnodes, minlevel, maxlevel)
+end
+
+"""
+    treeindex(tree)
+
+Return the cached [`TreeIndex`](@ref) for `tree`.
+"""
+treeindex(tree) = tree.index[]
+
+"""
+    data(tree, node)
+
+Return the data payload stored on `node`.
+"""
 function data(tree, node::Int)
     return tree(node).data
 end
 
 """
+    foreachvalue(f, tree, node::Int)
+
+Call `f(value)` for every value contained in `node`'s subtree.
+
+For a leaf this visits the values physically stored on that node. For an internal node this walks
+the child subtrees directly, avoiding the temporary leaf or value vectors materialized by
+`leaves(tree, node)` and `values(tree, node)`.
+"""
+function foreachvalue(f, tree, node::Int)
+    if iszero(firstchild(tree, node))
+        for value in values(data(tree, node))
+            f(value)
+        end
+    else
+        for child in children(tree, node)
+            foreachvalue(f, tree, child)
+        end
+    end
+    return nothing
+end
+
+"""
+    anyvalue(f, tree, node::Int)
+
+Return `true` when `f(value)` is true for any value contained in `node`'s subtree.
+"""
+function anyvalue(f, tree, node::Int)
+    if iszero(firstchild(tree, node))
+        for value in values(data(tree, node))
+            f(value) && return true
+        end
+    else
+        for child in children(tree, node)
+            anyvalue(f, tree, child) && return true
+        end
+    end
+    return false
+end
+
+"""
+    appendvalues!(out, tree, node::Int)
+
+Append all values contained in `node`'s subtree to `out`.
+
+For a leaf this appends the values physically stored on that node. For an internal node this walks
+the descendant leaves and appends their stored values directly, avoiding the temporary vector that
+`values(tree, node)` materializes.
+"""
+function appendvalues!(out, tree, node::Int)
+    if iszero(firstchild(tree, node))
+        append!(out, values(data(tree, node)))
+    else
+        for child in children(tree, node)
+            appendvalues!(out, tree, child)
+        end
+    end
+    return out
+end
+
+"""
+    appendvalues!(out, tree, nodes)
+
+Append all values contained in every node in `nodes` to `out`.
+"""
+function appendvalues!(out, tree, nodes)
+    for node in nodes
+        appendvalues!(out, tree, node)
+    end
+    return out
+end
+
+"""
     values(tree, node::Int)
 
-Returns the values stored in the given `node` of the `tree`. If the `node` is a leaf node,
-it returns the values directly. Otherwise, it recursively collects the values from all the
-leaf nodes in the subtree rooted at the given `node`.
+Return the values contained in `node`'s subtree.
 
-# Arguments
-
-  - `tree`: The H2 tree.
-  - `node::Int`: The index of the node.
-
-# Returns
-
-An array of values stored in the given `node` or its subtree.
+For a leaf, the stored value vector is returned directly. For an internal node,
+the descendant leaf values are materialized into a new vector. Use
+[`appendvalues!`](@ref), [`foreachvalue`](@ref), or [`anyvalue`](@ref) in
+allocation-sensitive code.
 """
 function values(tree, node::Int)
     iszero(firstchild(tree, node)) && return H2Trees.values(data(tree, node))
-
-    values = Int[]
-    for i in H2Trees.leaves(tree, node)
-        append!(values, H2Trees.values(tree, Int(i)))
-    end
-    return values
+    return appendvalues!(Int[], tree, node)
 end
 
+"""
+    values(tree, nodes)
+
+Materialize all values contained in every node in `nodes`.
+"""
 function values(tree, nodes)
-    values = Int[]
-    for node in nodes
-        append!(values, H2Trees.values(tree, node))
-    end
-    return values
+    return appendvalues!(Int[], tree, nodes)
 end
 
+"""
+    values(data::Union{BoxData,BoundingBallData})
+
+Return the value vector physically stored in a node-data payload.
+"""
 function values(data::Union{BoxData,BoundingBallData})
     return data.values
 end
 
+"""
+    root(tree)
+
+Return the root node id.
+"""
 function root(tree)
     return tree.root
 end
 
+"""
+    level(tree, node)
+    level(data)
+
+Return the tree level of a node or node-data payload.
+"""
 function level(tree, nodeid::Int)
-    return level(tree(nodeid).data) #TODO: look at code duplications: level, sector, data: solve with metaprogramming
+    return level(tree(nodeid).data)
 end
 
 function level(data::Union{BoxData,BoundingBallData})
     return data.level
 end
 
+"""
+    nodes(tree)
+
+Return the tree's node storage vector.
+"""
 function nodes(tree)
     return tree.nodes
 end
 
+"""
+    lastnode(tree)
+
+Return the largest global node id in `tree`.
+"""
 function lastnode(tree)
     return length(nodes(tree)) - root(tree) + 1
 end
@@ -172,29 +370,40 @@ end
 """
     minimumlevel(tree)
 
-Get the minimum level of a tree, which is the level of the root node. This is not
-necessarily the level 1.
+Return the minimum level stored by `tree`.
 
-# Arguments
-
-  - `tree`: The tree.
-
-# Returns
-
-The minimum level of the tree.
+This is usually the root level, but it need not be `1`.
 """
 function minimumlevel(tree)
-    return level(tree(root(tree)).data)
+    return treeindex(tree).minlevel
 end
 
+"""
+    levels(tree)
+
+Return the level range covered by `tree`.
+"""
 function levels(tree)
-    return (1:length(nodesatlevel(tree))) .+ (minimumlevel(tree) - 1)
+    index = treeindex(tree)
+    return index.minlevel:index.maxlevel
 end
 
+"""
+    numberoflevels(tree)
+
+Return the number of levels covered by `tree`.
+"""
 function numberoflevels(tree)
     return length(levels(tree))
 end
 
+"""
+    parent(tree, node)
+    nextsibling(tree, node)
+    firstchild(tree, node)
+
+Return topology links for `node`.
+"""
 function parent(tree, node::Int)
     return tree(node).parent
 end
@@ -207,39 +416,51 @@ function firstchild(tree, node::Int)
     return tree(node).firstchild
 end
 
+"""
+    numberofnodes(tree)
+
+Return the number of nodes stored by `tree`.
+"""
 function numberofnodes(tree)
     return length(tree.nodes)
 end
 
+"""
+    isleaf(tree, node)
+
+Return whether `node` has no children.
+"""
 function isleaf(tree, node::Int)
     return iszero(tree(node).firstchild)
 end
-# returns the leaf node that contains the given point
+
 """
     findleafnode(tree, value::Int)
 
-Find the leaf node in the given `tree` that contains the specified `value`.
-
-# Arguments
-
-  - `tree`: The tree to search in.
-  - `value`: The value to search for.
-
-# Returns
-
-  - The leaf node that contains the `value`, or `0` if not found.
+Return the leaf node containing `value`, or `0` when none is found.
 """
 function findleafnode(tree, value::Int)
     for leaf in leaves(tree)
-        (value ∈ values(tree, leaf)) && return leaf
+        (value ∈ H2Trees.values(data(tree, leaf))) && return leaf
     end
     return 0
 end
 
+"""
+    children(tree, node=root(tree))
+
+Return an iterator over the direct children of `node`.
+"""
 function children(tree, node::Int=root(tree))
     return ChildIterator(tree, node)
 end
 
+"""
+    center(tree, node=root(tree))
+    center(data)
+
+Return a node or node-data center.
+"""
 function center(tree, nodeid::Int=root(tree))
     return center(tree(nodeid).data)
 end
@@ -248,6 +469,12 @@ function center(data::Union{BoxData,BoundingBallData})
     return data.center
 end
 
+"""
+    sector(tree, node)
+    sector(data::BoxData)
+
+Return the sector stored for a box-tree node.
+"""
 function sector(tree, node::Int)
     return sector(tree(node).data)
 end
@@ -256,6 +483,12 @@ function sector(data::BoxData)
     return data.sector
 end
 
+"""
+    halfsize(tree, node=root(tree))
+    halfsize(data::BoxData)
+
+Return the halfsize of a box-tree node.
+"""
 function halfsize(tree, nodeid::Int=root(tree))
     return halfsize(data(tree, nodeid))
 end
@@ -264,6 +497,11 @@ function halfsize(data::BoxData)
     return data.halfsize
 end
 
+"""
+    halfsizes(tree)
+
+Return one representative halfsize per tree level.
+"""
 function halfsizes(tree)
     halfsizes = eltype(eltype(tree))[]
     for level in levels(tree)
@@ -275,6 +513,11 @@ function halfsizes(tree)
     return halfsizes
 end
 
+"""
+    minhalfsize(tree)
+
+Return the halfsize at the deepest cached level.
+"""
 function minhalfsize(tree)
     nodesatlowestlevel = nodesatlevel(tree)[end]
     nodesatlowestlevel == Int[] && return 0
@@ -282,6 +525,12 @@ function minhalfsize(tree)
     return data(tree, nodesatlowestlevel[begin]).halfsize
 end
 
+"""
+    radius(tree, node)
+    radius(data::BoundingBallData)
+
+Return the radius of a ball-tree node.
+"""
 function radius(tree, node::Int)
     return radius(tree(node).data)
 end
@@ -290,6 +539,11 @@ function radius(data::BoundingBallData)
     return data.radius
 end
 
+"""
+    treewithmorelevels(blocktree)
+
+Return the side of a block tree with at least as many levels as the other side.
+"""
 function treewithmorelevels(tree)
     if length(levels(trialtree(tree))) >= length(levels(testtree(tree)))
         return trialtree(tree)
@@ -298,34 +552,36 @@ function treewithmorelevels(tree)
     end
 end
 
+"""
+    samelevelnodes(tree, node)
+
+Return all nodes at `node`'s level.
+"""
 function samelevelnodes(tree, node::Int)
     return nodesatlevel(tree, level(tree, node))
 end
 
+"""
+    nodesatlevel(tree)
+    nodesatlevel(tree, level)
+
+Return cached nodes grouped by level, or the nodes at one level.
+"""
 function nodesatlevel(tree)
-    return tree.nodesatlevel
+    return treeindex(tree).nodes_by_level
 end
 
 function nodesatlevel(tree, level::Int)
-    levels = H2Trees.levels(tree)
-    level < levels[begin] && return Int[]
-    level > levels[end] && return Int[]
-    return H2Trees.nodesatlevel(tree)[leveltolevelid(tree, level)]
+    levels_ = levels(tree)
+    level < levels_[begin] && return Int[]
+    level > levels_[end] && return Int[]
+    return nodesatlevel(tree)[leveltolevelid(tree, level)]
 end
 
 """
     LevelIterator(tree, level::Int)
 
-Return an iterator over the nodes at the specified `level` in the `tree`.
-
-# Arguments
-
-  - `tree`: The tree object.
-  - `level`: The level at which to iterate.
-
-# Returns
-
-An iterator over the nodes at the specified level.
+Return an iterator over nodes at `level`.
 """
 function LevelIterator(tree, level::Int)
     return nodesatlevel(tree, level)
@@ -334,55 +590,67 @@ end
 """
     SameLevelIterator(tree, node::Int)
 
-Returns an iterator over the nodes at the same level as `node` in the `tree`.
-
-# Arguments
-
-  - `tree`: The tree structure.
-  - `node`: The node for which to find the same level nodes.
-
-# Returns
-
-An iterator over the nodes at the same level as `node`.
+Return an iterator over nodes at the same level as `node`.
 """
 function SameLevelIterator(tree, node::Int)
     return samelevelnodes(tree, node)
 end
 
 function _adjustnodesatlevels!(tree)
-    empty!(tree.nodesatlevel)
-    for node in DepthFirstIterator(tree, root(tree))
-        nodelevel = level(tree, node)
-        minlevel = minimumlevel(tree)
-        if nodelevel - minlevel + 1 > length(nodesatlevel(tree))
-            numberofmissinglevels = nodelevel - minlevel - length(nodesatlevel(tree))
-            for _ in 1:numberofmissinglevels
-                push!(tree.nodesatlevel, Int[])
-            end
-            push!(tree.nodesatlevel, [node])
-        else
-            append!(tree.nodesatlevel[leveltolevelid(tree, nodelevel)], node)
-        end
-    end
-
-    for nodesatlevel in tree.nodesatlevel
-        sort!(nodesatlevel)
-    end
+    return rebuildtreeindex!(tree)
 end
 
+"""
+    rebuildtreeindex!(tree)
+
+Recompute and replace the cached [`TreeIndex`](@ref) for `tree`.
+"""
+function rebuildtreeindex!(tree)
+    # Atomic whole-value replacement: the tree struct is immutable and holds the index by
+    # reference in a `Ref`, so this swaps the box's contents rather than mutating fields in place.
+    tree.index[] = TreeIndex(tree)
+    return tree
+end
+
+"""
+    depthfirstnodes(tree)
+
+Return the cached depth-first node order.
+"""
+function depthfirstnodes(tree)
+    return treeindex(tree).depthfirstnodes
+end
+
+"""
+    numberofvalues(tree, node::Int=root(tree))
+
+Number of values contained in `node`'s subtree.
+
+Walks the child subtrees directly, like [`appendvalues!`](@ref)/[`foreachvalue`](@ref)/
+[`anyvalue`](@ref), rather than materializing a leaf or value vector via `leaves(tree, node)`/
+`values(tree, node)`.
+"""
 function numberofvalues(tree, node::Int=root(tree))
+    if iszero(firstchild(tree, node))
+        return length(H2Trees.values(data(tree, node)))
+    end
     nvals = 0
-    for leaf in leaves(tree, node)
-        nvals += length(data(tree, leaf).values)
+    for child in children(tree, node)
+        nvals += numberofvalues(tree, child)
     end
     return nvals
 end
 
-function valuesatnodes(tree; numberofvalues=H2Trees.numberofvalues(tree))
+"""
+    valuesatnodes(tree; numberofvalues=H2Trees.numberofvalues(tree))
+
+Return a vector mapping each stored value id to the leaves containing it.
+"""
+function valuesatnodes(tree; numberofvalues=numberofvalues(tree))
     nodes = Vector{Vector{Int}}(undef, numberofvalues)
 
     for leaf in leaves(tree)
-        for value in values(tree, leaf)
+        for value in H2Trees.values(data(tree, leaf))
             if isassigned(nodes, value)
                 push!(nodes[value], leaf)
             else
@@ -401,6 +669,11 @@ function valuesatnodes(tree; numberofvalues=H2Trees.numberofvalues(tree))
     return nodes
 end
 
+"""
+    nodesatvalues(tree, boxes=valuesatnodes(tree))
+
+Group value ids by the set of leaf nodes that contain them.
+"""
 function nodesatvalues(tree, boxes=valuesatnodes(tree))
     boxesdict = Dict{Vector{Int},Vector{Int}}()
     for (value, box) in enumerate(boxes)
@@ -417,26 +690,26 @@ end
 """
     leveltolevelid(tree, level::Int)
 
-Converts a level in the tree to its corresponding level ID. This is relevant since the first
-level might not be level 1.
-
-# Arguments
-
-  - `tree`: The tree object.
-  - `level`: The level to convert.
-
-# Returns
-
-The level ID corresponding to the given level.
+Convert a tree level to the cached level-array index.
 """
 function leveltolevelid(tree, level::Int)
     return level - minimumlevel(tree) + 1
 end
 
+"""
+    levelindex(tree, node)
+
+Return the cached level-array index for `node`.
+"""
 function levelindex(tree, node::Int)
     return leveltolevelid(tree, level(tree, node))
 end
 
+"""
+    checkbalancedtree(tree)
+
+Return whether all leaves sit at the same tree level.
+"""
 function checkbalancedtree(tree)
     leaflevel = level(tree, leaves(tree)[1])
     for node in leaves(tree)
@@ -445,6 +718,13 @@ function checkbalancedtree(tree)
     return true
 end
 
+"""
+    computevectorbuffers(tree, T)
+
+Allocate one vector buffer per leaf, sized to that leaf's stored values.
+
+For block trees, returns separate dictionaries for the test and trial sides.
+"""
 function computevectorbuffers(tree, T)
     return computevectorbuffers(tree, treetrait(tree), T)
 end
@@ -457,11 +737,20 @@ function computevectorbuffers(tree, ::AbstractTreeTrait, ::Type{T}) where {T}
     vectors = Vector{Vector{T}}(undef, length(leaves(tree)))
 
     for (i, leaf) in enumerate(leaves(tree))
-        vectors[i] = Vector{T}(undef, length(values(tree, leaf)))
+        vectors[i] = Vector{T}(undef, length(H2Trees.values(data(tree, leaf))))
     end
     return Dict(zip(leaves(tree), vectors))
 end
 
+"""
+    isuppertreelevel(tree, level)
+    islowertreelevel(tree, level)
+    isuppertreenode(tree, node)
+    islowertreenode(tree, node)
+
+Query whether a level or node belongs to the upper or lower part of a hybrid
+tree.
+"""
 function isuppertreelevel(tree, level::Int)
     return level ≤ hybridlevel(tree)
 end
@@ -486,7 +775,18 @@ include("trees/BoundingBallTree.jl")
 include("trees/BlockTree.jl")
 include("trees/KMeansTree.jl")
 include("trees/MetisTree.jl")
+include("buildtree.jl")
+include("showmethods.jl")
 
+"""
+    isgalerkinsymmetric(T)
+    isgalerkinsymmetric(::Type{T})
+
+Return whether a Galerkin operator type can be treated as symmetric.
+
+Packages defining concrete operators can extend this hook. The fallback is
+`false`.
+"""
 function isgalerkinsymmetric(T)
     return isgalerkinsymmetric(typeof(T))
 end # requires BEAST to load
@@ -497,6 +797,11 @@ end
 
 export TwoNTree, BlockTree, SimpleHybridTree, KMeansTree
 
+"""
+    adjacencygraph(...)
+
+Extension hook implemented by graph/visualization integrations.
+"""
 function adjacencygraph end # requires BEAST to load
 
 # for backwards compatibility with julia versions below 1.9
