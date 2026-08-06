@@ -1,4 +1,15 @@
+"""
+    @treewrapper WrapperType
+
+Generate forwarding methods for a tree wrapper type.
+
+`WrapperType` must store the wrapped tree in a field named `tree`. The generated
+methods forward the standard tree interface (`treetrait`, node/level accessors,
+geometry, child/parent navigation, stored values, and `eltype`) to that inner
+tree.
+"""
 macro treewrapper(treewrapper)
+    treewrapper = esc(treewrapper)
     quote
         function H2Trees.treetrait(tree::$treewrapper)
             return H2Trees.treetrait(tree.tree)
@@ -6,6 +17,10 @@ macro treewrapper(treewrapper)
 
         function H2Trees.nodesatlevel(tree::$treewrapper)
             return H2Trees.nodesatlevel(tree.tree)
+        end
+
+        function H2Trees.treeindex(tree::$treewrapper)
+            return H2Trees.treeindex(tree.tree)
         end
 
         function H2Trees.samelevelnodes(tree::$treewrapper, node::Int)
@@ -41,7 +56,7 @@ macro treewrapper(treewrapper)
         end
 
         function H2Trees.values(tree::$treewrapper, node::Int)
-            return H2Trees.values(tree.tree, node::Int)
+            return H2Trees.values(tree.tree, node)
         end
 
         function H2Trees.sector(tree::$treewrapper, node::Int)

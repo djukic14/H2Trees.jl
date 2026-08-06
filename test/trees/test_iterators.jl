@@ -1,8 +1,21 @@
+module TestIterators
+
 using Test
 using CompScienceMeshes
 using StaticArrays
 using H2Trees
 using BEAST
+
+include(joinpath(pkgdir(H2Trees), "test", "testutils.jl"))
+
+@testset "WellSeparatedIterator validation" begin
+    @test_throws ArgumentError H2Trees.WellSeparatedIterator(;
+        isnear=nothing, iswellseparated=nothing
+    )
+    @test_throws ArgumentError H2Trees.WellSeparatedIterator(;
+        isnear=H2Trees.isnear(), iswellseparated=H2Trees.iswellseparated()
+    )
+end
 
 @testset "Depth First Iterator" begin
     λ = 1.0
@@ -19,7 +32,12 @@ using BEAST
     for root in roots
         for minlevel in minlevels
             for minvalues in minvalues
-                tree = TwoNTree(X, λ / 5; minlevel=minlevel, root=root, minvalues=minvalues)
+                tree = buildtree(
+                    X;
+                    builder=TwoNTreeBuilder(;
+                        minhalfsize=λ / 5, minlevel=minlevel, root=root, minvalues=minvalues
+                    ),
+                )
 
                 valuesatnodes = H2Trees.valuesatnodes(tree)
                 @test length(valuesatnodes) == numfunctions(X)
@@ -61,7 +79,12 @@ end
 
     root = 3
     for minvalues in [0, 10]
-        tree = TwoNTree(X, λ / 10; minlevel=root, minvalues=minvalues)
+        tree = buildtree(
+            X;
+            builder=TwoNTreeBuilder(;
+                minhalfsize=λ / 10, minlevel=root, minvalues=minvalues
+            ),
+        )
 
         valuesatnodes = H2Trees.valuesatnodes(tree)
         @test length(valuesatnodes) == numfunctions(X)
@@ -81,6 +104,14 @@ end
                 nodes = collect(H2Trees.ParentUpwardsIterator(tree, node))
 
                 level == 2 && @test nodes == []
+
+                firstiteration = iterate(H2Trees.ParentUpwardsIterator(tree, node))
+                if node == H2Trees.root(tree)
+                    @test firstiteration === nothing
+                else
+                    _, state = firstiteration
+                    @test state isa Int
+                end
 
                 for i in eachindex(nodes)
                     if i < length(nodes)
@@ -102,7 +133,12 @@ end
 
     root = 3
     for minvalues in [0, 10]
-        tree = TwoNTree(X, λ / 10; minlevel=2, root=root, minvalues=minvalues)
+        tree = buildtree(
+            X;
+            builder=TwoNTreeBuilder(;
+                minhalfsize=λ / 10, minlevel=2, root=root, minvalues=minvalues
+            ),
+        )
 
         valuesatnodes = H2Trees.valuesatnodes(tree)
         @test length(valuesatnodes) == numfunctions(X)
@@ -166,6 +202,16 @@ end
 
             nearnodevalues = H2Trees.nearnodevalues(tree, centernode)
             farnodevalues = H2Trees.farnodevalues(tree, centernode)
+            appendednearnodevalues = [0]
+            appendedfarnodevalues = [0]
+
+            @test H2Trees.appendnearnodevalues!(
+                appendednearnodevalues, tree, centernode
+            ) === appendednearnodevalues
+            @test H2Trees.appendfarnodevalues!(appendedfarnodevalues, tree, centernode) ===
+                appendedfarnodevalues
+            @test appendednearnodevalues == [0; nearnodevalues]
+            @test appendedfarnodevalues == [0; farnodevalues]
 
             @test sort([nearnodevalues; farnodevalues]) == Array(1:numfunctions(X))
 
@@ -277,6 +323,17 @@ end
                     tree, centernode; isnear=isnearfilter
                 )
                 farnodevalues = H2Trees.farnodevalues(tree, centernode; isfar=isfarfilter)
+                appendednearnodevalues = [0]
+                appendedfarnodevalues = [0]
+
+                @test H2Trees.appendnearnodevalues!(
+                    appendednearnodevalues, tree, centernode; isnear=isnearfilter
+                ) === appendednearnodevalues
+                @test H2Trees.appendfarnodevalues!(
+                    appendedfarnodevalues, tree, centernode; isfar=isfarfilter
+                ) === appendedfarnodevalues
+                @test appendednearnodevalues == [0; nearnodevalues]
+                @test appendedfarnodevalues == [0; farnodevalues]
 
                 @test sort([nearnodevalues; farnodevalues]) == Array(1:numfunctions(X))
 
@@ -304,7 +361,18 @@ end
     X = raviartthomas(mx)
     Y = raviartthomas(my)
 
-    tree = TwoNTree(X, Y, λ / 10)
+    tree = buildtree(
+        X,
+        Y;
+        builder=BlockTreeBuilder(;
+            test=TwoNTreeBuilder(;
+                minhalfsize=λ / 10, minvalues=0, protrusion=NoProtrusionCheck()
+            ),
+            trial=TwoNTreeBuilder(;
+                minhalfsize=λ / 10, minvalues=0, protrusion=NoProtrusionCheck()
+            ),
+        ),
+    )
     testtree = H2Trees.testtree(tree)
     trialtree = H2Trees.trialtree(tree)
 
@@ -334,6 +402,35 @@ end
 
     @test H2Trees.levels(testtree) == 2:5
     @test H2Trees.levels(trialtree) == 1:5
+
+    for trialnode in H2Trees.DepthFirstIterator(trialtree)
+        H2Trees.level(trialtree, trialnode) in H2Trees.levels(testtree) || continue
+
+        samelevelnodes = collect(
+            H2Trees.SameLevelFilteredIterator(
+                testtree,
+                trialtree,
+                trialnode,
+                (testtree, trialtree, testnode, trialnode) -> true,
+            ),
+        )
+        @test samelevelnodes ==
+            collect(H2Trees.LevelIterator(testtree, H2Trees.level(trialtree, trialnode)))
+        @test all(
+            testnode ->
+                H2Trees.level(testtree, testnode) == H2Trees.level(trialtree, trialnode),
+            samelevelnodes,
+        )
+
+        @test collect(H2Trees.NearNodesAtAnchorLevel(testtree, trialtree, trialnode)) ==
+            collect(H2Trees.NearNodeIterator(testtree, trialtree, trialnode))
+        @test collect(H2Trees.FarNodesAtAnchorLevel(testtree, trialtree, trialnode)) ==
+            collect(H2Trees.FarNodeIterator(testtree, trialtree, trialnode))
+        @test collect(H2Trees.NearNodesAtAnchorLevel(testtree, trialtree, trialnode)) ==
+            collect(H2Trees.NearNodeIterator(tree, trialnode))
+        @test collect(H2Trees.FarNodesAtAnchorLevel(testtree, trialtree, trialnode)) ==
+            collect(H2Trees.FarNodeIterator(tree, trialnode))
+    end
 
     @test_nowarn println(tree)
     @test_nowarn show(tree)
@@ -605,6 +702,17 @@ end
             farnodevalues = H2Trees.farnodevalues(
                 testtree, trialtree, trialnode; isfar=isfarfilter
             )
+            appendednearnodevalues = [0]
+            appendedfarnodevalues = [0]
+
+            @test H2Trees.appendnearnodevalues!(
+                appendednearnodevalues, testtree, trialtree, trialnode; isnear=isnearfilter
+            ) === appendednearnodevalues
+            @test H2Trees.appendfarnodevalues!(
+                appendedfarnodevalues, testtree, trialtree, trialnode; isfar=isfarfilter
+            ) === appendedfarnodevalues
+            @test appendednearnodevalues == [0; nearnodevalues]
+            @test appendedfarnodevalues == [0; farnodevalues]
 
             @test sort([nearnodevalues; farnodevalues]) == Array(1:numfunctions(X))
         end
@@ -664,6 +772,17 @@ end
             farnodevalues = H2Trees.farnodevalues(
                 trialtree, testtree, testnode; isfar=isfarfilter
             )
+            appendednearnodevalues = [0]
+            appendedfarnodevalues = [0]
+
+            @test H2Trees.appendnearnodevalues!(
+                appendednearnodevalues, trialtree, testtree, testnode; isnear=isnearfilter
+            ) === appendednearnodevalues
+            @test H2Trees.appendfarnodevalues!(
+                appendedfarnodevalues, trialtree, testtree, testnode; isfar=isfarfilter
+            ) === appendedfarnodevalues
+            @test appendednearnodevalues == [0; nearnodevalues]
+            @test appendedfarnodevalues == [0; farnodevalues]
 
             @test sort([nearnodevalues; farnodevalues]) == Array(1:numfunctions(Y))
         end
@@ -679,7 +798,12 @@ end
 
     root = 4
     for minvalues in [0, 10]
-        tree = TwoNTree(X, λ / 10; minlevel=2, root=root, minvalues=minvalues)
+        tree = buildtree(
+            X;
+            builder=TwoNTreeBuilder(;
+                minhalfsize=λ / 10, minlevel=2, root=root, minvalues=minvalues
+            ),
+        )
 
         valuesatnodes = H2Trees.valuesatnodes(tree)
         @test length(valuesatnodes) == numfunctions(X)
@@ -694,7 +818,7 @@ end
             @test sort(value) == sort(H2Trees.values(tree, key))
         end
 
-        @test H2Trees.testwellseparatedness(tree)
+        @test TestingUtils.testwellseparatedness(tree)
 
         @test H2Trees.WellSeparatedIterator(; iswellseparated=1).iswellseparated == 1
     end
@@ -723,12 +847,17 @@ end
                 X = raviartthomas(mx)
                 for my in ms
                     Y = raviartthomas(my)
-                    tree = TwoNTree(
+                    tree = buildtree(
                         X,
-                        Y,
-                        λ / 20;
-                        testminvalues=trialminvalues,
-                        trialminvalues=trialminvalues,
+                        Y;
+                        builder=BlockTreeBuilder(;
+                            test=TwoNTreeBuilder(;
+                                minhalfsize=λ / 20, minvalues=trialminvalues
+                            ),
+                            trial=TwoNTreeBuilder(;
+                                minhalfsize=λ / 20, minvalues=trialminvalues
+                            ),
+                        ),
                     )
 
                     testlevels = unique(
@@ -757,9 +886,11 @@ end
                             @test sort(value) == sort(H2Trees.values(tree, key))
                         end
                     end
-                    @test H2Trees.testwellseparatedness(tree)
+                    @test TestingUtils.testwellseparatedness(tree)
                 end
             end
         end
     end
 end
+
+end # module TestIterators

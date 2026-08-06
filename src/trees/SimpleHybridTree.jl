@@ -20,38 +20,30 @@ struct SimpleHybridTree{T} <: H2ClusterTree
     hybridlevel::Int
 end
 
-function SimpleHybridTree(tree; kwargs...)
-    return SimpleHybridTree(tree, treetrait(tree); kwargs...)
+function SimpleHybridTree(tree; builder::SimpleHybridTreeBuilder)
+    return SimpleHybridTree(tree, treetrait(tree); builder=builder)
 end
 
 """
-    SimpleHybridTree(tree::TwoNTree; hs=H2Trees.halfsizes(tree), hybridhalfsize::H=maximum(hs))
+    SimpleHybridTree(tree::TwoNTree; builder::SimpleHybridTreeBuilder)
 
-Construct a `SimpleHybridTree` for a `TwoNTree` by specifying the hybrid halfsize.
+Construct a `SimpleHybridTree` for a `TwoNTree` using a typed builder. Prefer the canonical
+[`buildtree`](@ref) entry point; this method is what it forwards to.
 
-The hybrid level is determined by finding the first level whose halfsize is less than or equal
-to the specified `hybridhalfsize`. An error is raised if the hybrid halfsize is smaller than
-the minimum halfsize in the tree or if any leaf is below the computed hybrid level.
-
-# Arguments
-
-  - `tree::T`: The underlying `TwoNTree` cluster tree.
-  - `hs`: The halfsizes of tree levels (default: `H2Trees.halfsizes(tree)`).
-  - `hybridhalfsize::H`: The halfsize threshold for determining the hybrid level (default: maximum halfsize).
-
-# Returns
-
-A new `SimpleHybridTree` instance with the computed hybrid level.
-
-# Throws
-
-Error if `hybridhalfsize` is smaller than the minimum halfsize or if any leaf is below the hybrid level.
+The hybrid level is determined by finding the first level whose halfsize is less than or equal to
+`builder.hybridhalfsize`. An error is raised if the hybrid halfsize is smaller than the minimum
+halfsize in the tree or if any leaf is below the computed hybrid level.
 """
 function SimpleHybridTree(
-    tree::T, ::isTwoNTree; hs=H2Trees.halfsizes(tree), hybridhalfsize::H=maximum(hs)
-) where {T<:TwoNTree,H<:AbstractFloat}
-    hybridhalfsize < minimum(hs) && error(
-        "Hybrid halfsize $hybridhalfsize is smaller than minimum halfsize $(minimum(hs))",
+    tree::T, ::isTwoNTree; builder::SimpleHybridTreeBuilder
+) where {T<:TwoNTree}
+    hs = halfsizes(tree)
+    hybridhalfsize = builder.hybridhalfsize
+
+    hybridhalfsize < minimum(hs) && throw(
+        ArgumentError(
+            "Hybrid halfsize $hybridhalfsize is smaller than minimum halfsize $(minimum(hs))",
+        ),
     )
 
     hybridlevel = findfirst(x -> x <= hybridhalfsize, hs)
@@ -61,7 +53,7 @@ function SimpleHybridTree(
 
     for leaf in H2Trees.leaves(tree)
         level(tree, leaf) <= hybridlevel &&
-            error("Leaf $leaf is below hybrid level $hybridlevel")
+            throw(ArgumentError("Leaf $leaf is below hybrid level $hybridlevel"))
     end
 
     return SimpleHybridTree{T}(tree, hybridlevel)

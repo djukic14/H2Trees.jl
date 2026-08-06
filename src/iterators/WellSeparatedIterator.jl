@@ -1,10 +1,10 @@
-struct _WellSeparatedIteratorFunctor{IN}
+struct _WellSeparatedIteratorBuilder{IN}
     iswellseparated::IN
 end
 
-function (f::_WellSeparatedIteratorFunctor)(tree)
+function (builder::_WellSeparatedIteratorBuilder)(tree)
     return WellSeparatedIterator(
-        tree, treetrait(tree); iswellseparated=f.iswellseparated(tree)
+        tree, treetrait(tree); iswellseparated=builder.iswellseparated(tree)
     )
 end
 
@@ -23,17 +23,17 @@ This assumes that child clusters are completely inside their parent clusters.
 
 # Returns
 
-A `WellSeparatedIteratorFunctor` that returns a `WellSeparatedIterator` if provided with a tree.
+A callable builder that returns a `WellSeparatedIterator` if provided with a tree.
 
 # Throws
 
-  - `error`: if both `isnear` and `iswellseparated` are provided, or if neither is provided.
+  - `ArgumentError`: if both `isnear` and `iswellseparated` are provided, or if neither is provided.
 """
 function WellSeparatedIterator(;
-    iswellseparated=nothing, isnear=isnothing(iswellseparated) ? H2Trees.isnear() : nothing
+    iswellseparated=nothing, isnear=isnothing(iswellseparated) ? isnear() : nothing
 )
     if !((isnear !== nothing) ⊻ (iswellseparated !== nothing))
-        error("Supply one of (not both) isnear or iswellseparated")
+        throw(ArgumentError("Supply one of (not both) isnear or iswellseparated"))
     end
 
     filter = if isnothing(iswellseparated)
@@ -42,33 +42,33 @@ function WellSeparatedIterator(;
         iswellseparated
     end
 
-    return _WellSeparatedIteratorFunctor(filter)
+    return _WellSeparatedIteratorBuilder(filter)
 end
 
-struct _WellSeparatedIteratorNotBlockTreeFunctor{IN}
+struct _WellSeparatedSingleTreeBuilder{IN}
     iswellseparated::IN
 end
 
-function (f::_WellSeparatedIteratorNotBlockTreeFunctor)(tree, node)
-    return WellSeparatedIterator(tree, node; iswellseparated=f.iswellseparated)
+function (builder::_WellSeparatedSingleTreeBuilder)(tree, node)
+    return WellSeparatedIterator(tree, node; iswellseparated=builder.iswellseparated)
 end
 
 function WellSeparatedIterator(tree, ::AbstractTreeTrait; iswellseparated=iswellseparated)
-    return _WellSeparatedIteratorNotBlockTreeFunctor(iswellseparated)
+    return _WellSeparatedSingleTreeBuilder(iswellseparated)
 end
 
-struct _WellSeparatedIteratorBlockTreeFunctor{IN}
+struct _WellSeparatedTwoTreeBuilder{IN}
     iswellseparated::IN
 end
 
-function (f::_WellSeparatedIteratorBlockTreeFunctor)(testtree, trialtree, trialnode)
+function (builder::_WellSeparatedTwoTreeBuilder)(iteratedtree, anchortree, anchornode)
     return WellSeparatedIterator(
-        testtree, trialtree, trialnode; iswellseparated=f.iswellseparated
+        iteratedtree, anchortree, anchornode; iswellseparated=builder.iswellseparated
     )
 end
 
 function WellSeparatedIterator(tree, ::isBlockTree; iswellseparated=iswellseparated)
-    return _WellSeparatedIteratorBlockTreeFunctor(iswellseparated)
+    return _WellSeparatedTwoTreeBuilder(iswellseparated)
 end
 
 """
@@ -131,53 +131,55 @@ function NotWellSeparatedIterator(
 end
 # Well separated filters ###################################################################
 
-struct _IsWellSeparatedFunctor{IN}
+struct _IsWellSeparatedPredicateBuilder{IN}
     isnear::IN
 end
 
-function (f::_IsWellSeparatedFunctor)(tree)
-    return iswellseparated(tree, H2Trees.treetrait(tree); isnear=f.isnear(tree))
+function (builder::_IsWellSeparatedPredicateBuilder)(tree)
+    return iswellseparated(tree, treetrait(tree); isnear=builder.isnear(tree))
 end
 
 """
     iswellseparated
 """
 function iswellseparated(; isnear=nothing)
-    return _IsWellSeparatedFunctor(isnear)
+    return _IsWellSeparatedPredicateBuilder(isnear)
 end
 
-struct _IsWellSeparatedNotBlockTreeFunctor{IN}
+struct _IsWellSeparatedSingleTreePredicate{IN}
     isnear::IN
 end
 
-function (f::_IsWellSeparatedNotBlockTreeFunctor)(tree, testnode, trialnode)
+function (predicate::_IsWellSeparatedSingleTreePredicate)(tree, testnode, trialnode)
     return iswellseparated(
-        tree, testnode, trialnode, H2Trees.treetrait(tree); isnear=f.isnear
+        tree, testnode, trialnode, treetrait(tree); isnear=predicate.isnear
     )
 end
 
 function iswellseparated(tree, ::Any; isnear=isnear)
-    return _IsWellSeparatedNotBlockTreeFunctor(isnear)
+    return _IsWellSeparatedSingleTreePredicate(isnear)
 end
 
-struct _IsWellSeparatedBlockTreeFunctor{IN}
+struct _IsWellSeparatedTwoTreePredicate{IN}
     isnear::IN
 end
 
-function (f::_IsWellSeparatedBlockTreeFunctor)(testtree, trialtree, testnode, trialnode)
+function (predicate::_IsWellSeparatedTwoTreePredicate)(
+    iteratedtree, anchortree, iteratednode, anchornode
+)
     return iswellseparated(
-        testtree,
-        trialtree,
-        testnode,
-        trialnode,
-        treetrait(testtree),
-        treetrait(trialtree);
-        isnear=f.isnear,
+        iteratedtree,
+        anchortree,
+        iteratednode,
+        anchornode,
+        treetrait(iteratedtree),
+        treetrait(anchortree);
+        isnear=predicate.isnear,
     )
 end
 
 function iswellseparated(tree, ::isBlockTree; isnear=isnear)
-    return _IsWellSeparatedBlockTreeFunctor(isnear)
+    return _IsWellSeparatedTwoTreePredicate(isnear)
 end
 
 function iswellseparated(tree, testnode::Int, trialnode::Int)
@@ -215,7 +217,7 @@ function iswellseparated(
 )
     isnear(tree, testnode, trialnode) && return false
 
-    trialparent = H2Trees.parent(tree, trialnode)
+    trialparent = parent(tree, trialnode)
     testparent = H2Trees.parent(tree, testnode)
 
     !isnear(tree, testparent, trialparent) && return false
@@ -234,11 +236,11 @@ function iswellseparated(
 )
     isnear(testtree, trialtree, testnode, trialnode) && return false
 
-    H2Trees.level(trialtree, trialnode) == H2Trees.minimumlevel(trialtree) && return true
-    H2Trees.level(testtree, testnode) == H2Trees.minimumlevel(testtree) && return true
+    level(trialtree, trialnode) == minimumlevel(trialtree) && return true
+    level(testtree, testnode) == minimumlevel(testtree) && return true
 
-    trialparent = H2Trees.parent(trialtree, trialnode)
-    testparent = H2Trees.parent(testtree, testnode)
+    trialparent = parent(trialtree, trialnode)
+    testparent = parent(testtree, testnode)
 
     !isnear(testtree, trialtree, testparent, trialparent) && return false
 
@@ -247,51 +249,56 @@ end
 
 # Util functions ###########################################################################
 
-struct _IsTranslatingNodeFunctor{IN}
+struct _IsTranslatingNodePredicateBuilder{IN}
     TranslatingNodesIterator::IN
 end
 
-function (f::_IsTranslatingNodeFunctor)(tree)
+function (builder::_IsTranslatingNodePredicateBuilder)(tree)
     return istranslatingnode(
         tree,
-        H2Trees.treetrait(tree);
-        TranslatingNodesIterator=f.TranslatingNodesIterator(tree),
+        treetrait(tree);
+        TranslatingNodesIterator=builder.TranslatingNodesIterator(tree),
     )
 end
 
 function istranslatingnode(; TranslatingNodesIterator=nothing)
-    return _IsTranslatingNodeFunctor(TranslatingNodesIterator)
+    return _IsTranslatingNodePredicateBuilder(TranslatingNodesIterator)
 end
 
-struct _IsTranslatingNodeNotBlockTreeFunctor{T,IN}
+struct _IsTranslatingNodeSingleTreePredicate{T,IN}
     tree::T
     TranslatingNodesIterator::IN
 end
 
-function (f::_IsTranslatingNodeNotBlockTreeFunctor)(node)
+function (predicate::_IsTranslatingNodeSingleTreePredicate)(node)
     return istranslatingnode(
-        f.tree, node; TranslatingNodesIterator=f.TranslatingNodesIterator
+        predicate.tree, node; TranslatingNodesIterator=predicate.TranslatingNodesIterator
     )
 end
 
-struct _IsTranslatingNodeBlockTreeFunctor{IN}
+struct _IsTranslatingNodeTwoTreePredicate{IN}
     TranslatingNodesIterator::IN
 end
 
-function (f::_IsTranslatingNodeBlockTreeFunctor)(testtree, trialtree, trialnode)
+function (predicate::_IsTranslatingNodeTwoTreePredicate)(
+    iteratedtree, anchortree, anchornode
+)
     return istranslatingnode(
-        testtree, trialtree, trialnode; TranslatingNodesIterator=f.TranslatingNodesIterator
+        iteratedtree,
+        anchortree,
+        anchornode;
+        TranslatingNodesIterator=predicate.TranslatingNodesIterator,
     )
 end
 
 function istranslatingnode(tree, ::Any; TranslatingNodesIterator=TranslatingNodesIterator)
-    return _IsTranslatingNodeNotBlockTreeFunctor(tree, TranslatingNodesIterator)
+    return _IsTranslatingNodeSingleTreePredicate(tree, TranslatingNodesIterator)
 end
 
 function istranslatingnode(
     tree, ::isBlockTree; TranslatingNodesIterator=TranslatingNodesIterator
 )
-    return _IsTranslatingNodeBlockTreeFunctor(TranslatingNodesIterator)
+    return _IsTranslatingNodeTwoTreePredicate(TranslatingNodesIterator)
 end
 
 function istranslatingnode(

@@ -3,66 +3,86 @@ module H2MetisTrees
 using StaticArrays
 using Graphs
 using Metis
-using Metis.LibMetis: idx_t, @check, METIS_PartGraphKway, METIS_PartGraphRecursive
+using Metis.LibMetis:
+    idx_t,
+    @check,
+    METIS_PartGraphKway,
+    METIS_PartGraphRecursive,
+    METIS_OPTION_SEED,
+    MetisError
 
 import H2Trees: metispartition
+
+# The same seed `KMeansTreeBuilder` uses by default (see its docstring): both partitioning
+# strategies need a fixed seed so results are reproducible run to run and platform to platform,
+# rather than depending on METIS's own default (time-based on at least some builds) seeding.
+# Without this, `METIS_OPTION_CONTIG = 1` below can fail non-deterministically -- METIS refuses to
+# produce a contiguous partition once its (seed-dependent) recursive splitting reaches a subgraph
+# that is already disconnected, and an unset seed makes that reachable on some platforms/builds
+# and not others for the exact same input graph.
+const metisseed = 1234
 
 """
     fallbackmetisoptions
 
-METIS options vector with minimal configuration.
+METIS options used when weighted partitioning fails to split the graph.
 
-This option set enables:
-
-  - `METIS_OPTION_CONTIG = 1`: forces each partition to be contiguous
-    (i.e., each block forms a connected subgraph).
-
-All other METIS options remain unset (`-1`), meaning METIS will use defaults.
+The fallback keeps `METIS_OPTION_CONTIG = 1` so each partition forms a
+connected subgraph, and fixes `METIS_OPTION_SEED` for reproducibility. All
+other options remain unset, letting METIS choose its defaults.
 """
 const fallbackmetisoptions = begin
     _options = fill(Cint(-1), Metis.METIS_NOPTIONS)
     _options[Int(Metis.METIS_OPTION_CONTIG) + 1] = 1
+    _options[Int(METIS_OPTION_SEED) + 1] = metisseed
     SVector{Metis.METIS_NOPTIONS}(_options)
 end
 
 """
     metisoptions
 
-METIS options vector with extended configuration.
+Default METIS options used by H2Trees.
 
-This option set enables:
-
-  - `METIS_OPTION_CONTIG = 1`: ensures partitions are contiguous
-  - `METIS_OPTION_NUMBERING = 1`: switches METIS to 1-based numbering
-
-All other options remain at default (`-1`).
+The options request contiguous partitions, Julia-style 1-based numbering,
+and a fixed `METIS_OPTION_SEED` for reproducibility. All other options
+remain unset, letting METIS choose its defaults.
 """
 const metisoptions = begin
     _options = fill(Cint(-1), Metis.METIS_NOPTIONS)
     _options[Int(Metis.METIS_OPTION_CONTIG) + 1] = 1
     _options[Int(Metis.METIS_OPTION_NUMBERING) + 1] = 1
+    _options[Int(METIS_OPTION_SEED) + 1] = metisseed
     SVector{Metis.METIS_NOPTIONS}(_options)
 end
 
 """
-        partition(G::Metis.Graph, nparts::Integer; alg=:KWAY, options=metisoptions, vertexweights=true)
+    relaxedmetisoptions
+
+METIS options used when a contiguous partition is infeasible.
+
+`METIS_OPTION_CONTIG` requiring every partition to be internally connected
+also requires the *input* graph itself to already be connected; on a
+disconnected input graph (e.g. a mesh made of several physically separate
+pieces), some METIS builds return an error for this instead of silently
+falling back, so [`metispartition`](@ref) drops the contiguity constraint
+entirely as a last resort. `METIS_OPTION_SEED` is still fixed for
+reproducibility.
+"""
+const relaxedmetisoptions = begin
+    _options = fill(Cint(-1), Metis.METIS_NOPTIONS)
+    _options[Int(Metis.METIS_OPTION_NUMBERING) + 1] = 1
+    _options[Int(METIS_OPTION_SEED) + 1] = metisseed
+    SVector{Metis.METIS_NOPTIONS}(_options)
+end
+
+"""
+    partition(G::Metis.Graph, nparts::Integer; alg=:KWAY, options=metisoptions, vertexweights=true)
 
 Partition a METIS graph into `nparts` parts.
 
-This is a thin wrapper around METIS partitioning routines that supports both
-recursive bisection (`:RECURSIVE`) and k-way partitioning (`:KWAY`).
-
-# Arguments
-
-    - `G::Metis.Graph`: Input graph in METIS format.
-    - `nparts::Integer`: Number of requested partitions.
-    - `alg`: Partitioning algorithm (`:KWAY` or `:RECURSIVE`, default: `:KWAY`).
-    - `options`: METIS options vector (default: `metisoptions`).
-    - `vertexweights`: Whether to use `G.vwgt` as vertex weights (default: `true`).
-
-# Returns
-
-A vector of partition labels with one entry per vertex.
+This thin wrapper dispatches to either k-way partitioning (`alg=:KWAY`) or
+recursive bisection (`alg=:RECURSIVE`). Set `vertexweights=false` to ignore
+`G.vwgt`. The returned vector contains one partition label per vertex.
 """
 function partition(
     G::Metis.Graph, nparts::Integer; alg=:KWAY, options=metisoptions, vertexweights=true
@@ -113,23 +133,13 @@ function partition(
 end
 
 """
-        computemetisweights(::Type{T}, weights, targetmax=1000) where {T}
+    computemetisweights(::Type{T}, weights, targetmax=1000) where {T}
 
 Convert floating-point-like weights into positive integer METIS vertex weights.
 
 The input is transformed with `log1p`, normalized to `[0, 1]`, scaled by
 `targetmax`, and rounded to integers. The output is clamped to be at least `1`,
 as required by METIS.
-
-# Arguments
-
-    - `::Type{T}`: Target integer type for METIS weights.
-    - `weights`: Input vertex weights.
-    - `targetmax`: Maximum scale used before rounding (default: `1000`).
-
-# Returns
-
-A vector of type `T` containing strictly positive integer weights.
 """
 function computemetisweights(::Type{T}, weights, targetmax=1000) where {T}
     w = Float64.(weights)
@@ -149,26 +159,19 @@ function computemetisweights(::Type{T}, weights, targetmax=1000) where {T}
 end
 
 """
-        metispartition(G::Graphs.SimpleGraph, vertexweights, numberofdivisions::Int; splitunconnectedpartitions::Bool=false, alg=:KWAY)
+    metispartition(G::Graphs.SimpleGraph, vertexweights, numberofdivisions::Int; splitunconnectedpartitions=false, alg=:KWAY)
 
 Partition a simple graph using METIS with optional post-processing of disconnected parts.
 
-The function converts `G` to a METIS graph, computes integer vertex weights,
-and runs weighted partitioning first. If METIS returns a single part, it retries
-without vertex weights using `fallbackmetisoptions`. Optionally, each resulting
-part can be split into connected components.
-
-# Arguments
-
-    - `G::Graphs.SimpleGraph`: Input graph to partition.
-    - `vertexweights`: Vertex weights used to bias partitioning.
-    - `numberofdivisions::Int`: Number of requested partitions.
-    - `splitunconnectedpartitions::Bool`: Split each METIS part into connected components (default: `false`).
-    - `alg`: Partitioning algorithm to use (`:KWAY` or `:RECURSIVE`, default: `:KWAY`).
-
-# Returns
-
-A vector of partition labels with one entry per vertex.
+`METIS_OPTION_CONTIG` requires the *input* graph to already be connected; requesting
+it anyway on a disconnected graph is undefined enough to be unsafe across platforms
+-- some METIS builds return an error, others have been observed to crash natively
+(a segfault, which no Julia `try`/`catch` can intercept). So contiguity is only ever
+requested when `G` is actually connected; a disconnected `G` skips straight to
+`relaxedmetisoptions`. When contiguity is requested, weighted partitioning runs
+first and retries without vertex weights (`fallbackmetisoptions`) if METIS returns a
+single part or throws. Optionally, each resulting part can be split into connected
+components.
 """
 function metispartition(
     G::Graphs.SimpleGraph,
@@ -186,14 +189,50 @@ function metispartition(
         metisG.adjwgt,
     )
 
-    part = partition(
-        metisG, numberofdivisions; options=metisoptions, vertexweights=true, alg=alg
-    )
+    contiguous = Graphs.is_connected(G)
 
-    if maximum(part) == minimum(part)
-        @warn "METIS partitioning failed to produce multiple parts, retrying without vertex weights"
+    part = if contiguous
+        try
+            partition(
+                metisG,
+                numberofdivisions;
+                options=metisoptions,
+                vertexweights=true,
+                alg=alg,
+            )
+        catch e
+            e isa MetisError || rethrow()
+            nothing
+        end
+    else
+        nothing
+    end
+
+    if contiguous && (part === nothing || maximum(part) == minimum(part))
+        part === nothing ||
+            @warn "METIS partitioning failed to produce multiple parts, retrying without vertex weights"
+        part = try
+            partition(
+                metisG,
+                numberofdivisions;
+                options=fallbackmetisoptions,
+                vertexweights=false,
+            )
+        catch e
+            e isa MetisError || rethrow()
+            nothing
+        end
+    end
+
+    if part === nothing
+        contiguous &&
+            @warn "METIS could not produce a contiguous partition for a non-contiguous input graph, retrying without the contiguity constraint"
         part = partition(
-            metisG, numberofdivisions; options=fallbackmetisoptions, vertexweights=false
+            metisG,
+            numberofdivisions;
+            options=relaxedmetisoptions,
+            vertexweights=false,
+            alg=alg,
         )
     end
 

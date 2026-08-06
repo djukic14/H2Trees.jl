@@ -8,6 +8,9 @@ H2Trees builds upon ideas from [ClusterTrees](https://github.com/krcools/Cluster
 * [`SimpleHybridTree`](@ref): A tree data structure that splits a tree into two parts for hybrid methods.
 * [`BoundingBallTree`](@ref): A tree data structure using bounding balls.
 
+See [Tree Families](tree_families.md) for a full comparison and how to pick one, and
+[Builder Workflow](builders.md) for the construction API shared by all of them.
+
 The H2Trees package provides a range of features, including
 
 * **Aggregation and disaggregation**: Plans for implementing aggregation and disaggregation algorithms for efficient computation. See [Plans](plans/plans.md) for details.

@@ -4,6 +4,9 @@
 /Manifest.toml
 /docs/Manifest.toml
 /docs/build/
+/benchmark/Manifest.toml
+/benchmark/tune.json
+/test/Manifest.toml
 *.cov
 *.info
 /.VSCodeCounter
