@@ -41,6 +41,8 @@ import H2Trees:
 
 DocMeta.setdocmeta!(H2Trees, :DocTestSetup, :(using H2Trees); recursive=true)
 
+include(joinpath(@__DIR__, "ensureplots.jl"))
+
 makedocs(;
     modules=[
         H2Trees,

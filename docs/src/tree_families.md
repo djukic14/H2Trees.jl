@@ -18,41 +18,12 @@ All builders are constructed through [`buildtree`](@ref)/[`buildforest`](@ref) â
 The same points, split into boxes ([`TwoNTree`](@ref), pink) and balls (`KMeansTree`, blue) at
 the same level:
 
-```@example treefamilies1
-using CompScienceMeshes, PlotlyJS # hide
+```@eval
 using H2Trees
-using ParallelKMeans
-
-m = meshsphere(1.0, 0.1)
-boxtree = TwoNTree(vertices(m); builder=TwoNTreeBuilder(; minhalfsize=0.1, minvalues=0))
-balltree = KMeansTree(vertices(m); builder=KMeansTreeBuilder(; numberofclusters=4, minvalues=60))
-
-traces = [wireframe(skeleton(m, 1))]
-for node in H2Trees.LevelIterator(boxtree, 4)
-    push!(traces, H2Trees.tracecube(boxtree, node; mode="lines", line_color=:pink))
-end
-for node in H2Trees.LevelIterator(balltree, 3)
-    push!(
-        traces,
-        H2Trees.traceball(
-            balltree, node; colorscale=[[0, :blue], [1, :blue]], opacity=0.25, showscale=false
-        ),
-    )
-end
-
-p = PlotlyJS.plot(
-    traces,
-    Layout(;
-        scene=attr(;
-            xaxis=attr(; visible=false), yaxis=attr(; visible=false), zaxis=attr(; visible=false)
-        ),
-        showlegend=false,
-    ),
-)
-savefig(p, "tree_families.html"); # hide
-nothing #hide
+include(joinpath(pkgdir(H2Trees), "docs", "plotutils.jl"))
+displayedcode(joinpath(pkgdir(H2Trees), "docs", "plots", "tree_families.jl"))
 ```
 
 ```@raw html
-<object data="../tree_families.html" type="text/html"  style="width:100%; height:50vh;"> </object>
+<object data="../assets/plots/tree_families.html" type="text/html"  style="width:100%; height:50vh;"> </object>
 ```

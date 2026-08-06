@@ -4,6 +4,8 @@
 /Manifest.toml
 /docs/Manifest.toml
 /docs/build/
+/docs/src/assets/plots/
+/docs/.plots_hash
 /benchmark/Manifest.toml
 /benchmark/tune.json
 /test/Manifest.toml
