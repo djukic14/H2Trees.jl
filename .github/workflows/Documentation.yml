@@ -30,6 +30,13 @@ jobs:
         with:
           version: '1'
       - uses: julia-actions/cache@v3
+      - name: Cache pre-rendered documentation plots
+        uses: actions/cache@v4
+        with:
+          path: |
+            docs/src/assets/plots
+            docs/.plots_hash
+          key: docplots-${{ hashFiles('src/**', 'ext/**', 'docs/plots/**', 'docs/plotutils.jl', 'docs/genplots.jl', 'docs/ensureplots.jl', 'docs/Project.toml') }}
       - name: Configure documentation environment
         shell: julia --project=docs --color=yes {0}
         run: |
@@ -62,6 +69,13 @@ jobs:
         with:
           version: '1'
       - uses: julia-actions/cache@v3
+      - name: Cache pre-rendered documentation plots
+        uses: actions/cache@v4
+        with:
+          path: |
+            docs/src/assets/plots
+            docs/.plots_hash
+          key: docplots-${{ hashFiles('src/**', 'ext/**', 'docs/plots/**', 'docs/plotutils.jl', 'docs/genplots.jl', 'docs/ensureplots.jl', 'docs/Project.toml') }}
       - name: Configure documentation environment
         shell: julia --project=docs --color=yes {0}
         run: |

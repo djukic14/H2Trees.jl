@@ -31,134 +31,32 @@ tree = KMeansTree(
     This can lead to incorrect results when using iterators in H2Trees.
     Proceed at your own risk.
 
-```@example kmeanstree_1
-using CompScienceMeshes
+```@eval
 using H2Trees
-using PlotlyJS
-using ParallelKMeans
-
-m = meshsphere(1.0, 0.1)
-tree = KMeansTree(vertices(m); builder=KMeansTreeBuilder(; numberofclusters=4, minvalues=60))
-
-traces = [wireframe(skeleton(m, 1))] #hide
-
-for node in H2Trees.LevelIterator(tree, 4) #hide
-    push!( #hide
-        traces, #hide
-        H2Trees.traceball(tree, node; colorscale=[[0, :pink], [1, :pink]],  #hide
-        opacity=0.6, showscale=false), #hide
-    ) #hide
-end #hide
-
-p = PlotlyJS.plot( #hide
-    traces, #hide
-    Layout(; #hide
-        scene=attr(; #hide
-            xaxis=attr(; visible=false), #hide
-            yaxis=attr(; visible=false), #hide
-            zaxis=attr(; visible=false), #hide
-        ), #hide
-    ), #hide
-) #hide
-
-savefig(p, "kmeans_traceball_1.html"); #hide
-nothing #hide
+include(joinpath(pkgdir(H2Trees), "docs", "plotutils.jl"))
+displayedcode(joinpath(pkgdir(H2Trees), "docs", "plots", "kmeans_traceball_1.jl"))
 ```
 
 ```@raw html
-<object data="../kmeans_traceball_1.html" type="text/html"  style="width:100%; height:50vh;"> </object>
+<object data="../../assets/plots/kmeans_traceball_1.html" type="text/html"  style="width:100%; height:50vh;"> </object>
 ```
 
-```@example kmeanstree_2
-using Logging #hide
-using CompScienceMeshes
+```@eval
 using H2Trees
-using PlotlyJS
-using ParallelKMeans
-
-m = meshsphere(1.0, 0.1)
-with_logger(NullLogger()) do #hide
-tree = KMeansTree(
-    vertices(m);
-    builder=KMeansTreeBuilder(;
-        numberofclusters=4, minvalues=60, updateradii=H2Trees.noboundingsphereupdate
-    ),
-)
-
-traces = [wireframe(skeleton(m, 1))] #hide
-
-for node in H2Trees.LevelIterator(tree, 4) #hide
-    push!( #hide
-        traces, #hide
-        H2Trees.traceball(tree, node; colorscale=[[0, :pink], [1, :pink]],  #hide
-        opacity=0.6, showscale=false), #hide
-    ) #hide
-end #hide
-
-p = PlotlyJS.plot( #hide
-    traces, #hide
-    Layout(; #hide
-        scene=attr(; #hide
-            xaxis=attr(; visible=false), #hide
-            yaxis=attr(; visible=false), #hide
-            zaxis=attr(; visible=false), #hide
-        ), #hide
-    ), #hide
-) #hide
-
-savefig(p, "kmeans_traceball_2.html"); #hide
-end #hide
-nothing #hide
+include(joinpath(pkgdir(H2Trees), "docs", "plotutils.jl"))
+displayedcode(joinpath(pkgdir(H2Trees), "docs", "plots", "kmeans_traceball_2.jl"))
 ```
 
 ```@raw html
-<object data="../kmeans_traceball_2.html" type="text/html"  style="width:100%; height:50vh;"> </object>
+<object data="../../assets/plots/kmeans_traceball_2.html" type="text/html"  style="width:100%; height:50vh;"> </object>
 ```
 
-```@example kmeanstree_3
-using Logging #hide
-using CompScienceMeshes
+```@eval
 using H2Trees
-using PlotlyJS
-using ParallelKMeans
-
-m = meshsphere(1.0, 0.1)
-with_logger(NullLogger()) do #hide
-tree = KMeansTree(
-    vertices(m);
-    builder=KMeansTreeBuilder(;
-        numberofclusters=4,
-        minvalues=60,
-        updateradii=H2Trees.unsafemaxradiusboundingsphere,
-    ),
-)
-
-traces = [wireframe(skeleton(m, 1))] #hide
-
-for node in H2Trees.LevelIterator(tree, 4) #hide
-    push!( #hide
-        traces, #hide
-        H2Trees.traceball(tree, node; colorscale=[[0, :pink], [1, :pink]],  #hide
-        opacity=0.6, showscale=false), #hide
-    ) #hide
-end #hide
-
-p = PlotlyJS.plot( #hide
-    traces, #hide
-    Layout(; #hide
-        scene=attr(; #hide
-            xaxis=attr(; visible=false), #hide
-            yaxis=attr(; visible=false), #hide
-            zaxis=attr(; visible=false), #hide
-        ), #hide
-    ), #hide
-) #hide
-
-savefig(p, "kmeans_traceball_3.html"); #hide
-end #hide
-nothing #hide
+include(joinpath(pkgdir(H2Trees), "docs", "plotutils.jl"))
+displayedcode(joinpath(pkgdir(H2Trees), "docs", "plots", "kmeans_traceball_3.jl"))
 ```
 
 ```@raw html
-<object data="../kmeans_traceball_3.html" type="text/html"  style="width:100%; height:50vh;"> </object>
+<object data="../../assets/plots/kmeans_traceball_3.html" type="text/html"  style="width:100%; height:50vh;"> </object>
 ```

@@ -46,30 +46,14 @@ println("trial starts at level ", H2Trees.level(H2Trees.trialtree(tree), H2Trees
 If you pass an explicit `minlevel` yourself, it must match the value this level-scale resolution
 would have picked — a mismatch is an `ArgumentError`, not a silent override.
 
-```@example blocktree1
-using PlotlyJS # hide
-traces = [wireframe(skeleton(mx, 1)), wireframe(skeleton(my, 1))]
-for node in H2Trees.LevelIterator(H2Trees.testtree(tree), 4)
-    push!(traces, H2Trees.tracecube(H2Trees.testtree(tree), node; mode="lines", line_color=:pink))
-end
-for node in H2Trees.LevelIterator(H2Trees.trialtree(tree), 4)
-    push!(traces, H2Trees.tracecube(H2Trees.trialtree(tree), node; mode="lines", line_color=:blue))
-end
-p = PlotlyJS.plot(
-    traces,
-    Layout(;
-        scene=attr(;
-            xaxis=attr(; visible=false), yaxis=attr(; visible=false), zaxis=attr(; visible=false)
-        ),
-        showlegend=false,
-    ),
-)
-savefig(p, "blocktree.html"); # hide
-nothing #hide
+```@eval
+using H2Trees
+include(joinpath(pkgdir(H2Trees), "docs", "plotutils.jl"))
+displayedcode(joinpath(pkgdir(H2Trees), "docs", "plots", "blocktree.jl"))
 ```
 
 ```@raw html
-<object data="../blocktree.html" type="text/html"  style="width:100%; height:50vh;"> </object>
+<object data="../assets/plots/blocktree.html" type="text/html"  style="width:100%; height:50vh;"> </object>
 ```
 
 Test (pink) and trial (blue) boxes at the same level, from independently sized inputs.
