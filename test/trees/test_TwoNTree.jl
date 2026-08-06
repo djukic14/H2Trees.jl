@@ -11,9 +11,13 @@ using BEAST
     @test H2Trees.center(tree, 1) == SVector(0.0, 0.0, 0.0)
     @test H2Trees.halfsize(tree, 1) == 1.0
     @test H2Trees.level(tree, 1) == 1
+    @test H2Trees.isin(tree, 1, SVector(1.0, 1.0, 1.0))
+    @test !H2Trees.isin(tree, 1, SVector(1.0 + 1.0e-8, 0.0, 0.0))
+    @test !H2Trees.isin(tree, 1, SVector(1.1, 1.1, 1.1))
     @test H2Trees.values(tree, 1) == Int[]
     @test H2Trees.values(tree, H2Trees.leaves(tree)) == Int[]
-    @test H2Trees.LevelIterator(tree, 1) == Int[]
+    @test H2Trees.LevelIterator(tree, 1) == [1]
+    @test H2Trees.treeindex(tree).nodes_by_level == [[1]]
     @test H2Trees.treetrait(tree) == H2Trees.isTwoNTree()
 end
 
@@ -27,13 +31,35 @@ end
     root = 2
     minlevel = 2
 
-    tree = TwoNTree(points, 0.1; root=root, minlevel=minlevel, minvalues=10)
+    tree = buildtree(
+        points;
+        builder=TwoNTreeBuilder(;
+            minhalfsize=0.1, root=root, minlevel=minlevel, minvalues=10
+        ),
+    )
 
     @test H2Trees.halfsizes(tree) == [0.8, 0.4, 0.2, 0.1]
 
-    @test H2Trees.nodesatlevel(tree) == tree.nodesatlevel
     @test H2Trees.values(tree, H2Trees.root(tree)) ==
         H2Trees.values(tree, H2Trees.leaves(tree, H2Trees.root(tree)))
+
+    appended = [-1]
+    @test H2Trees.appendvalues!(appended, tree, H2Trees.root(tree)) === appended
+    @test appended == [-1; H2Trees.values(tree, H2Trees.root(tree))]
+
+    nodesappended = [-2]
+    @test H2Trees.appendvalues!(
+        nodesappended, tree, H2Trees.leaves(tree, H2Trees.root(tree))
+    ) === nodesappended
+    @test nodesappended == [-2; H2Trees.values(tree, H2Trees.root(tree))]
+
+    visited = Int[]
+    @test H2Trees.foreachvalue(tree, H2Trees.root(tree)) do value
+        push!(visited, value)
+    end === nothing
+    @test visited == H2Trees.values(tree, H2Trees.root(tree))
+    @test H2Trees.anyvalue(==(first(visited)), tree, H2Trees.root(tree))
+    @test !H2Trees.anyvalue(==(0), tree, H2Trees.root(tree))
 
     for node in H2Trees.DepthFirstIterator(tree)
         @test H2Trees.samelevelnodes(tree, node) ==
@@ -213,6 +239,166 @@ end
     end
 end
 
+@testset "Tree builders and index" begin
+    points = [
+        SVector(0.0, 0.0, 0.0),
+        SVector(1.0, 1.0, 1.0),
+        SVector(0.25, 0.25, 0.25),
+        SVector(0.75, 0.75, 0.75),
+    ]
+
+    tree = TwoNTree(
+        points;
+        builder=TwoNTreeBuilder(;
+            minhalfsize=0.25,
+            minlevel=AutoMinLevel(),
+            minvalues=1,
+            protrusion=NoProtrusionCheck(),
+        ),
+    )
+
+    @test H2Trees.minimumlevel(tree) == 1
+    @test H2Trees.treeindex(tree).nodes_by_level == H2Trees.nodesatlevel(tree)
+    @test H2Trees.depthfirstnodes(tree) == collect(Int, H2Trees.DepthFirstIterator(tree))
+    @test H2Trees.treeindex(tree).leaves == H2Trees.leaves(tree)
+    # `leaves(tree)` reuses the cached `TreeIndex.leaves` for the root case, but must hand back an
+    # independently owned copy: mutating the result must not corrupt the cache a later call reads.
+    @test H2Trees.leaves(tree) !== H2Trees.treeindex(tree).leaves
+    let returned = H2Trees.leaves(tree)
+        push!(returned, -1)
+        @test -1 ∉ H2Trees.treeindex(tree).leaves
+        @test -1 ∉ H2Trees.leaves(tree)
+    end
+    @test H2Trees.levelprotrusions(tree) == H2Trees.maxprotrusion(tree)
+    @test H2Trees.protrusionreport(tree).level in H2Trees.levels(tree)
+    @test (:nodes, :root, :center, :halfsize, :index) ⊆ propertynames(tree)
+    @test :name ∉ propertynames(tree)
+    @test :super ∉ propertynames(tree)
+
+    rawtwontreenode = H2Trees.Node(
+        H2Trees.BoxData(0, Int[], SVector(0.0, 0.0, 0.0), 1.0, 1), 0, 0, 0
+    )
+    rawtwontree = TwoNTree([rawtwontreenode], 1, SVector(0.0, 0.0, 0.0), 1.0, [[1]])
+    @test H2Trees.treeindex(rawtwontree) isa H2Trees.TreeIndex
+    @test H2Trees.nodesatlevel(rawtwontree) == [[1]]
+    typedrawtwontree = TwoNTree{3,H2Trees.BoxData{3,Float64},Float64}(
+        [rawtwontreenode], 1, SVector(0.0, 0.0, 0.0), 1.0, [[1]]
+    )
+    @test H2Trees.treeindex(typedrawtwontree) isa H2Trees.TreeIndex
+    @test H2Trees.nodesatlevel(typedrawtwontree) == [[1]]
+
+    kmeansbuilder = KMeansTreeBuilder(; numberofclusters=2)
+    metisbuilder = MetisTreeBuilder(; numdivisions=2)
+    hybridbuilder = SimpleHybridTreeBuilder(; hybridhalfsize=0.25)
+    @test kmeansbuilder.numberofclusters == 2
+    @test haskey(kmeansbuilder.splitterkwargs, :rng)
+    @test metisbuilder.numdivisions == 2
+    @test !metisbuilder.splitunconnectedpartitions
+    @test hybridbuilder.hybridhalfsize == 0.25
+    @test fieldtype(typeof(kmeansbuilder), :minlevel) !== Any
+    @test fieldtype(typeof(kmeansbuilder), :balldata) !== Any
+    @test fieldtype(typeof(kmeansbuilder), :updateradii) !== Any
+    @test fieldtype(typeof(metisbuilder), :minlevel) !== Any
+    @test fieldtype(typeof(hybridbuilder), :hybridhalfsize) !== Any
+
+    block = buildtree(
+        points,
+        points;
+        builder=BlockTreeBuilder(;
+            test=TwoNTreeBuilder(; minhalfsize=0.25, minvalues=1),
+            trial=TwoNTreeBuilder(; minhalfsize=0.25, minvalues=2),
+        ),
+    )
+
+    @test H2Trees.minhalfsize(H2Trees.testtree(block)) ==
+        H2Trees.minhalfsize(H2Trees.trialtree(block))
+    @test_throws ArgumentError BlockTreeBuilder(;
+        test=TwoNTreeBuilder(; minhalfsize=0.25), trial=TwoNTreeBuilder(; minhalfsize=0.5)
+    )
+end
+
+@testset "BoundingBallTree splitwrapper compatibility" begin
+    points = [SVector(0.0, 0.0), SVector(1.0, 0.0), SVector(0.0, 1.0), SVector(1.0, 1.0)]
+
+    oldsplit(points, globalpointids, numsplits) = (
+        [globalpointids[1:2], globalpointids[3:4]],
+        [SVector(0.5, 0.0), SVector(0.5, 1.0)],
+        [0.5, 0.5],
+    )
+    newsplit(points, globalpointids, level, numsplits) = (
+        [globalpointids[1:2], globalpointids[3:4]],
+        [SVector(level, 0.0), SVector(level, 1.0)],
+        [0.5, 0.5],
+    )
+
+    roottree = H2Trees.BoundingBallTree(SVector(0.0, 0.0), 1.0)
+    @test H2Trees.nodesatlevel(roottree, H2Trees.minimumlevel(roottree)) == [1]
+    @test H2Trees.treeindex(roottree).leaves == [1]
+    @test (:nodes, :root, :center, :radius, :index) ⊆ propertynames(roottree)
+    @test :name ∉ propertynames(roottree)
+    @test :super ∉ propertynames(roottree)
+
+    rawballnode = H2Trees.Node(
+        H2Trees.BoundingBallData([1], SVector(0.0, 0.0), 1.0, 1), 0, 0, 0
+    )
+    rawballtree = H2Trees.BoundingBallTree([rawballnode], 1, SVector(0.0, 0.0), 1.0, [[1]])
+    @test H2Trees.treeindex(rawballtree) isa H2Trees.TreeIndex
+    @test H2Trees.nodesatlevel(rawballtree) == [[1]]
+    typedrawballtree = H2Trees.BoundingBallTree{
+        2,H2Trees.BoundingBallData{2,Float64},Float64
+    }(
+        [rawballnode], 1, SVector(0.0, 0.0), 1.0, [[1]]
+    )
+    @test H2Trees.treeindex(typedrawballtree) isa H2Trees.TreeIndex
+    @test H2Trees.nodesatlevel(typedrawballtree) == [[1]]
+
+    oldtree = H2Trees.buildtree(
+        points;
+        builder=BoundingBallTreeBuilder(; splitter=oldsplit, numsplits=2, minvalues=1),
+    )
+    newtree = H2Trees.buildtree(
+        points;
+        builder=BoundingBallTreeBuilder(; splitter=newsplit, numsplits=2, minvalues=1),
+    )
+    buildertree = H2Trees.BoundingBallTree(
+        points;
+        builder=BoundingBallTreeBuilder(;
+            splitter=newsplit, numsplits=2, minvalues=1, splitterkwargs=(;)
+        ),
+    )
+
+    @test H2Trees.nodesatlevel(oldtree, H2Trees.minimumlevel(oldtree)) == [1]
+    @test H2Trees.nodesatlevel(newtree, H2Trees.minimumlevel(newtree)) == [1]
+    @test H2Trees.nodesatlevel(buildertree, H2Trees.minimumlevel(buildertree)) == [1]
+    @test H2Trees.center(newtree, first(H2Trees.nodesatlevel(newtree, 2))) ==
+        SVector(1.0, 0.0)
+end
+
+@testset "BoundingBallTree balanceleaves!" begin
+    nodes = [
+        H2Trees.Node(H2Trees.BoundingBallData(Int[], SVector(0.0, 0.0), 2.0, 1), 0, 0, 2),
+        H2Trees.Node(H2Trees.BoundingBallData([1], SVector(-1.0, 0.0), 1.0, 2), 3, 1, 0),
+        H2Trees.Node(H2Trees.BoundingBallData(Int[], SVector(1.0, 0.0), 1.0, 2), 0, 1, 4),
+        H2Trees.Node(H2Trees.BoundingBallData([2], SVector(1.0, 0.0), 0.5, 3), 0, 3, 0),
+    ]
+    tree = H2Trees.BoundingBallTree(nodes, 1, SVector(0.0, 0.0), 2.0, [[1], [2, 3], [4]])
+
+    @test sort(H2Trees.leaves(tree)) == [2, 4]
+    @test H2Trees.values(tree, H2Trees.root(tree)) == [1, 2]
+    @test H2Trees.balanceleaves!(tree) === tree
+    @test sort(H2Trees.leaves(tree)) == [4, 5]
+    @test all(H2Trees.level(tree, leaf) == 3 for leaf in H2Trees.leaves(tree))
+    @test H2Trees.firstchild(tree, 2) == 5
+    @test H2Trees.parent(tree, 5) == 2
+    @test H2Trees.data(tree, 2).values == Int[]
+    @test H2Trees.values(tree, 5) == [1]
+    @test H2Trees.values(tree, 4) == [2]
+    @test sort(H2Trees.values(tree, H2Trees.root(tree))) == [1, 2]
+    @test H2Trees.nodesatlevel(tree) == H2Trees.treeindex(tree).nodes_by_level
+    @test H2Trees.treeindex(tree).leaves == H2Trees.leaves(tree)
+    @test H2Trees.depthfirstnodes(tree) == collect(Int, H2Trees.DepthFirstIterator(tree))
+end
+
 @testset "Float32" begin
     tree = TwoNTree(SVector(0.0f0, 0.0f0, 0.0f0), 1.0f0)
 
@@ -222,6 +408,68 @@ end
     @test H2Trees.level(tree, 1) == 1
 
     @test H2Trees.treetrait(tree) == H2Trees.isTwoNTree()
+end
+
+@testset "TreeIndex invariants" begin
+    m = CompScienceMeshes.readmesh(
+        joinpath(pkgdir(H2Trees), "test", "assets", "in", "sphere4.in")
+    )
+    points = vertices(m)
+    tree = buildtree(points; builder=TwoNTreeBuilder(; minhalfsize=0.1, minvalues=10))
+
+    @test !ismutabletype(H2Trees.TreeIndex)
+    @test !ismutabletype(typeof(tree))
+    @test fieldtype(typeof(tree), :index) <: Base.RefValue{H2Trees.TreeIndex}
+
+    index = H2Trees.treeindex(tree)
+    @test H2Trees.levels(tree) == index.minlevel:index.maxlevel
+    for level in H2Trees.levels(tree)
+        for node in H2Trees.nodesatlevel(tree, level)
+            @test H2Trees.level(tree, node) == level
+        end
+    end
+    @test sort(index.leaves) == sort(H2Trees.leaves(tree))
+    @test sort(index.leaves) == sort([
+        node for node in H2Trees.DepthFirstIterator(tree) if H2Trees.isleaf(tree, node)
+    ])
+
+    # Rebuilding replaces the boxed index with a whole new coherent value, not a mutated one.
+    before = H2Trees.treeindex(tree)
+    H2Trees.rebuildtreeindex!(tree)
+    after = H2Trees.treeindex(tree)
+    @test before !== after
+    # `TreeIndex` has no custom `==` (its Vector fields make the default `==` fall back to `===`),
+    # so compare the coherent value fieldwise instead.
+    @test before.nodes_by_level == after.nodes_by_level
+    @test before.depthfirstnodes == after.depthfirstnodes
+    @test before.leaves == after.leaves
+    @test before.minlevel == after.minlevel
+    @test before.maxlevel == after.maxlevel
+
+    # Topology-changing operation (balanceleaves! on a BoundingBallTree) leaves the invariants
+    # holding after the index is rebuilt.
+    balltree = H2Trees.BoundingBallTree(
+        [
+            H2Trees.Node(
+                H2Trees.BoundingBallData(Int[], SVector(0.0, 0.0), 2.0, 1), 0, 0, 2
+            ),
+            H2Trees.Node(
+                H2Trees.BoundingBallData([1], SVector(-1.0, 0.0), 1.0, 2), 3, 1, 0
+            ),
+            H2Trees.Node(
+                H2Trees.BoundingBallData(Int[], SVector(1.0, 0.0), 1.0, 2), 0, 1, 4
+            ),
+            H2Trees.Node(H2Trees.BoundingBallData([2], SVector(1.0, 0.0), 0.5, 3), 0, 3, 0),
+        ],
+        1,
+        SVector(0.0, 0.0),
+        2.0,
+        [[1], [2, 3], [4]],
+    )
+    H2Trees.balanceleaves!(balltree)
+    ballindex = H2Trees.treeindex(balltree)
+    @test H2Trees.levels(balltree) == ballindex.minlevel:ballindex.maxlevel
+    @test sort(ballindex.leaves) == sort(H2Trees.leaves(balltree))
 end
 
 @testset "Simple Blocktree" begin
@@ -239,7 +487,18 @@ end
     X = raviartthomas(mx)
     Y = raviartthomas(my)
 
-    tree = TwoNTree(X, Y, minhalfsize; testminvalues=10, trialminvalues=3)
+    tree = buildtree(
+        X,
+        Y;
+        builder=BlockTreeBuilder(;
+            test=TwoNTreeBuilder(;
+                minhalfsize=minhalfsize, minvalues=10, protrusion=NoProtrusionCheck()
+            ),
+            trial=TwoNTreeBuilder(;
+                minhalfsize=minhalfsize, minvalues=3, protrusion=NoProtrusionCheck()
+            ),
+        ),
+    )
 
     for tree in [H2Trees.testtree(tree), H2Trees.trialtree(tree)]
         valuesatnodes = H2Trees.valuesatnodes(tree)
@@ -260,7 +519,18 @@ end
 
     @test H2Trees.treewithmorelevels(tree) == H2Trees.trialtree(tree)
 
-    tree2 = TwoNTree(X, Y, minhalfsize)
+    tree2 = buildtree(
+        X,
+        Y;
+        builder=BlockTreeBuilder(;
+            test=TwoNTreeBuilder(;
+                minhalfsize=minhalfsize, minvalues=0, protrusion=NoProtrusionCheck()
+            ),
+            trial=TwoNTreeBuilder(;
+                minhalfsize=minhalfsize, minvalues=0, protrusion=NoProtrusionCheck()
+            ),
+        ),
+    )
     @test H2Trees.treewithmorelevels(tree2) == H2Trees.testtree(tree2)
 
     @test H2Trees.minhalfsize(H2Trees.trialtree(tree)) == minhalfsize
@@ -307,7 +577,9 @@ end
         joinpath(pkgdir(H2Trees), "test", "assets", "in", "sphere6.in")
     )
     points = vertices(m)
-    tree = TwoNTree(points, 0.1; root=2, minlevel=2, minvalues=10)
+    tree = buildtree(
+        points; builder=TwoNTreeBuilder(; minhalfsize=0.1, root=2, minlevel=2, minvalues=10)
+    )
 
     buffers = H2Trees.computevectorbuffers(tree, ComplexF64)
 
@@ -320,7 +592,14 @@ end
         joinpath(pkgdir(H2Trees), "test", "assets", "in", "cuboid2.in")
     )
 
-    tree = TwoNTree(raviartthomas(m), raviartthomas(my), 0.1)
+    tree = buildtree(
+        raviartthomas(m),
+        raviartthomas(my);
+        builder=BlockTreeBuilder(;
+            test=TwoNTreeBuilder(; minhalfsize=0.1, minvalues=0),
+            trial=TwoNTreeBuilder(; minhalfsize=0.1, minvalues=0),
+        ),
+    )
 
     testbuffer, trialbuffer = H2Trees.computevectorbuffers(tree, ComplexF64)
 

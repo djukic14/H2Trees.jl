@@ -1,3 +1,5 @@
+module TestTranslations
+
 using Test
 using BEAST, CompScienceMeshes
 using StaticArrays
@@ -10,16 +12,33 @@ using H2Trees
         joinpath(pkgdir(H2Trees), "test", "assets", "in", "sphere6.in")
     )
     X = raviartthomas(m)
-    tree = TwoNTree(X, λ / 10; minvalues=20)
+    tree = buildtree(X; builder=TwoNTreeBuilder(; minhalfsize=λ / 10, minvalues=20))
 
     disaggregationplan = H2Trees.DisaggregateTranslatePlan(
         tree, H2Trees.TranslatingNodesIterator
     )
     aggregationplan = H2Trees.AggregateTranslatePlan(tree, H2Trees.TranslatingNodesIterator)
 
-    translationinfo, translations = H2Trees.translations(
+    translationset = H2Trees.translations(
         tree, disaggregationplan, H2Trees.AllTranslations()
     )
+    # `translations` returns a plain 3-tuple `(infos, directions, relevantlevels)`.
+    @test translationset isa Tuple
+    translationinfo, translations, rlevels = translationset
+    @test rlevels ==
+        H2Trees.mintranslationlevel(disaggregationplan):H2Trees.levels(tree)[end]
+    @test translationset[1] === translationinfo
+    @test translationset[2] === translations
+    @test translationset[3] === rlevels
+    @test_throws(
+        ArgumentError("translations require a translating plan"),
+        H2Trees.translations(
+            tree,
+            H2Trees.AggregatePlan(tree, H2Trees.AggregateAllNodesFunctor()),
+            H2Trees.AllTranslations(),
+        )
+    )
+
     atranslationinfo, atranslations = H2Trees.translations(
         tree, aggregationplan, H2Trees.AllTranslations()
     )
@@ -62,7 +81,7 @@ end
         joinpath(pkgdir(H2Trees), "test", "assets", "in", "sphere6.in")
     )
     X = raviartthomas(m)
-    tree = TwoNTree(X, λ / 10; minvalues=30)
+    tree = buildtree(X; builder=TwoNTreeBuilder(; minhalfsize=λ / 10, minvalues=30))
 
     disaggregationplan = H2Trees.DisaggregateTranslatePlan(
         tree, H2Trees.TranslatingNodesIterator
@@ -120,7 +139,14 @@ end
     )
     X = raviartthomas(mx)
     Y = raviartthomas(my)
-    tree = TwoNTree(Y, X, λ / 10; testminvalues=20, trialminvalues=20)
+    tree = buildtree(
+        Y,
+        X;
+        builder=BlockTreeBuilder(;
+            test=TwoNTreeBuilder(; minhalfsize=λ / 10, minvalues=20),
+            trial=TwoNTreeBuilder(; minhalfsize=λ / 10, minvalues=20),
+        ),
+    )
 
     disaggregationplan = H2Trees.DisaggregateTranslatePlan(
         H2Trees.testtree(tree), H2Trees.trialtree(tree), H2Trees.TranslatingNodesIterator
@@ -181,7 +207,14 @@ end
 
     X = raviartthomas(mx)
     Y = raviartthomas(my)
-    tree = TwoNTree(X, Y, λ / 10; testminvalues=20, trialminvalues=20)
+    tree = buildtree(
+        X,
+        Y;
+        builder=BlockTreeBuilder(;
+            test=TwoNTreeBuilder(; minhalfsize=λ / 10, minvalues=20),
+            trial=TwoNTreeBuilder(; minhalfsize=λ / 10, minvalues=20),
+        ),
+    )
 
     disaggregationplan = H2Trees.DisaggregateTranslatePlan(
         H2Trees.testtree(tree), H2Trees.trialtree(tree), H2Trees.TranslatingNodesIterator
@@ -242,7 +275,7 @@ end
         joinpath(pkgdir(H2Trees), "test", "assets", "in", "sphere6.in")
     )
     X = raviartthomas(m)
-    tree = TwoNTree(X, λ / 10; minvalues=30)
+    tree = buildtree(X; builder=TwoNTreeBuilder(; minhalfsize=λ / 10, minvalues=30))
 
     disaggregationplan = H2Trees.DisaggregateTranslatePlan(
         tree, H2Trees.TranslatingNodesIterator
@@ -314,7 +347,14 @@ end
     ]
         for TranslationTrait in TranslationTraits
             Y = raviartthomas(my)
-            tree2 = TwoNTree(X, Y, λ / 10; testminvalues=20, trialminvalues=30)
+            tree2 = buildtree(
+                X,
+                Y;
+                builder=BlockTreeBuilder(;
+                    test=TwoNTreeBuilder(; minhalfsize=λ / 10, minvalues=20),
+                    trial=TwoNTreeBuilder(; minhalfsize=λ / 10, minvalues=30),
+                ),
+            )
 
             disaggregationplan2 = H2Trees.DisaggregateTranslatePlan(
                 H2Trees.testtree(tree2),
@@ -385,3 +425,5 @@ end
         end
     end
 end
+
+end # module TestTranslations

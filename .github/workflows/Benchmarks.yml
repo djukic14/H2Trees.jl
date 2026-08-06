@@ -1,0 +1,71 @@
+name: Benchmarks
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "benchmark/**"
+      - "Project.toml"
+      - ".github/workflows/Benchmarks.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
+
+permissions:
+  contents: read
+
+env:
+  PYTHON: ~
+
+jobs:
+  benchmark:
+    name: Benchmark comparison
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Full history: PkgBenchmark checks out both the PR head and base commits from this
+          # same clone, so a shallow clone would be missing the base commit's tree.
+          fetch-depth: 0
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: '1'
+      - uses: julia-actions/cache@v3
+
+      - name: Instantiate benchmark environment
+        shell: julia --color=yes --project=benchmark {0}
+        run: |
+          using Pkg
+          Pkg.develop(PackageSpec(path=pwd()))
+          Pkg.instantiate()
+
+      # One thread: see benchmark/ci.jl for why. `judge`/`benchmarkpkg` set `JULIA_NUM_THREADS`
+      # per revision themselves, but the outer process running `ci.jl` also only needs one thread.
+      - name: Run benchmark comparison (PR)
+        if: github.event_name == 'pull_request'
+        run: julia --color=yes --project=benchmark benchmark/ci.jl "${{ github.event.pull_request.head.sha }}" "${{ github.event.pull_request.base.sha }}"
+        env:
+          JULIA_NUM_THREADS: '1'
+
+      - name: Run benchmark comparison (manual)
+        if: github.event_name != 'pull_request'
+        run: julia --color=yes --project=benchmark benchmark/ci.jl
+        env:
+          JULIA_NUM_THREADS: '1'
+
+      - name: Add report to job summary
+        if: always()
+        run: |
+          if [ -f benchmark-report.md ]; then
+            cat benchmark-report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-report
+          path: benchmark-report.md
+          if-no-files-found: warn

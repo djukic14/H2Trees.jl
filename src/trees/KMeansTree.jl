@@ -1,54 +1,55 @@
-function kmeanswrapper end # requires ParallelKMeans.jl to load
+"""
+    kmeanswrapper(points, globalpointids, numberofclusters; kwargs...)
 
+Extension hook implemented by `H2ParallelKMeansTrees`.
+
+The core package declares the function so [`KMeansTree`](@ref) can be defined
+without loading `ParallelKMeans.jl`.
+"""
+function kmeanswrapper end
+
+"""
+    KMeansSplitWrapper()
+
+Split-wrapper adapter used by [`KMeansTree`](@ref)'s underlying
+[`BoundingBallTree`](@ref) construction.
+"""
 struct KMeansSplitWrapper end
 
-function (f::KMeansSplitWrapper)(points, globalpointids, numsplits; kwargs...)
+"""
+    (wrapper::KMeansSplitWrapper)(points, globalpointids, level, numsplits; kwargs...)
+
+Call [`kmeanswrapper`](@ref) for the selected point ids.
+
+`level` is accepted to match the generic bounding-ball split-wrapper protocol;
+the K-means splitter itself does not use it.
+"""
+function (f::KMeansSplitWrapper)(points, globalpointids, level, numsplits; kwargs...)
     return kmeanswrapper(points, globalpointids, numsplits; kwargs...)
 end
 
 """
-    KMeansTree(points::AbstractVector{SVector{N,T}}, numberofclusters::Int; minvalues::Int=numberofclusters, minlevel::Int=1, root::Int=1, balldata=BoundingBallData, updateradii=boundingsphere, kwargs...)
+    KMeansTree(points; builder=KMeansTreeBuilder())
 
-Construct a `BoundingBallTree` using k-means clustering to partition the given points.
+Build a ball tree by recursively splitting point sets with K-means.
 
-This function recursively clusters the points using k-means algorithm to build a hierarchical
-tree structure. Each node in the tree contains a cluster of points bounded by a sphere.
-
-# Arguments
-
-  - `points::AbstractVector{SVector{N,T}}`: Array of points to partition.
-  - `numberofclusters::Int`: Number of clusters for k-means at each split.
-  - `minvalues::Int`: Minimum number of points required before splitting a node (default: `numberofclusters`).
-  - `minlevel::Int`: Minimum tree level (default: 1).
-  - `root::Int`: Index of root node (default: 1).
-  - `balldata`: Data structure for storing bounding ball information (default: `BoundingBallData`).
-  - `updateradii`: Function for updating node radii (default: `boundingsphere`).
-  - `kwargs...`: Additional arguments passed to the k-means wrapper function.
-
-# Returns
-
-A `BoundingBallTree` with points organized hierarchically by k-means clustering.
+`KMeansTree` is implemented as a [`BoundingBallTree`](@ref) with a
+K-means-backed split wrapper. Load the `H2ParallelKMeansTrees` extension, or a
+package that activates it, so [`kmeanswrapper`](@ref) is available.
 """
 function KMeansTree(
-    points::AbstractVector{SVector{N,T}},
-    numberofclusters::Int;
-    minvalues::Int=numberofclusters,
-    minlevel::Int=1,
-    root::Int=1,
-    balldata=BoundingBallData,
-    updateradii=boundingsphere,
-    kwargs...,
+    points::AbstractVector{SVector{N,T}}; builder::KMeansTreeBuilder=KMeansTreeBuilder()
 ) where {N,T}
     splitwrapper = KMeansSplitWrapper()
-    return BoundingBallTree(
-        points,
-        splitwrapper,
-        numberofclusters;
-        minvalues=minvalues,
-        minlevel=minlevel,
-        root=root,
-        balldata=balldata,
-        updateradii=updateradii,
-        kwargs...,
+    ballbuilder = BoundingBallTreeBuilder(;
+        splitter=splitwrapper,
+        numsplits=builder.numberofclusters,
+        minvalues=builder.minvalues,
+        minlevel=builder.minlevel,
+        root=builder.root,
+        balldata=builder.balldata,
+        updateradii=builder.updateradii,
+        splitterkwargs=builder.splitterkwargs,
     )
+    return BoundingBallTree(points; builder=ballbuilder)
 end

@@ -1,100 +1,116 @@
 """
     BoundingBallTree{N,D,T} <: H2ClusterTree
 
-A cluster tree where nodes are bounded by spheres (balls).
+Cluster tree whose nodes are bounded by balls.
 
-This tree structure uses spherical bounding volumes to organize spatial data hierarchically.
-Each node is bounded by a ball with a center and radius.
-
-# Type Parameters
-
-  - `N`: The ambient dimension (coordinate space dimension).
-  - `D`: The type of nodes.
-  - `T`: The type of the radius.
-
-# Fields
-
-  - `nodes::Vector{Node{D}}`: Vector of nodes comprising the tree.
-  - `root::Int`: Index of the root node.
-  - `center::SVector{N,T}`: Center of the bounding ball of the tree.
-  - `radius::T`: Radius of the bounding ball of the tree.
-  - `nodesatlevel::Vector{Vector{Int}}`: Vector of vectors, where each inner vector contains the indices of nodes at a specific level.
+`N` is the ambient dimension, `D` is the node-data type, and `T` is the radius
+type. The cached [`TreeIndex`](@ref) is stored in a `Ref` so
+`rebuildtreeindex!` can replace it after topology-changing operations.
 """
-struct BoundingBallTree{N,D,T} <: H2ClusterTree
+struct BoundingBallTree{N,D,T,I} <: H2ClusterTree
     nodes::Vector{Node{D}}
     root::Int
     center::SVector{N,T}
     radius::T
-    nodesatlevel::Vector{Vector{Int}}
+    index::I
 end
 
+"""
+    BoundingBallTree(nodes, root, center, radius, nodesatlevel)
+
+Construct a `BoundingBallTree` from already materialized nodes and level
+storage, then rebuild the cached tree index.
+"""
+function BoundingBallTree(
+    nodes::Vector{Node{D}},
+    root::Int,
+    center::SVector{N,T},
+    radius::T,
+    nodesatlevel::Vector{Vector{Int}},
+) where {N,D,T}
+    minlevel = isempty(nodesatlevel) ? 0 : level(first(nodes).data)
+    maxlevel = isempty(nodesatlevel) ? 0 : minlevel + length(nodesatlevel) - 1
+    index = Ref(TreeIndex(nodesatlevel, Int[], Int[], minlevel, maxlevel))
+    tree = BoundingBallTree{N,D,T,Base.RefValue{TreeIndex}}(
+        nodes, root, center, radius, index
+    )
+    return rebuildtreeindex!(tree)
+end
+
+function BoundingBallTree{N,D,T}(
+    nodes::Vector{Node{D}},
+    root::Int,
+    center::SVector{N,T},
+    radius::T,
+    nodesatlevel::Vector{Vector{Int}},
+) where {N,D,T}
+    return BoundingBallTree(nodes, root, center, radius, nodesatlevel)
+end
+
+"""
+    BoundingBallTree(center, radius; minlevel=1, root=1, balldata=BoundingBallData)
+
+Construct a one-node bounding-ball tree.
+"""
 function BoundingBallTree(
     center::C, radius::R; minlevel::Int=1, root::Int=1, balldata=BoundingBallData
 ) where {N,T<:Number,C<:SVector{N,T},R<:Number}
     rootnode = Node(balldata(Int[], center, radius, minlevel), 0, 0, 0)
-    return BoundingBallTree([rootnode], root, center, radius, [Int[]])
+    return BoundingBallTree(
+        [rootnode],
+        root,
+        center,
+        radius,
+        Ref(TreeIndex([[root]], [root], [root], minlevel, minlevel)),
+    )
 end
 
 """
-        BoundingBallTree(points::AbstractVector{SVector{N,T}}, splitwrapper, numsplits::Int; minvalues::Int=numsplits, minlevel::Int=1, root::Int=1, balldata=BoundingBallData, updateradii=boundingsphere, kwargs...)
+    BoundingBallTree(points::AbstractVector{SVector{N,T}}; builder::BoundingBallTreeBuilder)
 
-Construct a `BoundingBallTree` by recursively splitting points into partitions.
+Construct a `BoundingBallTree` from points.
 
-This function initializes a root bounding ball over all points and repeatedly calls
-`splitwrapper` to partition node values until the stopping criterion is met.
-
-# Arguments
-
-    - `points::AbstractVector{SVector{N,T}}`: Array of points to partition.
-    - `splitwrapper`: Callable that returns `(partitions, centers, radii)` for a split.
-    - `numsplits::Int`: Number of partitions requested at each split.
-    - `minvalues::Int`: Minimum number of points required before splitting a node (default: `numsplits`).
-    - `minlevel::Int`: Minimum tree level (default: 1).
-    - `root::Int`: Index of root node (default: 1).
-    - `balldata`: Data structure for storing bounding ball information (default: `BoundingBallData`).
-    - `updateradii`: Function for updating node radii after tree construction (default: `boundingsphere`).
-    - `kwargs...`: Additional arguments passed to `splitwrapper`.
-
-# Returns
-
-A `BoundingBallTree` with points organized hierarchically according to `splitwrapper`.
-
-# See also
-
-`KMeansTree`, `MetisTree`, `MetisForest`.
+Points are recursively split with `builder.splitter` until the builder's
+stopping criteria are met. Prefer the canonical [`buildtree`](@ref) entry point;
+this method is what it forwards to.
 """
 function BoundingBallTree(
-    points::AbstractVector{SVector{N,T}},
-    splitwrapper,
-    numsplits::Int;
-    minvalues::Int=numsplits,
-    minlevel::Int=1,
-    root::Int=1,
-    balldata=BoundingBallData,
-    updateradii=boundingsphere,
-    kwargs...,
+    points::AbstractVector{SVector{N,T}}; builder::BoundingBallTreeBuilder
 ) where {N,T}
     center, radius = BoundingSphere.boundingsphere(points)
-    tree = BoundingBallTree(center, radius; minlevel=minlevel, root=root, balldata=balldata)
-    append!(values(data(tree, root)), collect(1:length(points)))
+    minlevel = _resolve_minlevel(builder.minlevel, 1)
+    tree = BoundingBallTree(
+        center, radius; minlevel=minlevel, root=builder.root, balldata=builder.balldata
+    )
+    append!(values(data(tree, builder.root)), 1:length(points))
 
     _splitboundingballnode!(
         tree,
         points,
-        root,
-        numsplits,
-        splitwrapper;
-        minvalues=minvalues,
-        balldata=balldata,
-        kwargs...,
+        builder.root,
+        builder.numsplits,
+        builder.splitter;
+        minvalues=builder.minvalues,
+        balldata=builder.balldata,
+        maxlevel=builder.maxlevel,
+        builder.splitterkwargs...,
     )
 
-    _adjustnodesatlevels!(tree)
-    updateradii!(tree; update=updateradii)
+    rebuildtreeindex!(tree)
+    updateradii!(tree; update=builder.updateradii)
 
     return tree
 end
 
+"""
+    _splitboundingballnode!(tree, points, node, numsplits, splitwrapper; kwargs...)
+
+Recursively split one bounding-ball node and append its children to `tree`.
+
+The split wrapper returns child value partitions, centers, and radii. Internal
+node values are cleared after their children are created, so stored values live
+on leaves.
+"""
 function _splitboundingballnode!(
     tree::BoundingBallTree,
     points::AbstractVector{SVector{N,T}},
@@ -103,18 +119,21 @@ function _splitboundingballnode!(
     splitwrapper;
     minvalues::Int=numsplits,
     balldata=BoundingBallData,
+    maxlevel=typemax(Int),
     kwargs...,
 ) where {N,T}
-    length(values(tree, node)) <= max(minvalues, numsplits) && return tree
-
-    partitions, centers, radii = splitwrapper(
-        points, values(tree, node), numsplits; kwargs...
+    nodevalues = values(data(tree, node))
+    length(nodevalues) <= max(minvalues, numsplits) && return tree
+    level(tree, node) >= maxlevel && return tree
+    partitions, centers, radii = _callsplitwrapper(
+        splitwrapper, points, nodevalues, level(tree, node), numsplits; kwargs...
     )
     _updatechild!(tree, node, lastnode(tree) + 1)
 
     for i in eachindex(partitions)
         dat = balldata(partitions[i], centers[i], radii[i], level(tree, node) + 1)
         childnode = lastnode(tree) + 1
+
         push!(tree.nodes, Node(dat, 0, node, 0))
         _splitboundingballnode!(
             tree,
@@ -124,6 +143,7 @@ function _splitboundingballnode!(
             splitwrapper;
             minvalues=minvalues,
             balldata=balldata,
+            maxlevel=maxlevel,
             kwargs...,
         )
 
@@ -131,35 +151,128 @@ function _splitboundingballnode!(
             tree, childnode, i == last(eachindex(partitions)) ? 0 : lastnode(tree) + 1
         )
     end
+
     empty!(values(data(tree, node)))
 
     return tree
 end
 
+"""
+    _callsplitwrapper(splitwrapper, points, globalpointids, level, numsplits; kwargs...)
+
+Call a bounding-ball split wrapper.
+
+Split wrappers may accept either `(points, values, level, numsplits; kwargs...)`
+or the older `(points, values, numsplits; kwargs...)` shape.
+"""
+function _callsplitwrapper(
+    splitwrapper, points, globalpointids, level, numsplits; kwargs...
+)
+    if applicable(splitwrapper, points, globalpointids, level, numsplits)
+        return splitwrapper(points, globalpointids, level, numsplits; kwargs...)
+    elseif applicable(splitwrapper, points, globalpointids, numsplits)
+        return splitwrapper(points, globalpointids, numsplits; kwargs...)
+    end
+
+    return throw(
+        ArgumentError(
+            "splitwrapper must support either (points, values, level, numsplits; kwargs...) " *
+            "or (points, values, numsplits; kwargs...)",
+        ),
+    )
+end
+
+"""
+    _copyatlevel(data::BoundingBallData, level)
+
+Copy node data while replacing its stored level.
+"""
+function _copyatlevel(data::BoundingBallData, level::Int)
+    return typeof(data)(copy(values(data)), center(data), radius(data), level)
+end
+
+"""
+    balanceleaves!(tree::BoundingBallTree)
+
+Extend shallower leaves with unary child nodes until all leaves have the same level.
+
+The added child nodes keep the same bounding ball and values as the original leaf. The
+original leaf becomes an internal node and its values are cleared, matching the usual tree
+layout where values live on leaves.
+"""
+function balanceleaves!(tree::BoundingBallTree)
+    leafnodes = leaves(tree)
+    isempty(leafnodes) && return tree
+
+    leaflevel = maximum(level.(Ref(tree), leafnodes))
+    for leaf in leafnodes
+        currentnode = leaf
+        while level(tree, currentnode) < leaflevel
+            childnode = lastnode(tree) + 1
+            childdata = _copyatlevel(data(tree, currentnode), level(tree, currentnode) + 1)
+            push!(tree.nodes, Node(childdata, 0, currentnode, 0))
+            _updatechild!(tree, currentnode, childnode)
+            empty!(values(data(tree, currentnode)))
+            currentnode = childnode
+        end
+    end
+
+    rebuildtreeindex!(tree)
+    return tree
+end
+
+"""
+    _updatechild!(tree, node, child)
+
+Set `child` as the first child of `node`.
+"""
 function _updatechild!(tree, node, child)
     return tree.nodes[node - root(tree) + 1] = Node(
         data(tree, node), nextsibling(tree, node), parent(tree, node), child
     )
 end
 
+"""
+    _updatenextsibling!(tree, node, sibling)
+
+Set `sibling` as the next sibling of `node`.
+"""
 function _updatenextsibling!(tree, node, sibling)
     return tree.nodes[node - root(tree) + 1] = Node(
         data(tree, node), sibling, parent(tree, node), firstchild(tree, node)
     )
 end
 
+"""
+    eltype(tree::Union{BoundingBallTree,TwoNTree})
+
+Return the static-vector coordinate type stored by tree geometry.
+"""
 function Base.eltype(::Union{BoundingBallTree{N,D,T},TwoNTree{N,D,T}}) where {N,D,T}
     return SVector{N,T}
 end
 
-H2Trees.treetrait(::Type{BoundingBallTree{N,D,T}}) where {N,D,T} = isBoundingBallTree()
+"""
+    treetrait(::Type{<:BoundingBallTree})
 
-# Tis is a very coarse approximation of a bounding sphere.
-# See "The Smallest Enclosing Ball of Balls: Combinatorial Structure and Algorithms",
-# Fischer (2004) for the right implementation of the SEBB algorithm.
+Return [`isBoundingBallTree`](@ref).
+"""
+H2Trees.treetrait(::Type{<:BoundingBallTree}) = isBoundingBallTree()
+
+"""
+    boundingsphereofspheres(center1, radius1, center2, radius2)
+
+Return a ball enclosing two input balls.
+
+This is a coarse two-ball merge, not a full smallest-enclosing-ball-of-balls
+algorithm.
+"""
 function boundingsphereofspheres(
     center1::A1, radius1::T, center2::A2, radius2::T
 ) where {T<:Number,A2<:AbstractArray{T},A1<:AbstractArray{T}}
+    # This is a very coarse approximation of a bounding sphere.
+    # See "The Smallest Enclosing Ball of Balls: Combinatorial Structure and Algorithms",
+    # Fischer (2004) for the right implementation of the SEBB algorithm.
     difference = center1 - center2
     differencenorm = norm(difference)
 
@@ -182,19 +295,11 @@ end
 """
     boundingsphere(tree, node::Int)
 
-Compute a bounding sphere that encloses a tree node and all its children recursively.
+Compute a bounding sphere for `node` from its children.
 
-This function performs a coarse approximation of the smallest enclosing ball algorithm
-by recursively computing bounding spheres for each child node and merging them.
-
-# Arguments
-
-  - `tree`: The bounding ball tree.
-  - `node::Int`: Index of the node to compute the bounding sphere for.
-
-# Returns
-
-A tuple `(center, radius)` representing the bounding sphere.
+The implementation recursively merges child spheres with
+[`boundingsphereofspheres`](@ref), so it is a conservative approximation rather
+than an exact smallest enclosing ball.
 """
 function boundingsphere(tree, node::Int)
     centerbuffer = similar(center(tree, node))
@@ -214,26 +319,12 @@ end
 """
     unsafemaxradiusboundingsphere(tree, node::Int)
 
-Compute a bounding sphere using the maximum child radius (unsafe approximation).
-
-This function computes a bounding sphere by taking the node's center and using the
-maximum radius among all child nodes. This is an unsafe approximation that may not
-correctly enclose all child nodes and should only be used when the proper bounding
-sphere computation has failed or for testing purposes.
+Return `center(tree, node)` and the maximum radius among `node` and its children.
 
 !!! warning
 
-    The radii of the tree have not been properly updated. This will lead to incorrect
-    results when using the iterators in H2Trees. Proceed at your own risk.
-
-# Arguments
-
-  - `tree`: The bounding ball tree.
-  - `node::Int`: Index of the node.
-
-# Returns
-
-A tuple `(center, radius)` where radius is the maximum child radius.
+    This can fail to enclose all child balls. It is intended only as an unsafe
+    fallback or testing hook.
 """
 function unsafemaxradiusboundingsphere(tree, node::Int)
     rds = radius(tree, node)
@@ -247,25 +338,12 @@ end
 """
     noboundingsphereupdate(tree, node::Int)
 
-Return the node's bounding sphere without updating it.
-
-This function returns the stored center and radius of a node without performing any
-computation or update. This can be used when radii updates are intentionally skipped
-and existing values should be preserved as-is.
+Return the stored center and radius of `node`.
 
 !!! warning
 
-    The radii of the tree have not been updated. This will lead to incorrect results
-    when using the iterators in H2Trees. Proceed at your own risk.
-
-# Arguments
-
-  - `tree`: The bounding ball tree.
-  - `node::Int`: Index of the node.
-
-# Returns
-
-A tuple `(center, radius)` with the node's current stored values.
+    Use only when stale radii are intentional; near/far iterators rely on
+    correct radii.
 """
 function noboundingsphereupdate(tree, node::Int)
     return center(tree, node), radius(tree, node)
@@ -279,6 +357,14 @@ function _updateradiiwarning(::typeof(noboundingsphereupdate))
 end
 _updateradiiwarning(_) = nothing
 
+"""
+    updateradii!(tree::BoundingBallTree; update=boundingsphere)
+
+Update every node radius and center with `update(tree, node)`.
+
+`update` may be [`boundingsphere`](@ref), [`noboundingsphereupdate`](@ref), or a
+custom function returning `(center, radius)`.
+"""
 function updateradii!(tree::BoundingBallTree; update=boundingsphere)
     warning = _updateradiiwarning(update)
     !isnothing(warning) && @warn warning
@@ -287,10 +373,7 @@ function updateradii!(tree::BoundingBallTree; update=boundingsphere)
         center, radius = update(tree, node)
         tree.nodes[node - root(tree) + 1] = Node(
             BoundingBallData(
-                values(data(tree, node)),
-                SVector(deepcopy(center)),
-                radius,
-                level(tree, node),
+                values(data(tree, node)), SVector(center), radius, level(tree, node)
             ),
             nextsibling(tree, node),
             parent(tree, node),

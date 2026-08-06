@@ -1,71 +1,97 @@
-using Test, TestItems, TestItemRunner
+using Test
+using H2Trees
 
-@testitem "FarMulMode" begin
-    using H2Trees
-    using Test
+@testset verbose = true "H2Trees" begin
     @testset "FarMulMode" begin
         @test H2Trees.AggregateMode() == adjoint(H2Trees.AggregateTranslateMode())
         @test H2Trees.AggregateTranslateMode() == adjoint(H2Trees.AggregateMode())
     end
-end
-@testitem "Iterators" begin
-    include("trees/test_iterators.jl")
-end
 
-@testitem "Near interactions" begin
-    include("test_nearinteractions.jl")
-end
+    @testset verbose = true "Iterators" begin
+        include("trees/test_iterators.jl")
+    end
 
-@testitem "TwoNTree" begin
-    include("trees/test_TwoNTree.jl")
-    include("trees/test_comparisontree.jl")
-    include("trees/test_checksubdivision.jl")
-end
+    @testset verbose = true "Near interactions" begin
+        include("test_nearinteractions.jl")
+    end
 
-@testitem "Plans" begin
-    include("plans/test_adjointplans.jl")
-    include("plans/test_aggregationplans.jl")
-    include("plans/test_disaggregationplans.jl")
-    include("plans/test_planapi.jl")
-end
+    include("trees/runtests.jl")
+    include("plans/runtests.jl")
 
-@testitem "Translations" begin
-    include("translations/test_translations.jl")
-end
+    @testset verbose = true "Translations" begin
+        include("translations/test_translations.jl")
+    end
 
-@testitem "Plots" begin
-    include("H2PlotlyJSTrees/test_plots.jl")
-end
+    @testset verbose = true "Plots" begin
+        include("H2PlotlyJSTrees/test_plots.jl")
+    end
 
-@testitem "H2ParallelKMeansTrees" begin
-    include("H2ParallelKMeansTrees/test_kmeanstree.jl")
-end
+    @testset verbose = true "H2ParallelKMeansTrees" begin
+        include("H2ParallelKMeansTrees/test_kmeanstree.jl")
+    end
 
-@testitem "Simple Hybrid Tree" begin
-    include("trees/test_simplehybridtree.jl")
-    include("plans/test_splitting.jl")
-end
+    @testset verbose = true "Simple Hybrid Tree" begin
+        include("simplehybridtree_runtests.jl")
+    end
 
-@testitem "H2BEASTTrees" begin
-    include("H2BEASTTrees/test_operators.jl")
-    include("H2BEASTTrees/test_adjacencygraphs.jl")
-end
+    @testset verbose = true "Performance contracts" begin
+        include("performance/runtests.jl")
+    end
 
-@testitem "H2MetisTrees" begin
-    include("H2MetisTrees/test_H2MetisTrees.jl")
-    include("H2MetisTrees/test_H2MetisForest.jl")
-end
+    @testset verbose = true "H2BEASTTrees" begin
+        include("H2BEASTTrees/runtests.jl")
+    end
 
-@testitem "Code quality (Aqua.jl)" begin
-    using Aqua
-    using H2Trees
-    Aqua.test_all(H2Trees)
-end
+    @testset verbose = true "H2MetisTrees" begin
+        include("H2MetisTrees/runtests.jl")
+    end
 
-@testitem "Code formatting (JuliaFormatter.jl)" begin
-    using JuliaFormatter
-    using H2Trees
-    @test JuliaFormatter.format(pkgdir(H2Trees), overwrite=false)
-end
+    @testset "Code quality (Aqua.jl)" begin
+        using Aqua
+        Aqua.test_all(H2Trees)
+    end
 
-@run_package_tests verbose = true
+    @testset "Code formatting (JuliaFormatter.jl)" begin
+        using JuliaFormatter
+        @test JuliaFormatter.format(pkgdir(H2Trees), overwrite=false)
+    end
+
+    @testset "Explicit imports (ExplicitImports.jl)" begin
+        using ExplicitImports
+        @test ExplicitImports.check_no_stale_explicit_imports(H2Trees) === nothing
+        @test ExplicitImports.check_all_explicit_imports_via_owners(H2Trees) === nothing
+        # `@treewrapper` (src/trees/treewrappers.jl) generates forwarding methods inside a
+        # `quote` block; unqualified names there resolve through macro hygiene, which silently
+        # fails to attach several of these as methods of the intended generic (confirmed by
+        # `methods(H2Trees.root)` missing a SimpleHybridTree method after de-qualifying), so its
+        # `H2Trees.foo(...)` qualifications must stay. `iswellseparated` is qualified in
+        # `WellSeparatedIterator.jl` because the unqualified name there resolves to that
+        # function's own `iswellseparated` keyword argument, not the global predicate.
+        selfqualifiedignore = (
+            :treetrait,
+            :nodesatlevel,
+            :treeindex,
+            :samelevelnodes,
+            :root,
+            :center,
+            :halfsize,
+            :levels,
+            :leaves,
+            :numberoflevels,
+            :values,
+            :sector,
+            :data,
+            :parent,
+            :nextsibling,
+            :firstchild,
+            :children,
+            :numberofnodes,
+            :parentcenterminuschildcenter,
+            :oppositesector,
+            :iswellseparated,
+        )
+        @test ExplicitImports.check_no_self_qualified_accesses(
+            H2Trees; ignore=selfqualifiedignore
+        ) === nothing
+    end
+end

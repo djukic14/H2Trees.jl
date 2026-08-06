@@ -21,7 +21,44 @@ using H2Trees
             println("Testing mesh ($i / $(length(ms))) with function space ($j / 3)")
             g, w = H2Trees.adjacencygraph(X)
 
-            forest = H2Trees.MetisForest(X, 4)
+            forest = H2Trees.MetisForest(
+                X;
+                builder=MetisForestBuilder(;
+                    treebuilder=MetisTreeBuilder(; numdivisions=4)
+                ),
+            )
+
+            # Builder-only entry points over the (points, graph, weights) form.
+            builtforest = H2Trees.buildforest(
+                BEAST.positions(X),
+                g,
+                w;
+                builder=MetisForestBuilder(;
+                    treebuilder=MetisTreeBuilder(; numdivisions=4)
+                ),
+            )
+            @test length(builtforest) == length(forest)
+            spaceforest = H2Trees.buildforest(
+                X;
+                graphweights=(g, w),
+                builder=MetisForestBuilder(;
+                    treebuilder=MetisTreeBuilder(; numdivisions=4)
+                ),
+            )
+            @test length(spaceforest) == length(forest)
+            builttree = H2Trees.buildtree(
+                BEAST.positions(X), g, w; builder=MetisTreeBuilder(; numdivisions=4)
+            )
+            @test builttree isa H2Trees.BoundingBallTree
+            spacetree = H2Trees.buildtree(
+                X; graphweights=(g, w), builder=MetisTreeBuilder(; numdivisions=4)
+            )
+            directspacetree = H2Trees.MetisTree(
+                X; graphweights=(g, w), builder=MetisTreeBuilder(; numdivisions=4)
+            )
+            @test spacetree isa H2Trees.BoundingBallTree
+            @test H2Trees.numberofnodes(spacetree) == H2Trees.numberofnodes(builttree)
+            @test H2Trees.numberofnodes(directspacetree) == H2Trees.numberofnodes(spacetree)
 
             vals = Int[]
 
@@ -44,6 +81,17 @@ using H2Trees
             end
             sort!(vals)
             @test vals == 1:numfunctions(X)
+
+            compact = sprint(show, forest)
+            @test occursin("Forest(trees=", compact)
+            @test occursin("nodes=", compact)
+            @test occursin("leaves=", compact)
+            @test occursin("levels=", compact)
+            @test !occursin('\n', compact)
+
+            detailed = sprint(show, MIME"text/plain"(), forest)
+            @test occursin("Forest with $(length(forest)) tree(s)", detailed)
+            @test occursin("[1] ", detailed)
         end
     end
 end

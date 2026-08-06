@@ -4,13 +4,71 @@ using StaticArrays
 using LinearAlgebra
 using H2Trees
 
+@testset "Plan level validation" begin
+    @test H2Trees._validatedaggregationlevels([4, 3, 2]) == 4:-1:2
+    @test H2Trees._validateddisaggregationlevels([2, 3, 4]) == 2:4
+    @test_throws(
+        ArgumentError(
+            "aggregation plan levels must be contiguous and descending, got [4, 2]"
+        ),
+        H2Trees._validatedaggregationlevels([4, 2])
+    )
+    @test_throws(
+        ArgumentError(
+            "disaggregation plan levels must be contiguous and ascending, got [2, 4]"
+        ),
+        H2Trees._validateddisaggregationlevels([2, 4])
+    )
+end
+
+@testset "Translate plan construction: negative cases" begin
+    # `AggregateTranslatePlan`/`DisaggregateTranslatePlan` share one internal builder
+    # (`_buildtranslateplan`); these pin the invariants that builder must preserve.
+    testpts = [SVector(0.0 + 0.1i, 0.0, 0.0) for i in 0:29]
+    trialpts = [SVector(5.0 + 0.1i, 0.0, 0.0) for i in 0:29]
+    block = H2Trees.buildtree(
+        testpts,
+        trialpts;
+        builder=BlockTreeBuilder(;
+            test=TwoNTreeBuilder(; minhalfsize=0.0, minvalues=3),
+            trial=TwoNTreeBuilder(; minhalfsize=0.0, minvalues=3),
+        ),
+    )
+    tfiterator = H2Trees.TranslatingNodesIterator(; isnear=H2Trees.isnear())
+
+    # A BlockTree must be rejected by the single-tree constructor -- the caller must specify
+    # which side via the two-tree form instead.
+    @test_throws ArgumentError H2Trees.AggregateTranslatePlan(block, tfiterator(block))
+    @test_throws ArgumentError H2Trees.DisaggregateTranslatePlan(block, tfiterator(block))
+
+    # A tree small/coarse enough that everything is near (no possible translating pair) must
+    # still refuse to build an `AggregateTranslatePlan` rather than silently returning an empty
+    # one.
+    tinytree = buildtree(
+        [SVector(0.0, 0.0, 0.0), SVector(0.5, 0.0, 0.0), SVector(0.0, 0.5, 0.0)];
+        builder=TwoNTreeBuilder(; minhalfsize=0.0, minvalues=10),
+    )
+    @test_throws(
+        ArgumentError("Empty AggregatePlan not supported."),
+        H2Trees.AggregateTranslatePlan(tinytree, tfiterator(tinytree))
+    )
+end
+
+# This testset (and its Petrov counterpart below) deliberately calls the internal
+# `_buildgalerkinplans`/`_buildpetrovplans` rather than the public `buildplans`: the whole point
+# here is comparing THEIR output field-by-field against plans assembled by hand from the
+# low-level constructors (`AggregatePlan`, `AggregateTranslatePlan`, ...), plus custom
+# `aggregatenode` predicates (`aggregateallnodes()`/`aggregaterootonly()`) that exercise
+# constructor internals `buildplans`/`PlanBuilder` wouldn't otherwise reach in one call. This is
+# Bucket C in the review-followup plan's classification -- an internal-contract test, kept
+# private on purpose.
 @testset "Galerkin Plan" begin
     λ = 1.0
     m = CompScienceMeshes.readmesh(
         joinpath(pkgdir(H2Trees), "test", "assets", "in", "sphere6.in")
     )
     X = raviartthomas(m)
-    tree = TwoNTree(X, λ / 10)
+    tree = buildtree(X; builder=TwoNTreeBuilder(; minhalfsize=λ / 10, minvalues=0))
 
     TFIterator = H2Trees.TranslatingNodesIterator(; isnear=H2Trees.isnear())
     aggregatenode = H2Trees.istranslatingnode(; TranslatingNodesIterator=TFIterator)
@@ -22,17 +80,68 @@ using H2Trees
     testaggregatetranslateplan = H2Trees.AggregateTranslatePlan(tree, TFIterator(tree))
     trialdisaggregateplan = H2Trees.DisaggregatePlan(tree, aggregatenode(tree))
 
-    aggregateallplans = H2Trees.galerkinplans(
+    aggregateallplans = H2Trees._buildgalerkinplans(
         tree, H2Trees.aggregateallnodes(), TFIterator, H2Trees.AggregateMode()
     )
     @test sum(aggregateallplans.trialaggregationplan.storenode) == length(tree.nodes)
 
-    aggregaterootplans = H2Trees.galerkinplans(
+    aggregaterootplans = H2Trees._buildgalerkinplans(
         tree, H2Trees.aggregaterootonly(), TFIterator, H2Trees.AggregateMode()
     )
+    @test H2Trees.aggregaterootonly() isa H2Trees.AggregateRootOnlyFunctor
+    @test H2Trees.AggregateRootFunctor === H2Trees.AggregateRootOnlyFunctor
+    @test H2Trees.aggregaterootonly()(tree)(H2Trees.root(tree))
     @test sum(aggregaterootplans.trialaggregationplan.storenode) == 1
     @test aggregaterootplans.trialaggregationplan.storenode[H2Trees.root(tree)] == 1
-    plans = H2Trees.galerkinplans(tree, aggregatenode, TFIterator, H2Trees.AggregateMode())
+    plans = H2Trees._buildgalerkinplans(
+        tree, aggregatenode, TFIterator, H2Trees.AggregateMode()
+    )
+
+    @test plans isa H2Trees.PlanSet
+    @test H2Trees.isgalerkin(plans)
+    @test !H2Trees.ispetrov(plans)
+    @test H2Trees.tree(plans) === tree
+    @test H2Trees.trialaggregationplan(plans) === plans.trialaggregationplan
+    @test H2Trees.testdisaggregationplan(plans) === plans.testdisaggregationplan
+    @test H2Trees.testaggregationplan(plans) === plans.testaggregationplan
+    @test H2Trees.trialdisaggregationplan(plans) === plans.trialdisaggregationplan
+    @test H2Trees.relevantlevels(plans) == plans.relevantlevels
+    @test hasproperty(plans, :tree)
+    @test hasproperty(plans, :family)
+    @test H2Trees.planfamily(plans) isa H2Trees.GalerkinPlanFamily
+    @test keys(plans) == keys((
+        trialaggregationplan=plans.trialaggregationplan,
+        testdisaggregationplan=plans.testdisaggregationplan,
+        testaggregationplan=plans.testaggregationplan,
+        trialdisaggregationplan=plans.trialdisaggregationplan,
+        relevantlevels=plans.relevantlevels,
+    ))
+    @test plans[:trialaggregationplan] === plans.trialaggregationplan
+    @test collect(values(plans))[begin] === plans.trialaggregationplan
+    @test NamedTuple(plans) == (
+        trialaggregationplan=plans.trialaggregationplan,
+        testdisaggregationplan=plans.testdisaggregationplan,
+        testaggregationplan=plans.testaggregationplan,
+        trialdisaggregationplan=plans.trialdisaggregationplan,
+        relevantlevels=plans.relevantlevels,
+    )
+    @test (; plans...) == NamedTuple(plans)
+    @test merge((before=:before,), plans) == merge((before=:before,), NamedTuple(plans))
+    @test merge(plans, (after=:after,)) == merge(NamedTuple(plans), (after=:after,))
+    @test H2Trees.ownedtree(plans.testdisaggregationplan) === tree
+    @test H2Trees.receivingtree(plans, plans.testdisaggregationplan) === tree
+    @test H2Trees.translatingtree(plans, plans.testdisaggregationplan) === tree
+    @test H2Trees.receivingtree(tree, plans.testaggregationplan) === tree
+    @test H2Trees.translatingtree(tree, plans.testaggregationplan) === tree
+
+    builtplans = H2Trees.buildplans(
+        tree;
+        builder=H2Trees.PlanBuilder(;
+            aggregationmode=H2Trees.AggregateMode(), isnear=H2Trees.isnear()
+        ),
+    )
+    @test builtplans isa H2Trees.PlanSet
+    @test H2Trees.relevantlevels(builtplans) == H2Trees.relevantlevels(plans)
 
     ptrialaggregateplan = plans.trialaggregationplan
     ptestdisaggregatetranslateplan = plans.testdisaggregationplan
@@ -96,7 +205,7 @@ using H2Trees
     trialdisaggregatetranslateplan = H2Trees.DisaggregateTranslatePlan(
         tree, TFIterator(tree)
     )
-    plans = H2Trees.galerkinplans(
+    plans = H2Trees._buildgalerkinplans(
         tree, aggregatenode, TFIterator, H2Trees.AggregateTranslateMode()
     )
 
@@ -177,7 +286,14 @@ end
         X = raviartthomas(mx)
         for my in [m, m2, m3]
             Y = raviartthomas(my)
-            tree = TwoNTree(X, Y, λ / 10)
+            tree = buildtree(
+                X,
+                Y;
+                builder=BlockTreeBuilder(;
+                    test=TwoNTreeBuilder(; minhalfsize=λ / 10, minvalues=0),
+                    trial=TwoNTreeBuilder(; minhalfsize=λ / 10, minvalues=0),
+                ),
+            )
             TFIterator = H2Trees.TranslatingNodesIterator(; isnear=H2Trees.isnear())
             aggregatenode = H2Trees.istranslatingnode(; TranslatingNodesIterator=TFIterator)
 
@@ -199,20 +315,63 @@ end
                 H2Trees.PetrovAggregationFunctor(aggregatenode, tree, testtree, trialtree),
             )
 
-            aggregateallplans = H2Trees.petrovplans(
+            aggregateallplans = H2Trees._buildpetrovplans(
                 tree, H2Trees.aggregateallnodes(), TFIterator, H2Trees.AggregateMode()
             )
             @test sum(aggregateallplans.trialaggregationplan.storenode) ==
                 length(trialtree.nodes)
 
-            aggregaterootplans = H2Trees.petrovplans(
+            aggregaterootplans = H2Trees._buildpetrovplans(
                 tree, H2Trees.aggregaterootonly(), TFIterator, H2Trees.AggregateMode()
+            )
+            @test H2Trees.aggregaterootonly()(tree)(
+                testtree, trialtree, H2Trees.root(trialtree)
             )
             @test sum(aggregaterootplans.trialaggregationplan.storenode) == 1
             aggregaterootplans.trialaggregationplan.storenode[H2Trees.root(trialtree)] == 1
-            plans = H2Trees.petrovplans(
+            plans = H2Trees._buildpetrovplans(
                 tree, aggregatenode, TFIterator, H2Trees.AggregateMode()
             )
+
+            @test plans isa H2Trees.PlanSet
+            @test H2Trees.ispetrov(plans)
+            @test !H2Trees.isgalerkin(plans)
+            @test H2Trees.tree(plans) === tree
+            @test H2Trees.testtree(plans) === testtree
+            @test H2Trees.trialtree(plans) === trialtree
+            @test H2Trees.mintranslationlevel(plans) == plans.mintranslationlevel
+            @test hasproperty(plans, :tree)
+            @test hasproperty(plans, :family)
+            @test H2Trees.planfamily(plans) isa H2Trees.PetrovPlanFamily
+            @test :mintranslationlevel in keys(plans)
+            @test plans[:mintranslationlevel] == plans.mintranslationlevel
+            @test NamedTuple(plans) == (
+                testaggregationplan=plans.testaggregationplan,
+                trialaggregationplan=plans.trialaggregationplan,
+                testdisaggregationplan=plans.testdisaggregationplan,
+                trialdisaggregationplan=plans.trialdisaggregationplan,
+                relevantlevels=plans.relevantlevels,
+                mintranslationlevel=plans.mintranslationlevel,
+            )
+            @test (; plans...) == NamedTuple(plans)
+            @test merge((before=:before,), plans) ==
+                merge((before=:before,), NamedTuple(plans))
+            @test merge(plans, (after=:after,)) == merge(NamedTuple(plans), (after=:after,))
+            @test H2Trees.ownedtree(plans.testdisaggregationplan) === testtree
+            @test H2Trees.receivingtree(plans, plans.testdisaggregationplan) === testtree
+            @test H2Trees.translatingtree(plans, plans.testdisaggregationplan) === trialtree
+            @test H2Trees.receivingtree(tree, plans.testaggregationplan) === trialtree
+            @test H2Trees.translatingtree(tree, plans.testaggregationplan) === testtree
+
+            builtplans = H2Trees.buildplans(
+                tree;
+                builder=H2Trees.PlanBuilder(;
+                    aggregationmode=H2Trees.AggregateMode(), isnear=H2Trees.isnear()
+                ),
+            )
+            @test builtplans isa H2Trees.PlanSet
+            @test H2Trees.ispetrov(builtplans)
+            @test H2Trees.relevantlevels(builtplans) == H2Trees.relevantlevels(plans)
 
             ptrialaggregateplan = plans.trialaggregationplan
             ptestdisaggregatetranslateplan = plans.testdisaggregationplan
@@ -290,13 +449,18 @@ end
                 trialtree, testtree, H2Trees.TranslatingNodesIterator
             )
 
-            plans = H2Trees.petrovplans(
+            plans = H2Trees._buildpetrovplans(
                 tree, aggregatenode, TFIterator, H2Trees.AggregateTranslateMode()
             )
             ptrialaggregatetranslateplan = plans.trialaggregationplan
             ptestdisaggregateplan = plans.testdisaggregationplan
             ptestaggregateplan = plans.testaggregationplan
             ptrialdisaggregatetranslateplan = plans.trialdisaggregationplan
+
+            @test H2Trees.receivingtree(plans, plans.trialaggregationplan) === testtree
+            @test H2Trees.translatingtree(plans, plans.trialaggregationplan) === trialtree
+            @test H2Trees.receivingtree(tree, plans.trialdisaggregationplan) === trialtree
+            @test H2Trees.translatingtree(tree, plans.trialdisaggregationplan) === testtree
 
             @test ptrialaggregatetranslateplan.levels == trialaggregatetranslateplan.levels
             @test ptrialaggregatetranslateplan.rootoffset ==
