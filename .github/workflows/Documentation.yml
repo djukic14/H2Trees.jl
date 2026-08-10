@@ -31,7 +31,7 @@ jobs:
           version: '1'
       - uses: julia-actions/cache@v3
       - name: Cache pre-rendered documentation plots
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             docs/src/assets/plots
@@ -70,7 +70,7 @@ jobs:
           version: '1'
       - uses: julia-actions/cache@v3
       - name: Cache pre-rendered documentation plots
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             docs/src/assets/plots
