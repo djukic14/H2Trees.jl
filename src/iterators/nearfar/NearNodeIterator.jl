@@ -1,13 +1,16 @@
 
 """
-    NearNodeIterator(tree, node::Int; isnear=isnear)
+    NearNodeIterator(tree, node::Int; isnear=isnear, nearlists=nothing)
 
 Iterate over same-level nodes in `tree` that are near `node`.
 
 The predicate is called as `isnear(tree, candidate, node)`.
+
+`nearlists` optionally supplies a [`NearListCache`](@ref) to draw candidates from
+instead of scanning the level; see [`nearlistcache`](@ref) for when that is valid.
 """
-function NearNodeIterator(tree, node::Int; isnear=isnear)
-    return NodeFilterIterator(tree, node, isnear)
+function NearNodeIterator(tree, node::Int; isnear=isnear, nearlists=nothing)
+    return NodeFilterIterator(tree, node, isnear; nearlists=nearlists)
 end
 
 """
@@ -89,11 +92,16 @@ function _appendnodevalues!(
     return indices
 end
 
-function _nearnodeiterator(tree, node; predicate)
-    return NearNodeIterator(tree, node; isnear=predicate)
+# Carries the near cache without teaching the shared append helper about near-only state.
+struct _NearNodeIteratorFactory{L}
+    nearlists::L
 end
 
-function _nearnodeiterator(testtree, trialtree, trialnode; predicate)
+function (f::_NearNodeIteratorFactory)(tree, node; predicate)
+    return NearNodeIterator(tree, node; isnear=predicate, nearlists=f.nearlists)
+end
+
+function (f::_NearNodeIteratorFactory)(testtree, trialtree, trialnode; predicate)
     return NearNodeIterator(testtree, trialtree, trialnode; isnear=predicate)
 end
 
@@ -106,30 +114,42 @@ function _farnodeiterator(testtree, trialtree, trialnode; predicate)
 end
 
 """
-    nearnodevalues(tree, node::Int; isnear=isnear, storevalues=Val{:flattened}())
+    nearnodevalues(tree, node::Int; isnear=isnear, storevalues=Val{:flattened}(), nearlists=nothing)
 
 Collect values stored in near nodes for `node` in a single tree.
 
 The traversal first visits near nodes at the level of `node`, then walks upward
 through parents and includes near leaf nodes. By default, returns a flattened
 `Vector{Int}`.
+
+Pass `nearlists` when calling this for many nodes of the same tree; see
+[`nearlistcache`](@ref).
 """
-function nearnodevalues(tree, node::Int; isnear=isnear, storevalues=Val{:flattened}())
+function nearnodevalues(
+    tree, node::Int; isnear=isnear, storevalues=Val{:flattened}(), nearlists=nothing
+)
     indices = _getindicesstorage(storevalues)
-    appendnearnodevalues!(indices, tree, node; isnear=isnear, storevalues=storevalues)
+    appendnearnodevalues!(
+        indices, tree, node; isnear=isnear, storevalues=storevalues, nearlists=nearlists
+    )
     return indices
 end
 
 """
-    appendnearnodevalues!(indices, tree, node::Int; isnear=isnear, storevalues=Val{:flattened}())
+    appendnearnodevalues!(indices, tree, node::Int; isnear=isnear, storevalues=Val{:flattened}(), nearlists=nothing)
 
 Append single-tree near-node values to `indices` and return `indices`.
 """
 function appendnearnodevalues!(
-    indices, tree, node::Int; isnear=isnear, storevalues=Val{:flattened}()
+    indices,
+    tree,
+    node::Int;
+    isnear=isnear,
+    storevalues=Val{:flattened}(),
+    nearlists=nothing,
 )
     return _appendnodevalues!(
-        indices, tree, _nearnodeiterator, isnear, storevalues, tree, node
+        indices, tree, _NearNodeIteratorFactory(nearlists), isnear, storevalues, tree, node
     )
 end
 
@@ -169,7 +189,7 @@ function appendnearnodevalues!(
     return _appendnodevalues!(
         indices,
         testtree,
-        _nearnodeiterator,
+        _NearNodeIteratorFactory(nothing),
         isnear,
         storevalues,
         testtree,

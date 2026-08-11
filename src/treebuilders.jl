@@ -160,7 +160,9 @@ end
 
 Construction settings for [`BoundingBallTree`](@ref). `splitter` is called via
 `splitwrapper(points, values, level, numsplits, splitter; splitterkwargs...)`.
-`updateradii` computes the bounding ball for each node.
+For compatibility with existing custom ball splitters, the wrapper also accepts splitters
+that ignore `level` and implement `(points, values, numsplits)`. `updateradii` computes the
+bounding ball for each node.
 """
 struct BoundingBallTreeBuilder{S,L,B,U,K}
     splitter::S

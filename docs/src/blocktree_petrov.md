@@ -27,7 +27,7 @@ from the trial tree (aggregation side) to the test tree (disaggregation side).
 
 ## Why both sides must agree on level scale
 
-`test` and `trial` must share `minhalfsize` and the builder `root` id — `BlockTreeBuilder`
+`test` and `trial` must share `minhalfsize` and the builder `root` id:  `BlockTreeBuilder`
 validates this and throws an `ArgumentError` otherwise. This does **not** mean both sides have
 the same geometric root box: their centers and root halfsizes may differ because the two point
 sets may occupy different domains. The requirement is that comparable levels use the same box
@@ -44,7 +44,7 @@ println("trial starts at level ", H2Trees.level(H2Trees.trialtree(tree), H2Trees
 ```
 
 If you pass an explicit `minlevel` yourself, it must match the value this level-scale resolution
-would have picked — a mismatch is an `ArgumentError`, not a silent override.
+would have picked: a mismatch is an `ArgumentError`, not a silent override.
 
 ```@eval
 using H2Trees

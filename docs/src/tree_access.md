@@ -17,6 +17,10 @@
 These, plus the [iterators](iterators.md), cover everything needed to walk a tree without
 touching its internals directly.
 
+Node ids are not arbitrary handles: their numeric order encodes the tree's physical layout
+(level-major, Hilbert-ordered within each level), which is what makes leaf-id chunking
+geometrically local. See [Node ID Semantics](nodeids.md) for the exact guarantees.
+
 ### The cached index
 
 Topology queries are backed by a cached [`TreeIndex`](@ref) ([`H2Trees.treeindex`](@ref)), built

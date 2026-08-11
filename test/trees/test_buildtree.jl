@@ -93,6 +93,60 @@ end
     @test_throws ArgumentError buildtree(points; builder=42)
 end
 
+@testset "builder validation rejects inconsistent settings" begin
+    points = [
+        SVector(0.0, 0.0, 0.0),
+        SVector(1.0, 1.0, 1.0),
+        SVector(0.25, 0.25, 0.25),
+        SVector(0.75, 0.75, 0.75),
+    ]
+
+    # A `BlockTree`'s two sides share one level scale, so mismatched `minhalfsize` or `root`
+    # would silently produce sides that cannot be compared level for level. Both guards sit on
+    # single `||` lines, so line coverage from the passing case hides them entirely.
+    @test_throws ArgumentError BlockTreeBuilder(;
+        test=TwoNTreeBuilder(; minhalfsize=0.25), trial=TwoNTreeBuilder(; minhalfsize=0.5)
+    )
+    @test_throws ArgumentError BlockTreeBuilder(;
+        test=TwoNTreeBuilder(; root=1), trial=TwoNTreeBuilder(; root=2)
+    )
+    # Matching settings are accepted, so the guards are not rejecting everything.
+    @test BlockTreeBuilder(;
+        test=TwoNTreeBuilder(; minhalfsize=0.25, root=3),
+        trial=TwoNTreeBuilder(; minhalfsize=0.25, root=3),
+    ) isa BlockTreeBuilder
+
+    # `minlevel` accepts an `Int` or `AutoMinLevel()`; anything else must be rejected where it
+    # is resolved rather than propagating as a confusing failure deeper in construction.
+    @test H2Trees._resolve_minlevel(AutoMinLevel(), 4) == 4
+    @test H2Trees._resolve_minlevel(2, 4) == 2
+    @test_throws ArgumentError H2Trees._resolve_minlevel(2.5, 4)
+    @test_throws ArgumentError H2Trees._resolve_minlevel(nothing, 4)
+
+    # A ball-tree splitter is called through `_callsplitwrapper`, which accepts either the
+    # `(points, values, level, numsplits)` or the older `(points, values, numsplits)` shape.
+    # One that matches neither must say so, instead of surfacing as a `MethodError` from
+    # somewhere inside the recursion.
+    wrongarity(points, globalpointids) = ([globalpointids], [SVector(0.0, 0.0, 0.0)], [1.0])
+    @test_throws ArgumentError buildtree(
+        points;
+        builder=BoundingBallTreeBuilder(; splitter=wrongarity, numsplits=2, minvalues=1),
+    )
+
+    # The older three-argument splitter shape is an explicit BoundingBallTree compatibility
+    # allowance for existing custom splitters; the check above is only about rejecting an
+    # unsupported arity.
+    oldshape(points, globalpointids, numsplits) = (
+        [globalpointids[1:2], globalpointids[3:end]],
+        [SVector(0.0, 0.0, 0.0), SVector(1.0, 1.0, 1.0)],
+        [0.5, 0.5],
+    )
+    @test buildtree(
+        points;
+        builder=BoundingBallTreeBuilder(; splitter=oldshape, numsplits=2, minvalues=1),
+    ) isa H2Trees.BoundingBallTree
+end
+
 @testset "show methods" begin
     b = TwoNTreeBuilder(; minhalfsize=0.25, minvalues=3)
     s = sprint(show, b)

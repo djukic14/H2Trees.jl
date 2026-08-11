@@ -262,58 +262,57 @@ H2Trees.treetrait(::Type{<:BoundingBallTree}) = isBoundingBallTree()
 """
     boundingsphereofspheres(center1, radius1, center2, radius2)
 
-Return a ball enclosing two input balls.
+Return the smallest ball enclosing the two input balls as a `(center, radius)` tuple.
 
-This is a coarse two-ball merge, not a full smallest-enclosing-ball-of-balls
-algorithm.
+This is the two-ball case of the SEBB problem and delegates to
+[`H2Trees.SEBB.smallest_enclosing_ball`](@ref), so nested pairs correctly return the
+containing ball. The result is exact whenever the solver certifies it, and otherwise a strictly
+enclosing approximation: containment is guaranteed either way, minimality is not. See Fischer
+& Gärtner, *The Smallest Enclosing Ball of Balls: Combinatorial Structure and Algorithms*
+(2004).
 """
 function boundingsphereofspheres(
-    center1::A1, radius1::T, center2::A2, radius2::T
-) where {T<:Number,A2<:AbstractArray{T},A1<:AbstractArray{T}}
-    # This is a very coarse approximation of a bounding sphere.
-    # See "The Smallest Enclosing Ball of Balls: Combinatorial Structure and Algorithms",
-    # Fischer (2004) for the right implementation of the SEBB algorithm.
-    difference = center1 - center2
-    differencenorm = norm(difference)
-
-    if (differencenorm + radius2 <= radius1)
-        # ball2 is inside ball1
-        return center1, radius1
-
-    elseif (differencenorm + radius1 <= radius2)
-        # ball1 is inside ball2
-        return center2, radius2
-    else
-        center =
-            T(0.5) * (center1 + center2 + (radius1 - radius2) * difference / differencenorm)
-        radius = T(0.5) * (radius1 + radius2 + differencenorm)
-
-        return center, radius
-    end
+    center1::AbstractVector, radius1::Real, center2::AbstractVector, radius2::Real
+)
+    # Delegate to the centers/radii convenience method, which determines a single common
+    # floating-point type across *both* balls before constructing them. Building
+    # `SEBB.Ball(center1, radius1)` and `SEBB.Ball(center2, radius2)` independently would let
+    # each ball promote to its own type (e.g. Float32 vs Float64), producing an abstractly
+    # typed `Vector{Ball{N}}` that `smallest_enclosing_ball` cannot dispatch on.
+    ball = SEBB.smallest_enclosing_ball([center1, center2], [radius1, radius2])
+    return SEBB.center(ball), SEBB.radius(ball)
 end
 
 """
-    boundingsphere(tree, node::Int)
+    boundingsphere(tree::BoundingBallTree, node::Int)
 
-Compute a bounding sphere for `node` from its children.
+Compute the smallest enclosing ball of a tree `node`, as a `(center, radius)` tuple.
 
-The implementation recursively merges child spheres with
-[`boundingsphereofspheres`](@ref), so it is a conservative approximation rather
-than an exact smallest enclosing ball.
+For a leaf the stored ball is returned unchanged. For an internal node the smallest ball
+enclosing all immediate child balls is computed via
+[`H2Trees.SEBB.smallest_enclosing_ball`](@ref) (Fischer & Gärtner 2004). This assumes the
+child balls are already up to date, which [`updateradii!`](@ref) guarantees by updating nodes
+bottom-up.
+
+The ball is the exact optimum whenever the solver certifies it, and otherwise a strictly
+enclosing approximation (the solver warns once and never throws). Only containment matters
+here: a slightly larger node ball costs a marginally wider near field, nothing more.
+
+# Returns
+
+A tuple `(center, radius)` representing the smallest enclosing ball.
 """
-function boundingsphere(tree, node::Int)
-    centerbuffer = similar(center(tree, node))
-    centerbuffer .= center(tree, node)
-    rds = radius(tree, node)
-    for (i, child) in enumerate(children(tree, node))
-        i == 1 && (centerbuffer .= center(tree, child))
+function boundingsphere(tree::BoundingBallTree{N,D,T,I}, node::Int) where {N,D,T,I}
+    isleaf(tree, node) && return center(tree, node), radius(tree, node)
 
-        centerbuffer, rds = boundingsphereofspheres(
-            centerbuffer, rds, center(tree, child), radius(tree, child)
-        )
+    childballs = Vector{SEBB.Ball{N,T}}()
+    sizehint!(childballs, 8)  # typical fanout; do not assume an exact count
+    for child in children(tree, node)
+        push!(childballs, SEBB.Ball(center(tree, child), radius(tree, child)))
     end
 
-    return centerbuffer, rds
+    result = SEBB.smallest_enclosing_ball(childballs)
+    return SEBB.center(result), SEBB.radius(result)
 end
 
 """
@@ -369,6 +368,10 @@ function updateradii!(tree::BoundingBallTree; update=boundingsphere)
     warning = _updateradiiwarning(update)
     !isnothing(warning) && @warn warning
 
+    # Bottom-up update order is mandatory for the SEBB-based `update`: a parent ball must be
+    # computed from its already-updated children. On this branch `DepthFirstIterator` is
+    # POST-order: every descendant is yielded before the node itself. Iterating it directly
+    # processes children before parents; do NOT reverse it.
     for node in DepthFirstIterator(tree)
         center, radius = update(tree, node)
         tree.nodes[node - root(tree) + 1] = Node(

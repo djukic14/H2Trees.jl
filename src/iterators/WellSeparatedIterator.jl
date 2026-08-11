@@ -14,7 +14,18 @@ end
 Constructs a functor that returns a `WellSeparatedIterator` if provided a tree.
 Two nodes are considered well-separated if their parents are near each other and
 the nodes themselves are far apart.
-This assumes that child clusters are completely inside their parent clusters.
+
+!!! warning "Child clusters must lie inside their parent clusters"
+
+    Two nodes being well separated is defined relative to their parents, so a tree whose
+    children escape their parents produces a far-field split that is not geometrically
+    justified. For `TwoNTree`/`BlockTree` this follows from box subdivision; for other trees it
+    is the caller's responsibility.
+
+    Note that this containment is *not* the same as the stronger property
+    [`supportsnearlists`](@ref) needs to build plans from interaction lists rather than level
+    scans, and satisfying it does not enable that faster path. See its docstring: ball trees
+    can satisfy containment exactly and still break the near recursion.
 
 # Arguments
 

@@ -235,11 +235,9 @@ const DEFAULTNEARGAPBOXES = 1.0
 Box-gap near predicate: near when the axis-aligned gap between the two boxes is at most
 `(gapboxes + additionalbufferboxes) * min(halfsize)`, plus a small relative tolerance.
 
-Preferred over [`isnearhalfsize`](@ref) for admissibility. It measures the *actual* geometric gap
-between the two boxes, using each side's own halfsize, rather than asking whether the centre
-distance falls inside a sphere -- so it stays correct when the two boxes come from independently
-built trees that share no grid. See [`DEFAULTNEARGAPBOXES`](@ref) for why the default margin is one
-half-size rather than "touching".
+Preferred over [`isnearhalfsize`](@ref) for admissibility. It measures the actual box gap using
+each side's own halfsize, so independently built trees need not share a grid. See
+[`DEFAULTNEARGAPBOXES`](@ref) for why the default margin is one half-size.
 """
 function isneargap(
     center_a::AbstractVector,
@@ -336,7 +334,7 @@ function isnear(
         center(testtree, testnode),
         center(trialtree, trialnode),
         radius(testtree, testnode),
-        radius(trialtree, trialnode),
+        radius(trialtree, trialnode);
         kwargs...,
     )
 end
@@ -347,8 +345,7 @@ end
 Ball near predicate.
 
 Two balls are near when one contains the other, or when their center distance is
-at most `2η * max(radius1, radius2)` up to numerical slack. `η` must be at
-least one.
+at most `η * (radius1 + radius2)` up to numerical slack. `η` must be at least one.
 """
 function isnearradius(
     center1::AbstractVector,
@@ -358,6 +355,27 @@ function isnearradius(
     η::T=one(T),
     kwargs...,
 ) where {T}
+    # Two bounding balls are NEAR when the distance between their centres does not exceed
+    # `η * (radius1 + radius2)`; equivalently, when their *gap* `‖c1 - c2‖ - r1 - r2` is at most
+    # `(η - 1) * (r1 + r2)`. This sum-of-radii form is used instead of `2 * max(radius)` because
+    # it makes the near/far classification MONOTONE across tree levels, which the well-separated
+    # translation partition (and `testwellseparatedness`) requires:
+    #
+    #   * a parent ball encloses each of its children, so `r_parent >= r_child` on both sides
+    #     and the gap can only shrink going up the tree (triangle inequality);
+    #   * hence if two child nodes are near (small gap), their parents are necessarily near too.
+    #
+    # The old `2 * max(radius)` form has an effective margin of `|r1 - r2|`, which is NOT
+    # monotone up the tree, so with minimal SEBB parent radii a near child pair could sit under
+    # a far parent pair: a double-counted translation. The two forms coincide for equal radii
+    # (the common same-level case), so this preserves the intended behaviour while fixing the
+    # monotonicity defect at the admissibility boundary.
+    #
+    # Note the argument above needs only `r_parent >= r_child` (CONTAINMENT) and not that the
+    # parent ball is minimal. So it survives SEBB's approximate fallback unchanged: a fallback
+    # ball's radius is the measured enclosing radius at its centre, so it still contains its
+    # children. An approximate parent is merely LARGER, which can only widen the near set, never
+    # break monotonicity.
     if η < one(T)
         throw(ArgumentError("η must be greater than or equal to 1, got $η"))
     end
@@ -373,9 +391,7 @@ function isnearradius(
         return true
     end
 
-    maxradius = max(radius1, radius2)
-
-    return differencenorm <= η * (1 + 10 * eps(T)) * (2 * maxradius)
+    return differencenorm <= η * (1 + 100 * eps(T)) * (radius1 + radius2)
 end
 
 function isin(tree, node, point, ::isBoundingBallTree)

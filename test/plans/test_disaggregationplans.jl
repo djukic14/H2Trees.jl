@@ -15,7 +15,30 @@ using H2Trees
     disaggregationplan = H2Trees.DisaggregateTranslatePlan(
         tree, H2Trees.TranslatingNodesIterator(; isnear=H2Trees.isnear())(tree)
     )
-    @test disaggregationplan[10, 3] == Int[]
+    # `plan[node, level]` yields the nodes translating into `node` at `level`, or an empty vector
+    # when `node` receives nothing there.
+    #
+    # This used to be pinned as `disaggregationplan[10, 3] == Int[]`. That relied on node 10 not
+    # being a level-3 node under the old depth-first numbering; node ids are now level-major and
+    # Hilbert-ordered (level 3 starts exactly at node 10 here, and every level-3 node receives),
+    # so a bare id encodes the layout rather than the behaviour under test. The two invariants it
+    # was standing in for are asserted directly instead: layout-independent, and strictly
+    # stronger since they cover every node rather than one.
+    for level in H2Trees.levels(tree)
+        receiving = Set(H2Trees.receivingnodes(disaggregationplan, level))
+        for node in H2Trees.nodesatlevel(tree, level)
+            if node in receiving
+                @test !isempty(disaggregationplan[node, level])
+            else
+                @test isempty(disaggregationplan[node, level])
+            end
+            # A node asked about at a level that is not its own is never registered there.
+            for otherlevel in H2Trees.levels(tree)
+                otherlevel == level && continue
+                @test isempty(disaggregationplan[node, otherlevel])
+            end
+        end
+    end
 
     for node in H2Trees.DepthFirstIterator(tree, 1)
         nodehastobevisited = false

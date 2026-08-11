@@ -1,5 +1,6 @@
 
 include("abstractplans.jl")
+include("interactionlists.jl")
 include("translateplanbuilder.jl")
 include("storednodeplanbuilder.jl")
 include("aggregation/aggregate.jl")

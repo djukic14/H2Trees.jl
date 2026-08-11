@@ -1,12 +1,7 @@
 
 # Admissibility checking ###################################################################
 #
-# This validates the ASSEMBLED translation scheme -- the plans -- rather than a matrix-vector
-# product. It exists because a plan can be perfectly self-consistent and still be wrong: the
-# Petrov far-field bug that motivated it put genuinely touching box pairs into the translation
-# plan, which produced catastrophically wrong matrix rows while every structural invariant the
-# code checked still held. A geometric check on the assembled plan catches that class directly,
-# and reports it as "these pairs are scheduled for translation, but they are touching".
+# Validate assembled translation plans against near/far geometry, not against a matvec.
 
 """
     AdmissibilityFinding
@@ -37,8 +32,8 @@ end
 """
     AdmissibilityReport
 
-Result of [`checkadmissibility`](@ref). `ok` is true when no `:error` finding was produced --
-`:warning` findings do not clear it, so a report can be `ok` and still worth reading.
+Result of [`checkadmissibility`](@ref). `ok` is true when no `:error` finding was produced.
+`:warning` findings do not clear it.
 
 Inspect `findings` directly, or let `show` summarise it.
 """
@@ -158,12 +153,12 @@ function nodegap(treea, nodea, treeb, nodeb, ::isBoundingBallTree)
     )
 end
 
-# `isnear` arrives in one of two shapes, and the difference is easy to miss:
+# `isnear` may be passed in two shapes:
 #
-#   - UNRESOLVED -- a factory taking the tree and returning the predicate. `H2Trees.isnear()`
+#   - UNRESOLVED: a factory taking the tree and returning the predicate. `H2Trees.isnear()`
 #     returns an `IsNearFunctor` of this kind, and a user closure `tree -> predicate` is the same
 #     shape.
-#   - ALREADY RESOLVED -- the node-comparison callable itself. `H2Trees.isnear(A)` on an H2 map
+#   - ALREADY RESOLVED: the node-comparison callable itself. `H2Trees.isnear(A)` on an H2 map
 #     hands back the concrete `IsNearBlockTreeFunctor`/`IsNearNotBlockTreeFunctor` the map was built
 #     with, and a hand-written `(tree, a, b) -> ...` / `(testtree, trialtree, a, b) -> ...` closure
 #     is equally natural to pass to a diagnostic.
@@ -510,16 +505,27 @@ function _checkplancoverage!(
     planlevels = levels(plan)
     expected = _allvalues(translatingtree_)
     leafnodes = collect(leaves(receivingtree_))
+    # Built once per plan rather than rescanning the receiving level for every leaf; `nothing`
+    # (block trees, unrecognised predicates) keeps the original scan. See `nearlistcache`.
+    nearlists = nearlistcache(receivingtree_, nearpred)
+    # `nothing` when the value ids are too sparse or not unique; then each leaf sorts instead.
+    coverageindex = _coverageindex(expected)
 
     # One `got` buffer per chunk, reused across every leaf in that chunk, instead of a fresh
-    # allocation per leaf -- each chunk's task owns its buffer for the task's whole lifetime, so
+    # allocation per leaf; each chunk's task owns its buffer for the task's whole lifetime, so
     # no lock is needed for `got` itself (the findings lock is separate and unchanged).
     @sync for chunk in _staticchunks(length(leafnodes), Threads.nthreads())
         Threads.@spawn begin
             got = Int[]
             sizehint!(got, length(expected))
+            # Same reasoning as `got`: the stamp array is this task's private scratch, reused
+            # across its leaves. `generation` makes reuse safe without clearing it:
+            # a slot counts as covered only when it carries the current leaf's number.
+            stamps = isnothing(coverageindex) ? Int[] : zeros(Int, _nslots(coverageindex))
+            generation = 0
             for i in $chunk
                 empty!(got)
+                generation += 1
                 _checkleafcoverage!(
                     findings,
                     findinglock,
@@ -534,6 +540,10 @@ function _checkplancoverage!(
                     planlevels,
                     expected,
                     leafnodes[i],
+                    nearlists,
+                    coverageindex,
+                    stamps,
+                    generation,
                 )
             end
         end
@@ -541,9 +551,68 @@ function _checkplancoverage!(
     return nothing
 end
 
+# Coverage partition check ##################################################################
+#
+# Every receiving leaf must see every translating value exactly once, so the check is
+# inherently O(leaves x values). What it does NOT have to be is O(leaves x values x log
+# values): sorting each leaf's gathered values and comparing the sorted vector against
+# `expected` was 84% of the coverage pass (measured per translating plan at 100k points: 6.7s
+# of sort+compare against 0.26s of near-node scanning and 1.0s of far-value gathering).
+#
+# Stamping replaces that with one linear pass. Each expected value owns a slot; a leaf marks
+# the slots it covers with its own generation number, so a slot already carrying that number
+# is a duplicate, and a covered count short of `length(expected)` is a gap. No sort, no
+# comparison vector, and no per-leaf allocation.
+#
+# The findings are identical, including which value a duplicate finding
+# names. `_firstduplicate` reported the smallest duplicated value because it read a sorted
+# vector, so the loop below takes the minimum rather than the first one it happens to meet.
+
+"""
+    _CoverageIndex
+
+Slot assignment for the coverage stamp: expected value `v` occupies slot `v - offset`.
+
+`isexpected` is false for ids inside the span that no leaf actually stores, which is how a
+covered value that is not an expected value gets reported rather than silently accepted.
+"""
+struct _CoverageIndex
+    offset::Int
+    isexpected::Vector{Bool}
+    nexpected::Int
+end
+
+_nslots(index::_CoverageIndex) = length(index.isexpected)
+
+"""
+    _coverageindex(expected)
+
+Build the stamp slots for `expected` (sorted), or `nothing` to keep the sorting path.
+
+`nothing` is returned when the value ids span far more than they populate. The slot array is
+proportional to the span, so a sparse one would cost more than the sort it replaces. Also when
+`expected` contains a repeat, since then coverage is a multiset question that stamping cannot
+answer.
+"""
+function _coverageindex(expected)
+    isempty(expected) && return nothing
+    span = last(expected) - first(expected) + 1
+    span > 8 * length(expected) + 1024 && return nothing
+
+    offset = first(expected) - 1
+    isexpected = zeros(Bool, span)
+    for value in expected
+        slot = value - offset
+        isexpected[slot] && return nothing
+        isexpected[slot] = true
+    end
+    return _CoverageIndex(offset, isexpected, length(expected))
+end
+
 """
     _checkleafcoverage!(findings, findinglock, got, tree, plan, nearpred, trait,
-        maxfindings, receivingtree, translatingtree, planlevels, expected, leaf)
+        maxfindings, receivingtree, translatingtree, planlevels, expected, leaf, nearlists,
+        coverageindex, stamps, generation)
 
 Check the coverage partition for one receiving leaf using `got` as reusable
 scratch storage.
@@ -562,22 +631,27 @@ function _checkleafcoverage!(
     planlevels,
     expected,
     leaf,
+    nearlists,
+    coverageindex,
+    stamps,
+    generation,
 )
     _findingsfull(findings, findinglock, maxfindings) && return nothing
 
-    _appendnearvalues!(got, tree, receivingtree, translatingtree, leaf, nearpred, trait)
+    _appendnearvalues!(
+        got, tree, receivingtree, translatingtree, leaf, nearpred, trait, nearlists
+    )
     for node in Iterators.flatten(((leaf,), ParentUpwardsIterator(receivingtree, leaf)))
         nodelevel = level(receivingtree, node)
         nodelevel in planlevels || continue
-        # `plan[node, level]` (not `translatingnodes`) -- the indexing form returns an empty
+        # `plan[node, level]` (not `translatingnodes`): the indexing form returns an empty
         # vector for a node the plan does not address, where the accessor would `KeyError`.
         for translatingnode in plan[node, nodelevel]
             appendvalues!(got, translatingtree, translatingnode)
         end
     end
-    sort!(got)
+    duplicate, covered = _tallycoverage!(got, expected, coverageindex, stamps, generation)
 
-    duplicate = _firstduplicate(got)
     if duplicate !== nothing
         _pushfinding!(
             findings,
@@ -596,7 +670,7 @@ function _checkleafcoverage!(
             ),
             maxfindings,
         )
-    elseif got != expected
+    elseif covered != length(expected)
         _pushfinding!(
             findings,
             findinglock,
@@ -619,23 +693,33 @@ function _checkleafcoverage!(
 end
 
 """
-    _appendnearvalues!(out, tree, receivingtree, translatingtree, leaf, nearpred, trait)
+    _appendnearvalues!(out, tree, receivingtree, translatingtree, leaf, nearpred, trait,
+                       nearlists)
 
 Append all near-field values for one receiving leaf.
 
 For block trees, values are collected from the opposite side of the block tree.
 """
 function _appendnearvalues!(
-    out, tree, receivingtree, translatingtree, leaf, nearpred, ::AbstractTreeTrait
+    out,
+    tree,
+    receivingtree,
+    translatingtree,
+    leaf,
+    nearpred,
+    ::AbstractTreeTrait,
+    nearlists,
 )
-    return appendnearnodevalues!(out, receivingtree, leaf; isnear=nearpred)
+    return appendnearnodevalues!(
+        out, receivingtree, leaf; isnear=nearpred, nearlists=nearlists
+    )
 end
 
 # For a BlockTree the values live on the OPPOSITE side: a test leaf's near set is trial-side
 # values. The two-tree `nearnodevalues` takes `(valuetree, referencetree, referencenode)`, so the
 # translating tree comes first.
 function _appendnearvalues!(
-    out, tree, receivingtree, translatingtree, leaf, nearpred, ::isBlockTree
+    out, tree, receivingtree, translatingtree, leaf, nearpred, ::isBlockTree, nearlists
 )
     if receivingtree === testtree(tree)
         flippednear =
@@ -664,6 +748,45 @@ function _allvalues(tree)
     end
     sort!(out)
     return out
+end
+
+"""
+    _tallycoverage!(got, expected, coverageindex, stamps, generation)
+
+Return `(duplicate, covered)` for one leaf's gathered values.
+
+`duplicate` is the smallest value covered more than once, or `nothing`. `covered` is the
+number of distinct expected values covered, or `-1` when `got` holds a value that is not an
+expected value at all. `-1` never equals `length(expected)`, so the caller reports the same
+coverage gap the sorted comparison used to.
+
+Falls back to sorting when `coverageindex` is `nothing`; the two paths agree by construction,
+including which duplicate they name.
+"""
+function _tallycoverage!(got, expected, coverageindex::Nothing, stamps, generation)
+    sort!(got)
+    # `length(got)` would not do: two vectors of equal length can still differ.
+    return _firstduplicate(got), got == expected ? length(expected) : -1
+end
+
+function _tallycoverage!(got, expected, coverageindex::_CoverageIndex, stamps, generation)
+    duplicate = nothing
+    unknown = false
+    covered = 0
+    for value in got
+        slot = value - coverageindex.offset
+        if slot < 1 || slot > _nslots(coverageindex) || !coverageindex.isexpected[slot]
+            unknown = true
+        elseif stamps[slot] == generation
+            # Smallest, not first seen: `_firstduplicate` read a sorted vector, and the
+            # reported value is part of the finding's message.
+            duplicate = isnothing(duplicate) ? value : min(duplicate, value)
+        else
+            stamps[slot] = generation
+            covered += 1
+        end
+    end
+    return duplicate, unknown ? -1 : covered
 end
 
 """

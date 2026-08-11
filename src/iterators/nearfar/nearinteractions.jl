@@ -38,6 +38,10 @@ function nearinteractions(
     tree, ::A; extractselfvalues=false, isnear=isnear
 ) where {A<:AbstractTreeTrait}
     isleafnear = _LeafPredicateFunctor(isnear)
+    # One O(N) sweep replaces one full-level scan per leaf (and, on an unbalanced tree, one
+    # more per ancestor per leaf). `isleafnear` filters the same lists rather than seeding a
+    # sweep of its own; "is a near leaf" is not level-monotone. `nothing` keeps the scan.
+    nearlists = nearlistcache(tree, isnear)
 
     selfv = Vector{Int}[]
 
@@ -58,7 +62,7 @@ function nearinteractions(
 
         isempty(selfnearvalues) && continue
 
-        for nearnode in NearNodeIterator(tree, node; isnear=isnear)
+        for nearnode in NearNodeIterator(tree, node; isnear=isnear, nearlists=nearlists)
             nearnode == node && continue
             appendvalues!(nonselfnearvalues, tree, nearnode)
         end
@@ -66,7 +70,8 @@ function nearinteractions(
         if !isbalancedtree
             # for uniform trees, where all leaves are on same level we can skip this
             for parent in ParentUpwardsIterator(tree, node)
-                for nearnode in NearNodeIterator(tree, parent; isnear=isleafnear)
+                for nearnode in
+                    NearNodeIterator(tree, parent; isnear=isleafnear, nearlists=nearlists)
                     appendvalues!(nonselfnearvalues, tree, nearnode)
                 end
             end

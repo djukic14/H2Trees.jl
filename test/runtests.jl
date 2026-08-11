@@ -7,12 +7,26 @@ using H2Trees
         @test H2Trees.AggregateTranslateMode() == adjoint(H2Trees.AggregateMode())
     end
 
+    @testset verbose = true "Hilbert ordering" begin
+        include("hilbert/runtests.jl")
+    end
+
+    include("sebb/runtests.jl")
+
+    @testset verbose = true "SEBB tree integration" begin
+        include("trees/test_boundingballtree_sebb.jl")
+    end
+
     @testset verbose = true "Iterators" begin
         include("trees/test_iterators.jl")
     end
 
     @testset verbose = true "Near interactions" begin
         include("test_nearinteractions.jl")
+    end
+
+    @testset verbose = true "Near lists" begin
+        include("test_nearlists.jl")
     end
 
     include("trees/runtests.jl")

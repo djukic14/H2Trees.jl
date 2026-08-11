@@ -6,6 +6,10 @@
 ```@autodocs
 Modules = [ 
         H2Trees,
+        # `@autodocs` does not recurse into submodules, so the internal Hilbert submodule is
+        # listed explicitly; otherwise `checkdocs` reports its docstrings as undocumented.
+        H2Trees.HilbertOrdering,
+        H2Trees.SEBB,
         if isdefined(Base, :get_extension)
             Base.get_extension(H2Trees, :H2MetisTrees)
         else

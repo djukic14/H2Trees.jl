@@ -67,7 +67,7 @@ The interactive PlotlyJS visualizations in the manual (`tree_families.md`, `bloc
 and the `ext/h2plotlyjstrees.md`/`h2metistrees.md`/`h2parallelkmeanstrees.md` extension pages) are
 pre-rendered into `docs/src/assets/plots/*.html` instead of being rebuilt by `makedocs` every time.
 
-Each figure's code lives in exactly one place, `docs/plots/<name>.jl` — there is no copy of it in
+Each figure's code lives in exactly one place, `docs/plots/<name>.jl`: there is no copy of it in
 the `.md` files. `docs/genplots.jl` `include`s each of these to produce the plot, and the manual
 pages use a `@eval` block (via `displayedcode` in `docs/plotutils.jl`) to show that same file's
 source verbatim, so the displayed code and the code that actually produced the picture cannot
@@ -76,7 +76,7 @@ drift apart. A `# --- hide-from-docs ---` / `# --- end-hide-from-docs ---` marke
 page) from what's displayed, without excluding it from execution.
 
 `docs/src/assets/plots/` is **not** committed to git: `PlotlyJS.Plot()` embeds a fresh random UUID
-into every render, so a committed copy could never be diffed for staleness — any regeneration
+into every render, so a committed copy could never be diffed for staleness: any regeneration
 looks "changed" even with byte-identical inputs. Instead, `docs/make.jl` calls
 `docs/ensureplots.jl` before `makedocs`, which regenerates only if the assets are missing or the
 hash from `sourcehash` (in `docs/plotutils.jl`) no longer matches the one recorded the last time

@@ -521,3 +521,36 @@ end
         end
     end
 end
+
+@testset "PlanBuilder(checkadmissibility=true)" begin
+    # The builder's own validation hook. It is documented, defaults to `false`, and had never
+    # run: nothing in the suite constructed a `PlanBuilder` with it enabled, so neither the
+    # success path nor the `error` on a bad report was ever taken.
+    points = [SVector(0.3 * i, 0.3 * j, 0.3 * k) for i in 0:5 for j in 0:5 for k in 0:5]
+    tree = H2Trees.buildtree(points; builder=H2Trees.TwoNTreeBuilder(; minvalues=4))
+
+    checked = H2Trees.buildplans(
+        tree; builder=H2Trees.PlanBuilder(; checkadmissibility=true)
+    )
+    plain = H2Trees.buildplans(tree)
+    # Enabling the check must not change what is built, only whether it is validated.
+    @test H2Trees.relevantlevels(checked) == H2Trees.relevantlevels(plain)
+    @test checked.trialaggregationplan.storenode == plain.trialaggregationplan.storenode
+
+    # And it must actually be able to fail. A near predicate far wider than the one the plans
+    # were built with reclassifies scheduled far pairs as near, which is exactly the
+    # "translating a touching pair" defect `checkadmissibility` exists to catch. Building with
+    # the wide predicate throughout would just produce different (still consistent) plans, so
+    # the check is handed the wide predicate while the plans keep the default one.
+    widened = H2Trees.PlanBuilder(;
+        translatingnodesiterator=H2Trees.WellSeparatedIterator(; isnear=H2Trees.isnear()),
+        aggregatenode=H2Trees.istranslatingnode(;
+            TranslatingNodesIterator=H2Trees.WellSeparatedIterator(;
+                isnear=H2Trees.isnear()
+            ),
+        ),
+        isnear=H2Trees.isnear(; additionalbufferboxes=4),
+        checkadmissibility=true,
+    )
+    @test_throws ErrorException H2Trees.buildplans(tree; builder=widened)
+end

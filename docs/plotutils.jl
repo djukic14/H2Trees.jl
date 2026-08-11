@@ -7,7 +7,7 @@ using Markdown
 using Pkg
 
 # Text between these two markers still runs when the file is `include`d, but is not shown on
-# the manual page -- it's rendering boilerplate (trace/layout construction), or setup that's
+# the manual page; it is rendering boilerplate (trace/layout construction), or setup that's
 # already shown verbatim earlier on the same page, and would just distract from whatever the
 # page is actually teaching (Metis partitioning, k-means, tree families, ...). If only the
 # start marker is present, everything from it to the end of the file is hidden.
@@ -29,7 +29,7 @@ function displayedcode(path::AbstractString)
 end
 
 # The pre-rendered plots in docs/src/assets/plots are not committed to git (PlotlyJS embeds a
-# fresh random UUID into every render, so committed HTML can never be diffed for staleness --
+# fresh random UUID into every render, so committed HTML can never be diffed for staleness:
 # see the "Documentation plots" section of contributing.md). Instead they're reconstructed on
 # demand, guarded by a hash over everything that can change what they look like: the plot
 # scripts themselves, all of H2Trees (core + extensions, since the scripts build/iterate real
@@ -46,7 +46,7 @@ const PLOT_SOURCE_PATHS = [
 ]
 
 # External packages the plot scripts depend on but whose source isn't in this repo, so
-# wouldn't otherwise be covered by PLOT_SOURCE_PATHS -- a version bump (e.g. a PlotlyJS
+# wouldn't otherwise be covered by PLOT_SOURCE_PATHS: a version bump (e.g. a PlotlyJS
 # release changing its HTML/JS output) should also invalidate the cache.
 const PLOT_SOURCE_DEPS = [
     "PlotlyJS",
@@ -55,6 +55,7 @@ const PLOT_SOURCE_DEPS = [
     "BEAST",
     "Metis",
     "ParallelKMeans",
+    "StaticArrays",
     "H2Trees",
 ]
 
