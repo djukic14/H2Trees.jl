@@ -10,13 +10,13 @@ using H2Trees
     #
     # Two independently constructed trees do not share a box grid: a `BlockTree` fits each side's
     # root box to its own space, so the two lattices are offset by a small but genuinely GEOMETRIC
-    # amount (measured at ~1.7e-4 on a unit-scale sphere -- about 1e11 times `eps`, so no
+    # amount (measured at ~1.7e-4 on a unit-scale sphere, about 1e11 times `eps`, so no
     # tolerance tightening could ever have covered it).
     #
     # The legacy centre-distance predicate accepts a pair as near when the centres lie within
     # `sqrt(12)*halfsize`. In 3D that radius is EXACTLY the corner-neighbour centre distance
     # (2h*sqrt(3) == sqrt(12)*h), so corner neighbours sit precisely ON the boundary. Offset them
-    # by a hair and they fall outside -- admitted into the FAR field, where the far-field
+    # by a hair and they fall outside, admitted into the FAR field, where the far-field
     # interpolation is then asked to interpolate across two boxes that physically touch, which
     # produces catastrophically wrong matrix entries.
     @testset "offset corner neighbours" begin
@@ -34,7 +34,7 @@ using H2Trees
         for offset in (1e-4, 1e-3, 1e-2)
             shifted = corner .+ offset
             @test H2Trees.boxgap(a, shifted, h, h) > 0          # no longer literally touching
-            @test H2Trees.isneargap(a, shifted, h, h, 0)        # but still NEAR -- the fix
+            @test H2Trees.isneargap(a, shifted, h, h, 0)        # but still NEAR; the fix
             # The legacy predicate loses them: this is the bug, pinned.
             @test !H2Trees.isnearhalfsize(a, shifted, h, 0)
         end
@@ -64,7 +64,7 @@ using H2Trees
             H2Trees.isneargap(SVector(3.4, 0.0, 0.0), a, 2.0, 1.0, 0)
 
         # `additionalbufferboxes` widens the margin on top of the default one. Probed at gap 1.9,
-        # comfortably inside both thresholds rather than sitting on one -- an assertion placed
+        # comfortably inside both thresholds rather than sitting on one; an assertion placed
         # exactly on a boundary is the very failure mode this predicate exists to avoid.
         @test H2Trees.boxgap(a, SVector(3.9h, 0.0, 0.0), h, h) ≈ 1.9h
         @test !H2Trees.isneargap(a, SVector(3.9h, 0.0, 0.0), h, h, 0)
@@ -72,7 +72,7 @@ using H2Trees
     end
 
     # `ballgap`/`nodesize`/`nodegap` are `checkadmissibility`'s BoundingBallTree/KMeansTree
-    # counterparts to `boxgap`/`halfsize` -- pinned directly so a future edit to the box path
+    # counterparts to `boxgap`/`halfsize`, pinned directly so a future edit to the box path
     # cannot silently leave the ball path broken (that used to fail with a bare `MethodError`
     # from inside `halfsize(::BoundingBallData)`, since only `radius` exists there).
     @testset "ballgap / nodesize / nodegap" begin
@@ -104,7 +104,7 @@ using H2Trees
 end
 
 @testset "checkadmissibility on BoundingBallTree/KMeansTree" begin
-    # `checkadmissibility` must work for ball-shaped trees too, not only `TwoNTree`/`BlockTree` --
+    # `checkadmissibility` must work for ball-shaped trees too, not only `TwoNTree`/`BlockTree`;
     # dispatched via `nodegap`/`nodesize` on the tree's own `treetrait`, mirroring how `isnear`
     # itself already dispatches (`isneargap` for `isTwoNTree`, `isnearradius` for
     # `isBoundingBallTree`).
@@ -129,7 +129,7 @@ end
     ballreport = H2Trees.checkadmissibility(balltree, ballplans; throw=false)
     # `ok` isn't asserted true here: `newsplit` above deliberately ignores spatial locality (it
     # splits by point PARITY, not position), so marginal-gap warnings are expected. The point of
-    # this test is that it runs to completion at all -- no `MethodError` from a box-only code path.
+    # this test is that it runs to completion at all: no `MethodError` from a box-only code path.
     @test ballreport isa H2Trees.AdmissibilityReport
 
     kmeanstree = H2Trees.KMeansTree(
@@ -167,7 +167,7 @@ end
         # :static`, which errors ("`@threads :static` cannot be used concurrently or nested")
         # if it is ever invoked from inside the caller's own threaded loop, or if two
         # `checkadmissibility` calls happen to run at the same time via separate `@spawn`ed
-        # tasks -- both realistic ways to call a public diagnostic function, not just a
+        # tasks, both realistic ways to call a public diagnostic function, not just a
         # theoretical concern. Fixed by chunking the coverage pass manually (each chunk's task
         # owns its own scratch buffer) instead of relying on `:static` thread-to-task ownership.
         X = raviartthomas(m)
@@ -193,7 +193,7 @@ end
 
     @testset "Petrov plans are admissible" begin
         # Genuinely distinct test/trial spaces, so the two BlockTree sides are built independently
-        # -- the configuration the corner-neighbour bug lived in.
+        # the configuration the corner-neighbour bug lived in.
         X = lagrangec0d1(m)
         Y = lagrangecxd0(m)
         blocktree = H2Trees.buildtree(
@@ -224,7 +224,7 @@ end
         )
         plans = H2Trees.buildplans(blocktree)
 
-        # A predicate calling everything near turns every scheduled translation into an error --
+        # A predicate calling everything near turns every scheduled translation into an error:
         # this is the shape of the real bug (pairs in the plan that the predicate says are near),
         # just induced deliberately.
         alwaysnear = tree -> ((a, b, c, d) -> true)
@@ -251,7 +251,7 @@ end
         plans = H2Trees.buildplans(tree)
 
         # On a shared grid the closest far pairs sit at gap == 2*halfsize exactly, so demanding
-        # more than that flags them -- as warnings, which must NOT clear `ok`.
+        # more than that flags them as warnings, which must NOT clear `ok`.
         report = H2Trees.checkadmissibility(
             tree, plans; mingapboxes=3.0, coverage=false, throw=false
         )
@@ -328,7 +328,7 @@ end
     end
 
     # Coverage is read from the PLAN, so it must catch a plan whose far set is wrong even when the
-    # predicate is perfectly fine -- an omitted or duplicated translating node. Without these two,
+    # predicate is perfectly fine: an omitted or duplicated translating node. Without these two,
     # the coverage check could be silently vacuous (it would pass just as happily if it were still
     # recomputing both halves from the iterators, which is what it used to do).
     @testset "detects wrong far coverage in the plan" begin
@@ -479,4 +479,53 @@ end
             other, plans; coverage=false, throw=false
         )
     end
+end
+
+# The coverage partition is checked by stamping each leaf's values into a slot array rather
+# than sorting them and comparing against `expected` (84% of the pass, measured). Both paths
+# survive, so pin that they agree, including which value a duplicate
+# finding names, since that goes into the message.
+@testset "coverage stamping matches the sorting path" begin
+    expected = collect(1:20)
+    index = H2Trees._coverageindex(expected)
+    @test index isa H2Trees._CoverageIndex
+
+    # `_checkleafcoverage!` branches duplicate-first and only then on the count, so compare
+    # the branch it would take, not the raw tuple, whose `covered` field is -1 on the
+    # sorting path and a real count on the stamping path.
+    function decision((duplicate, covered))
+        isnothing(duplicate) || return (:coverageduplicate, duplicate)
+        covered == length(expected) || return (:coveragegap, nothing)
+        return (:ok, nothing)
+    end
+
+    for got in (
+        collect(1:20),                  # exact cover
+        reverse(collect(1:20)),         # order must not matter
+        collect(2:20),                  # omission
+        [collect(1:20); 7; 3],          # duplicates: the SMALLEST must be named
+        [collect(2:20); 5],             # duplicate and omission together
+        [collect(1:20); 99],            # a value that is not expected at all
+        [collect(1:19); 99],            # unexpected value standing in for a missing one
+        Int[],
+    )
+        stamps = zeros(Int, H2Trees._nslots(index))
+        stamped = H2Trees._tallycoverage!(copy(got), expected, index, stamps, 1)
+        sorted = H2Trees._tallycoverage!(copy(got), expected, nothing, Int[], 1)
+        @test decision(stamped) == decision(sorted)
+    end
+
+    # Slots are reused across the leaves of a chunk without being cleared, so a stale mark from
+    # an earlier leaf must not read as covered by a later one.
+    stamps = zeros(Int, H2Trees._nslots(index))
+    @test H2Trees._tallycoverage!(collect(1:20), expected, index, stamps, 1) ==
+        H2Trees._tallycoverage!(collect(1:20), expected, index, stamps, 2)
+    @test H2Trees._tallycoverage!(collect(2:20), expected, index, stamps, 3) ==
+        (nothing, 19)
+
+    # Declining cases fall back to sorting rather than allocating a hopeless slot array or
+    # answering a multiset question with a set.
+    @test H2Trees._coverageindex(Int[]) === nothing
+    @test H2Trees._coverageindex([1, 2, 2, 3]) === nothing
+    @test H2Trees._coverageindex([1, 2, 10_000_000]) === nothing
 end

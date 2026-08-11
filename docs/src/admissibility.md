@@ -1,12 +1,12 @@
 # Admissibility Diagnostics
 
 [`H2Trees.checkadmissibility`](@ref) validates an *assembled* set of translation plans against
-the tree's own near/far geometry. It exists because a plan can be internally self-consistent —
-every structural invariant holds — and still be geometrically wrong: two boxes that are actually
+the tree's own near/far geometry. It exists because a plan can be internally self-consistent (
+every structural invariant holds) and still be geometrically wrong: two boxes that are actually
 touching can end up scheduled as a far translation. `checkadmissibility` catches that class of
 bug directly, by re-checking every scheduled pair against `isnear`.
 
-Run it after changing a near/far predicate, a plan builder, or `BlockTree` construction — not on
+Run it after changing a near/far predicate, a plan builder, or `BlockTree` construction: not on
 every matvec; it is a diagnostic, not a hot-path check.
 
 ```@example admissibility1
@@ -23,7 +23,7 @@ report.ok
 
 ## Reading a report
 
-[`H2Trees.AdmissibilityReport`](@ref) has `ok` (`true` iff there are no `:error` findings — a
+[`H2Trees.AdmissibilityReport`](@ref) has `ok` (`true` if there are no `:error` findings, a
 `:warning` alone does not clear it) and `findings`, a list of
 [`H2Trees.AdmissibilityFinding`](@ref)s. Each finding has a `severity` (`:error`/`:warning`), a
 `kind` (e.g. `:nearpairtranslated`, `:marginalgap`, `:coveragegap`), and a geometric `gap` when
@@ -46,7 +46,7 @@ badreport.ok
 first(badreport.findings)
 ```
 
-With `throw=true` (the default), errors raise instead of returning a report — use `throw=false`
+With `throw=true` (the default), errors raise instead of returning a report; use `throw=false`
 to inspect findings programmatically. `coverage=true` (default) additionally checks that near
 values plus plan-scheduled far values partition every leaf's targets exactly once; it is stronger
 than recomputing the far field from [`FarNodeIterator`](@ref) but more expensive, so pass

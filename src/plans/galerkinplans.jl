@@ -54,8 +54,22 @@ The upward side is an [`AggregatePlan`](@ref); far-field translations are stored
 on the downward [`DisaggregateTranslatePlan`](@ref).
 """
 function _galerkinplans(tree, aggregatenode, translatingnodesiterator, ::AggregateMode)
-    trialaggregationplan = AggregatePlan(tree, aggregatenode(tree))
-    testdisaggregationplan = DisaggregateTranslatePlan(tree, translatingnodesiterator(tree))
+    # Both plans are driven by the same translating-nodes iterator, so the interaction lists are
+    # built once here and shared: the aggregating side needs only "does this node translate?",
+    # which is `isempty` on the very same lists. `nothing` means the fast path does not apply and
+    # each builder falls back to its original scan. See `interactionlists.jl`.
+    translating = _TranslatingFunctor(tree, translatingnodesiterator(tree))
+    translatinglists = _translatinglists(tree, translating)
+    translatingflags = _sharedtranslatingflags(
+        aggregatenode, translatingnodesiterator, translatinglists
+    )
+
+    trialaggregationplan = _buildstorednodeplan(
+        AggregateStoredNodeBuild(), tree, aggregatenode(tree), translatingflags
+    )
+    testdisaggregationplan = _buildtranslateplan(
+        DisaggregateTranslateBuild(), tree, translating, translatinglists
+    )
 
     return trialaggregationplan, testdisaggregationplan
 end
@@ -71,8 +85,19 @@ side is a non-translating [`DisaggregatePlan`](@ref).
 function _galerkinplans(
     tree, aggregatenode, translatingnodesiterator, ::AggregateTranslateMode
 )
-    trialaggregationplan = AggregateTranslatePlan(tree, translatingnodesiterator(tree))
-    testdisaggregationplan = DisaggregatePlan(tree, aggregatenode(tree))
+    # Same sharing as the `AggregateMode` pair above, with the translating side on the upward plan.
+    translating = _TranslatingFunctor(tree, translatingnodesiterator(tree))
+    translatinglists = _translatinglists(tree, translating)
+    translatingflags = _sharedtranslatingflags(
+        aggregatenode, translatingnodesiterator, translatinglists
+    )
+
+    trialaggregationplan = _buildtranslateplan(
+        AggregateTranslateBuild(), tree, translating, translatinglists
+    )
+    testdisaggregationplan = _buildstorednodeplan(
+        DisaggregateStoredNodeBuild(), tree, aggregatenode(tree), translatingflags
+    )
 
     return trialaggregationplan, testdisaggregationplan
 end

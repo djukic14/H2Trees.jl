@@ -2,10 +2,6 @@ using Test
 using BEAST, CompScienceMeshes
 using Metis, Graphs
 using H2Trees
-using Test
-using BEAST, CompScienceMeshes
-using Metis, Graphs
-using H2Trees
 @testset "Metis trees" begin
     meshes =
         ["cuboid", "multiplerects", "sphere", "spherewithcenter", "twospheres"] .* ".in"
@@ -140,4 +136,33 @@ using H2Trees
         end
         @test sawunbalanced
     end
+end
+
+@testset "metis partition wrapper" begin
+    ext = Base.get_extension(H2Trees, :H2MetisTrees)
+
+    # A small connected graph so both supported algorithms have something real to partition.
+    g = Graphs.grid([4, 4])
+    G = Metis.graph(g)
+
+    for alg in (:KWAY, :RECURSIVE)
+        part = ext.partition(G, 2; alg=alg)
+        @test length(part) == Graphs.nv(g)
+        @test Set(part) ⊆ Set(1:2)
+        @test length(unique(part)) == 2
+    end
+
+    # `nparts == 1` short-circuits before METIS is called at all (Metis.jl issue #49), so it
+    # must still return a full, valid labelling rather than an undefined buffer.
+    @test ext.partition(G, 1) == fill(1, Graphs.nv(g))
+
+    # Anything other than the two known algorithms must be rejected by name. Without this the
+    # `if/elseif` would fall through and return the uninitialized `part` buffer as if it were
+    # a partition.
+    @test_throws ArgumentError ext.partition(G, 2; alg=:NOSUCHALGORITHM)
+
+    # `vertexweights=false` is the documented way to ignore `G.vwgt`; it must still partition.
+    unweighted = ext.partition(G, 2; vertexweights=false)
+    @test length(unweighted) == Graphs.nv(g)
+    @test Set(unweighted) ⊆ Set(1:2)
 end

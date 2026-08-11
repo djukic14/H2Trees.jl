@@ -42,10 +42,26 @@ function _materializestorednodeplan(
     return DisaggregatePlan(nodes, levels, storenodes, rootoffset, tree)
 end
 
-function _buildstorednodeplan(kind::StoredNodePlanBuildKind, tree, storenode)
+function _buildstorednodeplan(
+    kind::StoredNodePlanBuildKind, tree, storenode, translatingflags=nothing
+)
     storenodesarray = zeros(Bool, numberofnodes(tree))
     root = H2Trees.root(tree)
     rootoffset = root - 1
+
+    # `storenode` is `istranslatingnode` for the aggregating plans, which scans a whole level per
+    # node. Precompute the answer in O(N) when possible; `nothing` keeps the original predicate.
+    # A caller that already built the interaction lists passes the derived flags in instead.
+    # See `interactionlists.jl`.
+    if isnothing(translatingflags)
+        translatingflags = _translatingflags(tree, storenode)
+    end
+    _storenode(node::Int) =
+        if isnothing(translatingflags)
+            storenode(node)
+        else
+            iszero(node) ? false : translatingflags[node - rootoffset]
+        end
 
     rawlevels = zeros(Int, numberoflevels(tree))
     visitnodes = Vector{Vector{Int}}(undef, numberoflevels(tree))
@@ -57,7 +73,7 @@ function _buildstorednodeplan(kind::StoredNodePlanBuildKind, tree, storenode)
         @threads for node in LevelIterator(tree, level)
             nodeindex = node - rootoffset
 
-            if storenode(node)
+            if _storenode(node)
                 storenodesarray[nodeindex] = true
                 @lock lk push!(levelnodes, node)
             end
@@ -65,7 +81,7 @@ function _buildstorednodeplan(kind::StoredNodePlanBuildKind, tree, storenode)
             storenodesarray[nodeindex] && continue
 
             for parent in ParentUpwardsIterator(tree, node)
-                if storenode(parent)
+                if _storenode(parent)
                     @lock lk push!(levelnodes, node)
                     break
                 end

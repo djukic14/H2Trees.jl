@@ -108,9 +108,19 @@ The builder preserves each concrete plan's storage convention: aggregation
 levels are stored from fine to coarse, while disaggregation levels are stored
 from coarse to fine.
 """
-function _buildtranslateplan(kind::TranslatePlanBuildKind, tree, TranslatingNodesIterator)
+function _buildtranslateplan(
+    kind::TranslatePlanBuildKind, tree, TranslatingNodesIterator, translatinglists=nothing
+)
     levels = _translatebuildlevels(kind, tree)
     rootoffset = H2Trees.root(tree) - 1
+
+    # Precomputed interaction lists when the iterator exposes a near predicate, otherwise
+    # `nothing` and every lookup below falls back to the original full-level scan. See
+    # `interactionlists.jl` for why the shrunken candidate set yields identical lists.
+    # A caller building both plans of a pair passes the lists in so they are built once.
+    if isnothing(translatinglists)
+        translatinglists = _translatinglists(tree, TranslatingNodesIterator)
+    end
 
     rawlevels = zeros(Int, numberoflevels(tree))
     visitnodes = Vector{Vector{Int}}(undef, numberoflevels(tree))
@@ -126,14 +136,22 @@ function _buildtranslateplan(kind::TranslatePlanBuildKind, tree, TranslatingNode
             nodeindex = node - rootoffset
             nodehastobevisited = false
 
-            tfnodes = collect(Int, TranslatingNodesIterator(node))
+            tfnodes = if isnothing(translatinglists)
+                collect(Int, TranslatingNodesIterator(node))
+            else
+                translatinglists[nodeindex]
+            end
             !isempty(tfnodes) && (nodehastobevisited = true)
 
             if !nodehastobevisited
                 for parent in ParentUpwardsIterator(tree, node)
-                    for _ in TranslatingNodesIterator(parent)
+                    if isnothing(translatinglists)
+                        for _ in TranslatingNodesIterator(parent)
+                            nodehastobevisited = true
+                            break
+                        end
+                    elseif !isempty(translatinglists[parent - rootoffset])
                         nodehastobevisited = true
-                        break
                     end
                 end
             end

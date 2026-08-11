@@ -161,37 +161,6 @@ childreniterator(s::StackElement) = s.chitr
 
 information(s::StackElement) = s.info
 
-#TODO: hilbert_positions and hilbert_states for N≠3
-const hilbert_states = [
-    [1, 2, 3, 2, 4, 5, 3, 5],
-    [2, 6, 0, 7, 8, 8, 0, 7],
-    [0, 9, 10, 9, 1, 1, 11, 11],
-    [6, 0, 6, 11, 9, 0, 9, 8],
-    [11, 11, 0, 7, 5, 9, 0, 7],
-    [4, 4, 8, 8, 0, 6, 10, 6],
-    [5, 7, 5, 3, 1, 1, 11, 11],
-    [6, 1, 6, 10, 9, 4, 9, 10],
-    [10, 3, 1, 1, 10, 3, 5, 9],
-    [4, 4, 8, 8, 2, 7, 2, 3],
-    [7, 2, 11, 2, 7, 5, 8, 5],
-    [10, 3, 2, 6, 10, 3, 4, 4],
-]
-
-const hilbert_positions = [
-    [0, 1, 3, 2, 7, 6, 4, 5],
-    [0, 7, 1, 6, 3, 4, 2, 5],
-    [0, 3, 7, 4, 1, 2, 6, 5],
-    [2, 3, 1, 0, 5, 4, 6, 7],
-    [4, 3, 5, 2, 7, 0, 6, 1],
-    [6, 5, 1, 2, 7, 4, 0, 3],
-    [4, 7, 3, 0, 5, 6, 2, 1],
-    [6, 7, 5, 4, 1, 0, 2, 3],
-    [2, 5, 3, 4, 1, 6, 0, 7],
-    [2, 1, 5, 6, 3, 0, 4, 7],
-    [4, 5, 7, 6, 3, 2, 0, 1],
-    [6, 1, 7, 0, 5, 2, 4, 3],
-]
-
 function start(itr::ChildIterator{<:H2ClusterTree})
     return (0, firstchild(itr.tree, itr.node))
 end
@@ -217,7 +186,7 @@ end
 # Buckets `ids` by `sectorcentersize`'s sector (always `0:2^N-1`, see `_uniformseparationdepth`
 # for why a plain `Vector` + `isassigned` beats a `Dict` here). Callers reconstruct a bucket's
 # child center on demand via `sectorcenter(sector, center, childhalfsize)` instead of this
-# function also allocating/returning a `centers` vector alongside the buckets -- `sectorcenter` is
+# function also allocating/returning a `centers` vector alongside the buckets; `sectorcenter` is
 # a handful of arithmetic ops, cheaper than the allocation it replaces.
 """
     _bucketbysector(points, ids, center, halfsize, nsectors)

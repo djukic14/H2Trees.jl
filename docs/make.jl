@@ -46,6 +46,7 @@ include(joinpath(@__DIR__, "ensureplots.jl"))
 makedocs(;
     modules=[
         H2Trees,
+        H2Trees.SEBB,
         if isdefined(Base, :get_extension)
             Base.get_extension(H2Trees, :H2MetisTrees)
         else
@@ -105,6 +106,8 @@ makedocs(;
             "Forest" => "forest.md",
             "Printing" => "printing.md",
         ],
+        "Hilbert Curve" => "nodeids.md",
+        "SEBB" => "sebb.md",
         "Extensions" => [
             "BEAST" => "ext/h2beasttrees.md",
             "Metis" => "ext/h2metistrees.md",

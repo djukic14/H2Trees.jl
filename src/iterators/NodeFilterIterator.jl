@@ -20,25 +20,31 @@ function (f::_LevelBlockTreeFilterFunctor)(iteratednode::Int)
 end
 
 """
-    NodeFilterIterator(tree, node::Int, filter)
+    NodeFilterIterator(tree, node::Int, filter; nearlists=nothing)
 
 Iterate over same-level nodes that pass `filter`.
 
 For ordinary trees, candidates come from `tree` at `level(tree, node)` and the
 predicate is called as `filter(tree, candidate, node)`. For block trees, `node`
 is interpreted as a trial-tree node and candidates come from the test tree.
+
+Passing a [`NearListCache`](@ref) as `nearlists` narrows the candidate set to that
+node's cached near list instead of scanning the whole level. That is only correct
+when the cache contains every node `filter` could accept, such as near-type filters
+built by [`nearlistcache`](@ref). It is never correct for a far filter.
 """
-function NodeFilterIterator(tree, node::Int, filter)
-    return NodeFilterIterator(tree, node::Int, treetrait(tree), filter)
+function NodeFilterIterator(tree, node::Int, filter; nearlists=nothing)
+    return NodeFilterIterator(tree, node::Int, treetrait(tree), filter, nearlists)
 end
 
-function NodeFilterIterator(tree, node::Int, ::AbstractTreeTrait, filter)
+function NodeFilterIterator(tree, node::Int, ::AbstractTreeTrait, filter, nearlists=nothing)
     return Iterators.filter(
-        _LevelFilterFunctor(tree, node, filter), LevelIterator(tree, level(tree, node))
+        _LevelFilterFunctor(tree, node, filter), _nearcandidates(nearlists, tree, node)
     )
 end
 
-function NodeFilterIterator(tree, trialnode::Int, ::isBlockTree, filter)
+# No `nearlists` here: `nearlistcache` declines block trees, so it is always `nothing`.
+function NodeFilterIterator(tree, trialnode::Int, ::isBlockTree, filter, nearlists=nothing)
     return SameLevelFilteredIterator(testtree(tree), trialtree(tree), trialnode, filter)
 end
 

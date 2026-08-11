@@ -6,6 +6,12 @@ using StaticArrays
 using Random
 import Base.Threads: @threads
 
+# Self-contained smallest-enclosing-ball-of-balls solver. Included before any tree source so
+# the `BoundingBallTree` adapter can call into it. `SEBB` itself must never depend on tree
+# types (dependency direction: SEBB <- H2Trees adapter).
+include("SEBB/SEBB.jl")
+export SEBB
+
 """
     H2ClusterTree
 
@@ -102,6 +108,8 @@ struct BoundingBallData{N,T}
     level::Int
 end
 
+include("hilbert/HilbertOrdering.jl")
+
 include("bounding/boundingbox.jl")
 
 include("iterators/NodeFilterIterator.jl")
@@ -109,6 +117,7 @@ include("iterators/NodeFilterIterator.jl")
 include("iterators/nearfar/NearNodeIterator.jl")
 include("iterators/nearfar/nearinteractions.jl")
 include("iterators/nearfar/isnear.jl")
+include("iterators/nearfar/nearlists.jl")
 
 include("iterators/WellSeparatedIterator.jl")
 

@@ -26,7 +26,7 @@ alone.
 | [`MetisForestBuilder`](@ref) | `MetisForest` | `Metis.jl` |
 | [`SimpleHybridTreeBuilder`](@ref) | [`SimpleHybridTree`](@ref) | — (wraps an existing tree) |
 
-The high-level builders have sane defaults — `TwoNTreeBuilder()`, `KMeansTreeBuilder()`,
+The high-level builders have sane defaults: `TwoNTreeBuilder()`, `KMeansTreeBuilder()`,
 `MetisTreeBuilder()`, and `MetisForestBuilder()` all work with no arguments. The generic
 `BoundingBallTreeBuilder` is lower-level: pass an explicit splitter and split count, or use
 `KMeansTreeBuilder`/`MetisTreeBuilder` for the packaged ball-tree strategies. See
