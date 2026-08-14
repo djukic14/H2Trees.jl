@@ -1,11 +1,11 @@
-using CompScienceMeshes
+using CompScienceMeshes, BEAST
 using H2Trees
 using PlotlyJS
 using ParallelKMeans
 
 m = meshsphere(1.0, 0.1)
 tree = KMeansTree(
-    vertices(m); builder=KMeansTreeBuilder(; numberofclusters=4, minvalues=60)
+    lagrangecxd0(m); builder=KMeansTreeBuilder(; numberofclusters=4, minvalues=60)
 )
 
 traces = [wireframe(skeleton(m, 1))]

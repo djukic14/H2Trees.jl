@@ -1,6 +1,6 @@
 # --- hide-from-docs ---
 # (already shown verbatim in the first example block on this page)
-using CompScienceMeshes
+using CompScienceMeshes, BEAST
 using H2Trees
 
 mx = meshsphere(1.0, 0.1)
@@ -8,8 +8,8 @@ my = meshsphere(2.0, 0.1)
 translate!(my, [6.0, 0.0, 0.0])
 
 tree = buildtree(
-    vertices(mx),
-    vertices(my);
+    lagrangecxd0(mx),
+    lagrangecxd0(my);
     builder=BlockTreeBuilder(;
         test=TwoNTreeBuilder(; minhalfsize=0.1), trial=TwoNTreeBuilder(; minhalfsize=0.1)
     ),
