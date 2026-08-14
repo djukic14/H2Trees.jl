@@ -1,11 +1,11 @@
-using CompScienceMeshes, PlotlyJS
+using CompScienceMeshes, PlotlyJS, BEAST
 using H2Trees
 using ParallelKMeans
 
 m = meshsphere(1.0, 0.1)
-boxtree = TwoNTree(vertices(m); builder=TwoNTreeBuilder(; minhalfsize=0.1, minvalues=0))
+boxtree = TwoNTree(lagrangecxd0(m); builder=TwoNTreeBuilder(; minhalfsize=0.1, minvalues=0))
 balltree = KMeansTree(
-    vertices(m); builder=KMeansTreeBuilder(; numberofclusters=4, minvalues=60)
+    lagrangecxd0(m); builder=KMeansTreeBuilder(; numberofclusters=4, minvalues=60)
 )
 
 # --- hide-from-docs ---

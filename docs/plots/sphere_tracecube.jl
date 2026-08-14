@@ -1,9 +1,9 @@
-using CompScienceMeshes
+using CompScienceMeshes, BEAST
 using H2Trees
 using PlotlyJS
 
 m = meshsphere(1.0, 0.1)
-tree = TwoNTree(vertices(m); builder=TwoNTreeBuilder(; minhalfsize=0.1, minvalues=0))
+tree = TwoNTree(lagrangecxd0(m); builder=TwoNTreeBuilder(; minhalfsize=0.1, minvalues=0))
 
 traces = [wireframe(skeleton(m, 1))]
 
