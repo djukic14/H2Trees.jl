@@ -15,6 +15,8 @@ import H2Trees:
     AllTranslations,
     DirectionInvariance,
     DirectionInvariancePerLevel,
+    SymmetryDirectionInvariancePerLevel,
+    NonLatticeTranslationError,
     translations,
     WellSeparatedIterator,
     TranslatingNodesIterator,

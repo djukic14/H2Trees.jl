@@ -123,8 +123,14 @@ include("iterators/WellSeparatedIterator.jl")
 
 include("plans/plans.jl")
 
+include("translations/latticesymmetry.jl")
 include("translations/translationtraits.jl")
 include("translations/translations.jl")
+
+export LatticeSymmetry, SymmetryGroup, symmetrygroup
+export NoSymmetry, OppositeSymmetry, AxisPreservingSymmetry, FullLatticeSymmetry
+export canonicalizetranslation, canonicalizetranslation!, symmetryorbit
+export SymmetryDirectionInvariancePerLevel
 
 include("printing.jl")
 

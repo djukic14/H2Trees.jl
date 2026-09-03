@@ -57,6 +57,8 @@ for name in (
     "hilbert_tree_adaptive_2d",
     "hilbert_tree_adaptive_3d",
     "sebb_tangent",
+    "translation_symmetry_2d",
+    "translation_symmetry_3d",
 )
     path = joinpath(PLOTS_SRC, "$name.jl")
     p = if name in SUPPRESS_WARNINGS
