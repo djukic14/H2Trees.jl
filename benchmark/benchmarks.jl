@@ -6,14 +6,14 @@
 # triggers that comparison is `.github/workflows/Benchmarks.yml`.
 #
 # Kept intentionally small (roughly a dozen cases, not every method/parameter combination) so a
-# base-vs-PR comparison run stays fast -- see the individual `seconds=`/`samples=` choices below,
+# base-against-PR comparison run stays fast. See the individual `seconds=`/`samples=` choices below,
 # each picked from a warmed-up timing of the underlying operation. Plan construction and
 # `checkadmissibility` are inherently much more expensive per call than tree construction (a
-# diagnostic walk of the full near/far structure, not a hot-path operation -- see their own
+# diagnostic walk of the full near/far structure, not a hot-path operation, see their own
 # docstrings), so those cases use smaller inputs and fewer samples than tree construction does.
 #
 # For broader coverage (more sizes, dimensions, distributions, tree families), add an
-# `extended.jl` run manually or on a schedule rather than growing this file -- see the plan this
+# `extended.jl` run manually or on a schedule rather than growing this file. See the plan this
 # suite was built from for that follow-up.
 
 using BenchmarkTools
@@ -29,7 +29,7 @@ const SUITE = BenchmarkGroup()
     detpoints(d, n; seed=0x12345678)
 
 `n` deterministic points in `[0,1]^d`, drawn from a seeded `Xoshiro` RNG so the same points are
-generated on every run -- required for benchmark timings/allocations to be comparable run to run.
+generated on every run, which benchmark timings and allocations need to be comparable run to run.
 """
 function detpoints(d::Int, n::Int; seed=0x12345678)
     rng = Xoshiro(seed)
@@ -68,7 +68,7 @@ SUITE["tree construction"]["3D"]["100k"] = @benchmarkable(
 # Plan construction ##############################################################################
 #
 # Trees are built once, outside the timed expressions, so these measure `buildplans` alone. A
-# small `minhalfsize`/`minvalues=1` builds a genuinely deep tree -- the default `minvalues=70`
+# small `minhalfsize`/`minvalues=1` builds a genuinely deep tree; the default `minvalues=70`
 # would barely subdivide 2,000 points, making the plan close to trivial.
 
 const PLAN_BUILDER = TwoNTreeBuilder(; minhalfsize=0.02, minvalues=1)
@@ -90,7 +90,7 @@ SUITE["plan construction"]["Petrov"] = @benchmarkable(
 
 # Iterators #######################################################################################
 #
-# Full consumption, not merely iterator construction -- `foreach`/an explicit sum forces every
+# Full consumption, not merely iterator construction: `foreach` or an explicit sum forces every
 # element to actually be produced, so the cost can't be optimized away.
 
 const ITER_TREE = TwoNTree(detpoints(3, 20_000; seed=0x42345678))
@@ -129,7 +129,7 @@ SUITE["iterators"]["near/far interactions"] = @benchmarkable(
 
 # Interaction construction #######################################################################
 #
-# Building near-field value lists and running the admissibility diagnostic -- both walk the full
+# Building near-field value lists and running the admissibility diagnostic, both of which walk the full
 # near/far structure the tree and its admissibility criteria establish, so tree shape and the
 # near/far predicate directly affect their cost.
 
@@ -154,7 +154,7 @@ SUITE["interaction construction"]["checkadmissibility"] = @benchmarkable(
 
 # Representative end-to-end workflow #############################################################
 #
-# input -> tree -> plan -> consume interactions, in one timed expression -- catches regressions
+# input -> tree -> plan -> consume interactions, in one timed expression, which catches regressions
 # that only show up when the whole pipeline runs together, not in any isolated microbenchmark.
 
 const WORKFLOW_POINTS = detpoints(3, 2_000; seed=0x62345678)
@@ -168,3 +168,112 @@ end
 SUITE["representative workflows"]["input to interactions (3D)"] = @benchmarkable(
     _endtoendworkflow($WORKFLOW_POINTS, $PLAN_BUILDER), seconds = 3, samples = 10
 )
+
+# Geometric translation construction ############################################################
+
+const TRANSLATION_POINTS = detpoints(3, 20_000; seed=0x42345678)
+const TRANSLATION_TREE = TwoNTree(TRANSLATION_POINTS; builder=PLAN_BUILDER)
+const TRANSLATION_PLANS = buildplans(TRANSLATION_TREE; builder=PlanBuilder())
+const TRANSLATION_PLAN = H2Trees.translatingplan(
+    TRANSLATION_PLANS.trialaggregationplan, TRANSLATION_PLANS.testdisaggregationplan
+)
+
+# Trees and plans are built above, outside the timed expressions, so each case measures
+# `translations` alone, which is what the comparison between them is about.
+SUITE["translation construction"]["direction only"] = @benchmarkable(
+    H2Trees.translations(
+        $TRANSLATION_TREE, $TRANSLATION_PLAN, H2Trees.DirectionInvariancePerLevel()
+    ),
+    seconds = 3,
+    samples = 5
+)
+SUITE["translation construction"]["symmetry: opposite"] = @benchmarkable(
+    H2Trees.translations(
+        $TRANSLATION_TREE,
+        $TRANSLATION_PLAN,
+        H2Trees.SymmetryDirectionInvariancePerLevel(H2Trees.OppositeSymmetry()),
+    ),
+    seconds = 3,
+    samples = 5
+)
+SUITE["translation construction"]["symmetry: axis-preserving"] = @benchmarkable(
+    H2Trees.translations(
+        $TRANSLATION_TREE,
+        $TRANSLATION_PLAN,
+        H2Trees.SymmetryDirectionInvariancePerLevel(H2Trees.AxisPreservingSymmetry(3)),
+    ),
+    seconds = 3,
+    samples = 5
+)
+SUITE["translation construction"]["symmetry: full lattice"] = @benchmarkable(
+    H2Trees.translations(
+        $TRANSLATION_TREE,
+        $TRANSLATION_PLAN,
+        H2Trees.SymmetryDirectionInvariancePerLevel(H2Trees.FullLatticeSymmetry()),
+    ),
+    seconds = 3,
+    samples = 5
+)
+
+# Symmetry reduction when the two block-tree roots are lattice-aligned but not coincident.
+
+const BLOCK_TRANSLATION_POINTS = detpoints(3, 2_000; seed=0x52345678)
+const BLOCK_TRANSLATION_BUILDER = TwoNTreeBuilder(; minhalfsize=0.02, minvalues=1)
+
+# One ROOT halfsize, read off a tree built from the same points, so the shift below is a lattice
+# vector at every level rather than only at the finest.
+const BLOCK_ROOT_HALFSIZE = let
+    tree = TwoNTree(BLOCK_TRANSLATION_POINTS; builder=BLOCK_TRANSLATION_BUILDER)
+    H2Trees.halfsize(tree, H2Trees.root(tree))
+end
+
+function blocktranslationtree(shift)
+    return buildtree(
+        [p + SVector{3,Float64}(shift, 0.0, 0.0) for p in BLOCK_TRANSLATION_POINTS],
+        BLOCK_TRANSLATION_POINTS;
+        builder=BlockTreeBuilder(;
+            test=BLOCK_TRANSLATION_BUILDER, trial=BLOCK_TRANSLATION_BUILDER
+        ),
+    )
+end
+
+function blocktranslationplan(tree)
+    plans = buildplans(tree; builder=PlanBuilder())
+    return H2Trees.translatingplan(plans.trialaggregationplan, plans.testdisaggregationplan)
+end
+
+const BLOCK_COINCIDENT_TREE = blocktranslationtree(0.0)
+const BLOCK_COINCIDENT_PLAN = blocktranslationplan(BLOCK_COINCIDENT_TREE)
+const BLOCK_OFFSET_TREE = blocktranslationtree(BLOCK_ROOT_HALFSIZE)
+const BLOCK_OFFSET_PLAN = blocktranslationplan(BLOCK_OFFSET_TREE)
+
+# Trees and plans are built outside the timed expressions, as in the single-tree group, so each case
+# measures `translations` alone.
+for (rootlabel, tree, plan) in (
+    ("coincident", BLOCK_COINCIDENT_TREE, BLOCK_COINCIDENT_PLAN),
+    ("lattice offset", BLOCK_OFFSET_TREE, BLOCK_OFFSET_PLAN),
+)
+    SUITE["block translation construction"][rootlabel]["direction only"] = @benchmarkable(
+        H2Trees.translations($tree, $plan, H2Trees.DirectionInvariancePerLevel()),
+        seconds = 3,
+        samples = 5
+    )
+    SUITE["block translation construction"][rootlabel]["symmetry: opposite"] = @benchmarkable(
+        H2Trees.translations(
+            $tree,
+            $plan,
+            H2Trees.SymmetryDirectionInvariancePerLevel(H2Trees.OppositeSymmetry()),
+        ),
+        seconds = 3,
+        samples = 5
+    )
+    SUITE["block translation construction"][rootlabel]["symmetry: axis-preserving"] = @benchmarkable(
+        H2Trees.translations(
+            $tree,
+            $plan,
+            H2Trees.SymmetryDirectionInvariancePerLevel(H2Trees.AxisPreservingSymmetry(3)),
+        ),
+        seconds = 3,
+        samples = 5
+    )
+end

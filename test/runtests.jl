@@ -32,6 +32,10 @@ using H2Trees
     include("trees/runtests.jl")
     include("plans/runtests.jl")
 
+    @testset verbose = true "Lattice symmetries" begin
+        include("translations/test_latticesymmetry.jl")
+    end
+
     @testset verbose = true "Translations" begin
         include("translations/test_translations.jl")
     end
