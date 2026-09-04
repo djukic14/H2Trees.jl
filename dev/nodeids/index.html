@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Hilbert Curve · 𝓗² Trees.jl</title><meta name="title" content="Hilbert Curve · 𝓗² Trees.jl"/><meta property="og:title" content="Hilbert Curve · 𝓗² Trees.jl"/><meta property="twitter:title" content="Hilbert Curve · 𝓗² Trees.jl"/><meta name="description" content="Documentation for 𝓗² Trees.jl."/><meta property="og:description" content="Documentation for 𝓗² Trees.jl."/><meta property="twitter:description" content="Documentation for 𝓗² Trees.jl."/><meta property="og:url" content="https://djukic14.github.io/H2Trees.jl/nodeids/"/><meta property="twitter:url" content="https://djukic14.github.io/H2Trees.jl/nodeids/"/><link rel="canonical" href="https://djukic14.github.io/H2Trees.jl/nodeids/"/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.63.2/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../"><img src="../assets/logo.svg" alt="𝓗² Trees.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../">𝓗² Trees.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><span class="tocitem">Manual</span><ul><li><a class="tocitem" href="../builders/">Builder Workflow</a></li><li><a class="tocitem" href="../tree_families/">Tree Families</a></li><li><a class="tocitem" href="../twontree/">TwoNTree</a></li><li><a class="tocitem" href="../blocktree_petrov/">BlockTree and Petrov Trees</a></li><li><a class="tocitem" href="../simplehybridtree/">Simple Hybrid Tree</a></li><li><a class="tocitem" href="../protrusion/">Protrusion Policy</a></li><li><a class="tocitem" href="../tree_access/">Tree Access and Values</a></li><li><a class="tocitem" href="../near_far/">Near and Far Predicates</a></li><li><a class="tocitem" href="../iterators/">Iterators</a></li><li><input class="collapse-toggle" id="menuitem-2-10" type="checkbox"/><label class="tocitem" for="menuitem-2-10"><span class="docs-label">Plans</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../plans/plans/">Plans Overview</a></li><li><a class="tocitem" href="../plans/galerkinplans/">Constructing Galerkin Plans</a></li><li><a class="tocitem" href="../plans/petrovplans/">Constructing Petrov Plans</a></li><li><a class="tocitem" href="../plans/aggregateplan/">Aggregate Plan</a></li><li><a class="tocitem" href="../plans/disaggregatetranslateplan/">Disaggregate Translate Plan</a></li><li><a class="tocitem" href="../plans/aggregatetranslateplan/">Aggregate Translate Plan</a></li><li><a class="tocitem" href="../plans/disaggregateplan/">Disaggregate Plan</a></li></ul></li><li><a class="tocitem" href="../admissibility/">Admissibility Diagnostics</a></li><li><a class="tocitem" href="../translations/">Translations</a></li><li><a class="tocitem" href="../forest/">Forest</a></li><li><a class="tocitem" href="../printing/">Printing</a></li></ul></li><li class="is-active"><a class="tocitem" href>Hilbert Curve</a><ul class="internal"><li><a class="tocitem" href="#The-layout"><span>The layout</span></a></li><li><a class="tocitem" href="#Why-level-major,-and-why-Hilbert"><span>Why level-major, and why Hilbert</span></a></li><li><a class="tocitem" href="#The-curve-itself"><span>The curve itself</span></a></li><li><a class="tocitem" href="#The-curve-through-a-real-tree"><span>The curve through a real tree</span></a></li><li><a class="tocitem" href="#Balanced-trees:-leaves-are-one-contiguous-chunkable-range"><span>Balanced trees: leaves are one contiguous chunkable range</span></a></li><li><a class="tocitem" href="#What-is-*not*-guaranteed"><span>What is <em>not</em> guaranteed</span></a></li><li><a class="tocitem" href="#Ids-are-only-stable-within-one-tree"><span>Ids are only stable within one tree</span></a></li><li><a class="tocitem" href="#Implementation-notes"><span>Implementation notes</span></a></li></ul></li><li><a class="tocitem" href="../sebb/">SEBB</a></li><li><span class="tocitem">Extensions</span><ul><li><a class="tocitem" href="../ext/h2beasttrees/">BEAST</a></li><li><a class="tocitem" href="../ext/h2metistrees/">Metis</a></li><li><a class="tocitem" href="../ext/h2parallelkmeanstrees/">ParallelKMeans</a></li><li><a class="tocitem" href="../ext/h2plotlyjstrees/">PlotlyJS</a></li></ul></li><li><a class="tocitem" href="../apiref/">API Reference</a></li><li><a class="tocitem" href="../contributing/">Contributing</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Hilbert Curve</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Hilbert Curve</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/djukic14/H2Trees.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/djukic14/H2Trees.jl/blob/main/docs/src/nodeids.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Node-ID-Semantics"><a class="docs-heading-anchor" href="#Node-ID-Semantics">Node ID Semantics</a><a id="Node-ID-Semantics-1"></a><a class="docs-heading-anchor-permalink" href="#Node-ID-Semantics" title="Permalink"></a></h1><p>Node ids in a <a href="../apiref/#H2Trees.TwoNTree"><code>TwoNTree</code></a> are not arbitrary handles: their numeric order carries the tree&#39;s physical layout. This page documents exactly what that layout guarantees, and (just as importantly) what it does not.</p><h2 id="The-layout"><a class="docs-heading-anchor" href="#The-layout">The layout</a><a id="The-layout-1"></a><a class="docs-heading-anchor-permalink" href="#The-layout" title="Permalink"></a></h2><p>Bulk construction assigns final ids <strong>level-major, Hilbert-ordered within each level</strong>:</p><pre><code class="language-text hljs">Node IDs →
+
+level Lmin:      [ nodes in Hilbert order ]
+level Lmin + 1:  [ nodes in Hilbert order ]
+level Lmin + 2:  [ nodes in Hilbert order ]
+...
+leaf level:      [ nodes in Hilbert order ]
+                  ^                      ^
+               first leaf             last leaf</code></pre><p>Concretely:</p><ul><li>the root keeps exactly the id it was asked for (<code>TwoNTreeBuilder(; root=...)</code>, default <code>1</code>), and all ids form the contiguous range <code>root : root + numberofnodes(tree) - 1</code>;</li><li>every level is one contiguous block of ids, so <code>nodesatlevel(tree, level)</code> is always a contiguous range;</li><li>adjacent levels touch: <code>last(nodesatlevel(tree, l)) + 1 == first(nodesatlevel(tree, l + 1))</code>;</li><li>within a level, increasing node id follows the Hilbert order of that level&#39;s occupied cells;</li><li><code>firstchild</code>/<code>nextsibling</code> (and therefore <a href="../apiref/#H2Trees.children"><code>H2Trees.children</code></a>) also follow Hilbert order.</li></ul><p>Ids are determined by geometry alone. Building the same point set in a different input order produces the same node ids with the same geometry attached.</p><h2 id="Why-level-major,-and-why-Hilbert"><a class="docs-heading-anchor" href="#Why-level-major,-and-why-Hilbert">Why level-major, and why Hilbert</a><a id="Why-level-major,-and-why-Hilbert-1"></a><a class="docs-heading-anchor-permalink" href="#Why-level-major,-and-why-Hilbert" title="Permalink"></a></h2><p>Hierarchical methods do most of their work <em>between geometrically nearby boxes on the same level</em>. Level-major storage makes level-wise kernels natural, and Hilbert ordering within the level gives consecutive ids good spatial locality. Together they mean a fixed-size chunk of ids tends to cover a compact region of space, so near-interaction data gets reused rather than re-fetched.</p><h2 id="The-curve-itself"><a class="docs-heading-anchor" href="#The-curve-itself">The curve itself</a><a id="The-curve-itself-1"></a><a class="docs-heading-anchor-permalink" href="#The-curve-itself" title="Permalink"></a></h2><p>Before looking at trees, here is the plain Hilbert curve H2Trees orders by, in each supported dimension. Marker colour runs along the traversal (dark → light), so the direction of travel is visible and not just the shape of the path.</p><p>In <strong>1D</strong> the curve degenerates to the natural interval order: left to right at every refinement, one orientation state, nothing to choose</p><pre><code class="language-julia hljs">using H2Trees
+using PlotlyJS
+
+const HO = H2Trees.HilbertOrdering
+
+levels = 1:4
+
+# In one dimension the Hilbert curve degenerates to the natural interval order, so the index and
+# the coordinate coincide: the traversal is simply left to right at every refinement.
+curves = map(levels) do level
+    return [HO.hilbertcoordinates(Val(1), i, level)[1] for i in 0:(2 ^ level - 1)]
+end</code></pre><object data="../assets/plots/hilbert_curve_1d.html" type="text/html" style="width:100%; height:35vh;"> </object><p>In <strong>2D</strong>, refined four times. Each level&#39;s path visits every cell exactly once, and consecutive cells share a face: the property that makes consecutive ids spatially local:</p><pre><code class="language-julia hljs">using H2Trees
+using PlotlyJS
+
+# `HilbertOrdering` is internal, but its index &lt;-&gt; coordinate helpers are exactly what is needed
+# to draw the curve itself: walk the level-L index range in order and ask for each cell&#39;s
+# integer grid coordinates.
+const HO = H2Trees.HilbertOrdering
+
+levels = 1:4
+
+curves = map(levels) do level
+    cells = [HO.hilbertcoordinates(Val(2), i, level) for i in 0:(4 ^ level - 1)]
+    return (first.(cells), last.(cells))
+end</code></pre><object data="../assets/plots/hilbert_curve_2d.html" type="text/html" style="width:100%; height:60vh;"> </object><p>And in <strong>3D</strong> (drag to rotate). This is H2Trees&#39; long-standing 3D convention, preserved exactly: 3D Hilbert curves are not unique, so the specific one is frozen rather than regenerated:</p><pre><code class="language-julia hljs">using H2Trees
+using PlotlyJS
+
+const HO = H2Trees.HilbertOrdering
+
+levels = 1:3
+
+curves = map(levels) do level
+    cells = [HO.hilbertcoordinates(Val(3), i, level) for i in 0:(8 ^ level - 1)]
+    return (getindex.(cells, 1), getindex.(cells, 2), getindex.(cells, 3))
+end</code></pre><object data="../assets/plots/hilbert_curve_3d.html" type="text/html" style="width:100%; height:40vh;"> </object><h2 id="The-curve-through-a-real-tree"><a class="docs-heading-anchor" href="#The-curve-through-a-real-tree">The curve through a real tree</a><a id="The-curve-through-a-real-tree-1"></a><a class="docs-heading-anchor-permalink" href="#The-curve-through-a-real-tree" title="Permalink"></a></h2><p>The figures above are the abstract curve. What actually matters is that a built <a href="../apiref/#H2Trees.TwoNTree"><code>TwoNTree</code></a>&#39;s node ids follow it: walking <code>nodesatlevel(tree, level)</code> (which is just increasing node id) traces the curve through the node centers, with no sorting and no stored Hilbert keys.</p><p>Each figure below builds a complete tree (one point per finest cell, so every box on every level is occupied) and draws the polyline through the node centers in id order. <strong>Use the slider to step through the tree levels</strong>; hover a marker to see its node id.</p><p><strong>1D</strong> — ids simply run left to right:</p><pre><code class="language-julia hljs">using H2Trees
+using PlotlyJS
+using StaticArrays
+
+# One point per finest cell, so the tree is complete and the traversal is the full curve.
+side = 16
+points = [SVector(i + 0.5) for i in 0:(side - 1)]
+
+tree = buildtree(points; builder=TwoNTreeBuilder(; minhalfsize=0.5, minvalues=0))
+
+# `nodesatlevel` is already Hilbert-ordered within each level. In 1D that is left to right.
+levelcurves = map(H2Trees.levels(tree)) do level
+    nodes = H2Trees.nodesatlevel(tree, level)
+    return ([H2Trees.center(tree, node)[1] for node in nodes], nodes)
+end</code></pre><object data="../assets/plots/hilbert_tree_1d.html" type="text/html" style="width:100%; height:45vh;"> </object><p><strong>2D</strong> — the box grid is drawn faintly underneath, so the curve is visibly threading actual tree cells rather than abstract grid points:</p><pre><code class="language-julia hljs">using H2Trees
+using PlotlyJS
+using StaticArrays
+
+# A complete 8x8 grid, one point per finest cell, so every box on every level is occupied and
+# the traversal below is the full Hilbert curve rather than a subsequence of it.
+side = 8
+points = [SVector(i + 0.5, j + 0.5) for i in 0:(side - 1) for j in 0:(side - 1)]
+
+tree = buildtree(points; builder=TwoNTreeBuilder(; minhalfsize=0.5, minvalues=0))
+
+# `nodesatlevel` is Hilbert-ordered within each level, so node centers trace the curve directly.
+levelcurves = map(H2Trees.levels(tree)) do level
+    nodes = H2Trees.nodesatlevel(tree, level)
+    centers = [H2Trees.center(tree, node) for node in nodes]
+    return (getindex.(centers, 1), getindex.(centers, 2), nodes)
+end</code></pre><object data="../assets/plots/hilbert_tree_2d.html" type="text/html" style="width:100%; height:65vh;"> </object><p><strong>3D</strong> — the deepest level here is the leaf level, so its path is exactly the order a <code>Iterators.partition</code> over the leaf id range would chunk:</p><pre><code class="language-julia hljs">using H2Trees
+using PlotlyJS
+using StaticArrays
+
+# A complete 4x4x4 grid, one point per finest cell, so every box on every level is occupied and
+# the traversal below is the full Hilbert curve rather than a subsequence of it.
+side = 4
+points = [
+    SVector(i + 0.5, j + 0.5, k + 0.5) for i in 0:(side - 1) for j in 0:(side - 1) for
+    k in 0:(side - 1)
+]
+
+tree = buildtree(points; builder=TwoNTreeBuilder(; minhalfsize=0.5, minvalues=0))
+
+# `nodesatlevel` is Hilbert-ordered within each level, so node centers trace the curve directly.
+levelcurves = map(H2Trees.levels(tree)) do level
+    nodes = H2Trees.nodesatlevel(tree, level)
+    centers = [H2Trees.center(tree, node) for node in nodes]
+    return (getindex.(centers, 1), getindex.(centers, 2), getindex.(centers, 3), nodes)
+end</code></pre><object data="../assets/plots/hilbert_tree_3d.html" type="text/html" style="width:100%; height:60vh;"> </object><div class="admonition is-info" id="Note-93abe64ebbb9e40b"><header class="admonition-header">Note<a class="admonition-anchor" href="#Note-93abe64ebbb9e40b" title="Permalink"></a></header><div class="admonition-body"><p>These examples are deliberately <em>complete</em> grids. On a sparse tree only occupied boxes are stored, so the drawn path would skip cells: still Hilbert-ordered, but no longer face-adjacent step to step. See <a href="#Sparse-levels:-locality,-not-strict-adjacency">Sparse levels</a> below.</p></div></div><h3 id="Deep,-non-uniform-trees"><a class="docs-heading-anchor" href="#Deep,-non-uniform-trees">Deep, non-uniform trees</a><a id="Deep,-non-uniform-trees-1"></a><a class="docs-heading-anchor-permalink" href="#Deep,-non-uniform-trees" title="Permalink"></a></h3><p>Real geometry is rarely a complete grid. The figures below use a dense core plus a sparse halo, with <code>minvalues</code> stopping subdivision where the points thin out: so the tree runs much deeper (9–15 levels here), only a fraction of each level&#39;s cells exist, and <strong>leaves appear on many different levels</strong> rather than all at the bottom.</p><p>Stepping the slider shows what that costs and what survives. The path visibly <em>jumps</em> between distant cells, because only occupied boxes are stored and the stored order is a subsequence of the full curve: the caveat spelled out below. What still holds at every level is the ordering itself: increasing node id follows the Hilbert order of the boxes that do exist. Each level&#39;s title also reports how many of its nodes are leaves, which is the cross-level leaf distribution that makes <a href="../apiref/#H2Trees.leaves"><code>H2Trees.leaves</code></a> non-contiguous for these trees.</p><p><strong>1D</strong> (15 levels):</p><pre><code class="language-julia hljs">using H2Trees
+using PlotlyJS
+using StaticArrays
+using Random
+
+# Dense cluster plus a sparse tail: `minvalues` keeps splitting the cluster long after the tail
+# has stopped, so the tree runs far deeper than the uniform figure above and its leaves sit on
+# many different levels.
+Random.seed!(21)
+points = vcat([SVector(0.02 * randn()) for _ in 1:300], [SVector(randn()) for _ in 1:60])
+
+tree = buildtree(points; builder=TwoNTreeBuilder(; minvalues=8))
+
+levelcurves = map(H2Trees.levels(tree)) do level
+    nodes = H2Trees.nodesatlevel(tree, level)
+    return ([H2Trees.center(tree, node)[1] for node in nodes], nodes)
+end</code></pre><object data="../assets/plots/hilbert_tree_adaptive_1d.html" type="text/html" style="width:100%; height:45vh;"> </object><p><strong>2D</strong> (11 levels) — the deeper levels cover only the dense core, which is why the drawn boxes shrink into one corner of the root:</p><pre><code class="language-julia hljs">using H2Trees
+using PlotlyJS
+using StaticArrays
+using Random
+
+# Strongly non-uniform: a dense core plus a sparse halo. With `minvalues` stopping subdivision
+# once a box holds few enough points, the core keeps splitting long after the halo has stopped,
+# so the tree is deep, adaptive, and has leaves on many different levels.
+Random.seed!(22)
+points = vcat(
+    [SVector((0.03 .* randn(2))...) for _ in 1:600], [SVector(randn(2)...) for _ in 1:150]
+)
+
+tree = buildtree(points; builder=TwoNTreeBuilder(; minvalues=12))
+
+# Same walk as the uniform figure: `nodesatlevel` is increasing node id, which within a level is
+# Hilbert order. Only the geometry changed.
+levelcurves = map(H2Trees.levels(tree)) do level
+    nodes = H2Trees.nodesatlevel(tree, level)
+    centers = [H2Trees.center(tree, node) for node in nodes]
+    return (getindex.(centers, 1), getindex.(centers, 2), nodes)
+end</code></pre><object data="../assets/plots/hilbert_tree_adaptive_2d.html" type="text/html" style="width:100%; height:65vh;"> </object><p><strong>3D</strong> (9 levels):</p><pre><code class="language-julia hljs">using H2Trees
+using PlotlyJS
+using StaticArrays
+using Random
+
+# Dense core plus sparse halo, as in the 2D adaptive figure: `minvalues` stops subdivision early
+# in the halo and late in the core, so leaves end up spread over many levels.
+Random.seed!(23)
+points = vcat(
+    [SVector((0.05 .* randn(3))...) for _ in 1:800], [SVector(randn(3)...) for _ in 1:250]
+)
+
+tree = buildtree(points; builder=TwoNTreeBuilder(; minvalues=20))
+
+levelcurves = map(H2Trees.levels(tree)) do level
+    nodes = H2Trees.nodesatlevel(tree, level)
+    centers = [H2Trees.center(tree, node) for node in nodes]
+    return (getindex.(centers, 1), getindex.(centers, 2), getindex.(centers, 3), nodes)
+end</code></pre><object data="../assets/plots/hilbert_tree_adaptive_3d.html" type="text/html" style="width:100%; height:60vh;"> </object><p>These are exactly the trees where the level-major layout earns its keep: see <a href="#Adaptive-trees:-no-globally-contiguous-leaf-block">Adaptive trees</a> for the measured effect on near-field chunking.</p><h2 id="Balanced-trees:-leaves-are-one-contiguous-chunkable-range"><a class="docs-heading-anchor" href="#Balanced-trees:-leaves-are-one-contiguous-chunkable-range">Balanced trees: leaves are one contiguous chunkable range</a><a id="Balanced-trees:-leaves-are-one-contiguous-chunkable-range-1"></a><a class="docs-heading-anchor-permalink" href="#Balanced-trees:-leaves-are-one-contiguous-chunkable-range" title="Permalink"></a></h2><p>When <a href="../apiref/#H2Trees.checkbalancedtree-Tuple{Any}"><code>H2Trees.checkbalancedtree</code></a> is <code>true</code>, every leaf sits on the deepest level. Since that whole level is contiguous, the leaves are one contiguous Hilbert-ordered id range and can be chunked directly:</p><pre><code class="language-julia hljs">leafids = leaves(tree)
+@assert leafids == collect(first(leafids):last(leafids))
+
+for chunk in Iterators.partition(first(leafids):last(leafids), chunksize)
+    # geometrically local, Hilbert-ordered work
+end</code></pre><p>No permutation array, no stored Hilbert keys, no sorting at runtime: the ids themselves are the ordering.</p><h2 id="What-is-*not*-guaranteed"><a class="docs-heading-anchor" href="#What-is-*not*-guaranteed">What is <em>not</em> guaranteed</a><a id="What-is-*not*-guaranteed-1"></a><a class="docs-heading-anchor-permalink" href="#What-is-*not*-guaranteed" title="Permalink"></a></h2><h3 id="Sparse-levels:-locality,-not-strict-adjacency"><a class="docs-heading-anchor" href="#Sparse-levels:-locality,-not-strict-adjacency">Sparse levels: locality, not strict adjacency</a><a id="Sparse-levels:-locality,-not-strict-adjacency-1"></a><a class="docs-heading-anchor-permalink" href="#Sparse-levels:-locality,-not-strict-adjacency" title="Permalink"></a></h3><p>Hilbert continuity gives face adjacency for consecutive cells of a <strong>complete</strong> grid. H2Trees only stores occupied boxes, so a sparse level&#39;s stored order is a <em>subsequence</em> of the full Hilbert traversal:</p><pre><code class="language-text hljs">full Hilbert grid:   A B C D E F G H I ...
+stored boxes:        A B C       H I ...
+resulting order:     A B C H I</code></pre><p><code>C</code> and <code>H</code> are consecutive ids but need not touch. The guarantee is:</p><blockquote><p>Increasing node ids follow the Hilbert order of the <strong>occupied</strong> boxes, and therefore have good spatial locality.</p></blockquote><p>It is <strong>not</strong>:</p><blockquote><p>Every pair of consecutive node ids is geometrically adjacent.</p></blockquote><h3 id="Adaptive-trees:-no-globally-contiguous-leaf-block"><a class="docs-heading-anchor" href="#Adaptive-trees:-no-globally-contiguous-leaf-block">Adaptive trees: no globally contiguous leaf block</a><a id="Adaptive-trees:-no-globally-contiguous-leaf-block-1"></a><a class="docs-heading-anchor-permalink" href="#Adaptive-trees:-no-globally-contiguous-leaf-block" title="Permalink"></a></h3><p>If leaves exist on several levels, it is impossible to have both &quot;every level is one contiguous id block&quot; and &quot;all leaves form one contiguous id block&quot;. H2Trees chooses <strong>level-major</strong>. So for an adaptive tree each level is still contiguous and Hilbert-ordered, but <code>leaves(tree)</code> is spread across several level blocks and is <em>not</em> a contiguous range. Only check for a contiguous leaf range after confirming <a href="../apiref/#H2Trees.checkbalancedtree-Tuple{Any}"><code>H2Trees.checkbalancedtree</code></a>.</p><p>Chunking an adaptive tree&#39;s leaves therefore needs one extra step — sort them by id first:</p><pre><code class="language-julia hljs">leafids = sort(leaves(tree))   # NOT a contiguous range, but level-grouped and Hilbert-ordered
+
+for chunk in Iterators.partition(leafids, chunksize)
+    # leaves of one level (mostly), in Hilbert order
+end</code></pre><p>This is worth doing rather than partitioning <code>leaves(tree)</code> directly, which comes back in depth-first order. Near-field coupling is predominantly <em>same-level</em>, so grouping by level puts same-scale boxes with heavily overlapping near fields into one chunk, while depth-first order interleaves scales. Measured with <code>benchmark/locality.jl</code> (distinct near boxes per leaf, lower is better), sorting by id needs <strong>1.14x–1.63x fewer</strong> distinct near boxes per chunk than depth-first order across several adaptive geometries.</p><p>For balanced trees the two orders coincide, so the sort is harmless there and the plain <code>first(leafids):last(leafids)</code> range above stays the cheapest option.</p><h2 id="Ids-are-only-stable-within-one-tree"><a class="docs-heading-anchor" href="#Ids-are-only-stable-within-one-tree">Ids are only stable within one tree</a><a id="Ids-are-only-stable-within-one-tree-1"></a><a class="docs-heading-anchor-permalink" href="#Ids-are-only-stable-within-one-tree" title="Permalink"></a></h2><p>The layout is a property of a constructed tree. Rebuilding with different builder settings (different <code>minhalfsize</code>, <code>minvalues</code>, protrusion policy, …) changes the partition and therefore the ids. Do not persist node ids across builds, and do not compare ids between two separately built trees: compare geometry instead.</p><h2 id="Implementation-notes"><a class="docs-heading-anchor" href="#Implementation-notes">Implementation notes</a><a id="Implementation-notes-1"></a><a class="docs-heading-anchor-permalink" href="#Implementation-notes" title="Permalink"></a></h2><p>Hilbert mathematics lives in the internal <code>H2Trees.HilbertOrdering</code> submodule, which supports dimensions 1, 2, and 3 and throws an <code>ArgumentError</code> outside that range. The 3D convention is the long-standing H2Trees one (root sector order <code>0, 1, 3, 2, 6, 7, 5, 4</code>); 2D uses <code>0, 1, 3, 2</code>; 1D is the natural interval order.</p><p>Renumbering happens exactly once, during bulk construction, before the tree and its <a href="../apiref/#H2Trees.TreeIndex"><code>TreeIndex</code></a> exist: so no caller can ever observe the temporary construction ids. It costs <code>O(numberofnodes(tree))</code> and leaves no Hilbert state on the finished tree: normal tree use carries no Hilbert overhead at all.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../printing/">« Printing</a><a class="docs-footer-nextpage" href="../sebb/">SEBB »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Thursday 3 September 2026 13:52">Thursday 3 September 2026</span>. Using Julia version 1.12.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
