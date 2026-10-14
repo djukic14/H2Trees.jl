@@ -1,6 +1,6 @@
 name = "H2Trees"
 uuid = "9db26ae3-82ff-4374-85e9-9ed87405fd16"
-version = "0.4.1"
+version = "0.4.2"
 authors = ["djukic14 <danijel.jukic14@gmail.com> and contributors"]
 
 [deps]
@@ -25,10 +25,10 @@ H2ParallelKMeansTrees = ["ParallelKMeans"]
 H2PlotlyJSTrees = "PlotlyJS"
 
 [compat]
-Aqua = "0.8"
+Aqua = "=0.8.16"
 BEAST = "2.9"
 BoundingSphere = "0.2.0"
-CompScienceMeshes = "0.11, 0.12"
+CompScienceMeshes = "0.11, 0.12, 0.13"
 ExplicitImports = "1"
 Graphs = "1.14.0"
 JuliaFormatter = "2.1"

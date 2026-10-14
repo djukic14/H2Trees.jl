@@ -42,6 +42,9 @@ jobs:
           Pkg.develop(PackageSpec(path=pwd()))
           Pkg.instantiate()
 
+      - name: Restore benchmark project after setup
+        run: git restore -- benchmark/Project.toml
+
       # One thread: see benchmark/ci.jl for why. `judge`/`benchmarkpkg` set `JULIA_NUM_THREADS`
       # per revision themselves, but the outer process running `ci.jl` also only needs one thread.
       - name: Run benchmark comparison (PR)
