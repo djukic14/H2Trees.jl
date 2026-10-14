@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Metis · 𝓗² Trees.jl</title><meta name="title" content="Metis · 𝓗² Trees.jl"/><meta property="og:title" content="Metis · 𝓗² Trees.jl"/><meta property="twitter:title" content="Metis · 𝓗² Trees.jl"/><meta name="description" content="Documentation for 𝓗² Trees.jl."/><meta property="og:description" content="Documentation for 𝓗² Trees.jl."/><meta property="twitter:description" content="Documentation for 𝓗² Trees.jl."/><meta property="og:url" content="https://djukic14.github.io/H2Trees.jl/ext/h2metistrees/"/><meta property="twitter:url" content="https://djukic14.github.io/H2Trees.jl/ext/h2metistrees/"/><link rel="canonical" href="https://djukic14.github.io/H2Trees.jl/ext/h2metistrees/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.svg" alt="𝓗² Trees.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">𝓗² Trees.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><span class="tocitem">Manual</span><ul><li><a class="tocitem" href="../../twontree/">TwoNTree</a></li><li><a class="tocitem" href="../../simplehybridtree/">Simple Hybrid Tree</a></li><li><a class="tocitem" href="../../iterators/">Iterators</a></li><li><input class="collapse-toggle" id="menuitem-2-4" type="checkbox"/><label class="tocitem" for="menuitem-2-4"><span class="docs-label">Plans</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../plans/plans/">Plans Overview</a></li><li><a class="tocitem" href="../../plans/galerkinplans/">Constructing Galerkin Plans</a></li><li><a class="tocitem" href="../../plans/petrovplans/">Constructing Petrov Plans</a></li><li><a class="tocitem" href="../../plans/aggregateplan/">Aggregate Plan</a></li><li><a class="tocitem" href="../../plans/disaggregatetranslateplan/">Disaggregate Translate Plan</a></li><li><a class="tocitem" href="../../plans/aggregatetranslateplan/">Aggregate Translate Plan</a></li><li><a class="tocitem" href="../../plans/disaggregateplan/">Disaggregate Plan</a></li></ul></li><li><a class="tocitem" href="../../translations/">Translations</a></li><li><a class="tocitem" href="../../forest/">Forest</a></li></ul></li><li><span class="tocitem">Extensions</span><ul><li><a class="tocitem" href="../h2beasttrees/">BEAST</a></li><li class="is-active"><a class="tocitem" href>Metis</a><ul class="internal"><li><a class="tocitem" href="#Adjacency-Graph-and-Weights"><span>Adjacency Graph and Weights</span></a></li><li><a class="tocitem" href="#Visualizing-a-MetisTree"><span>Visualizing a <code>MetisTree</code></span></a></li><li><a class="tocitem" href="#MetisForest-for-Disconnected-Geometry"><span><code>MetisForest</code> for Disconnected Geometry</span></a></li></ul></li><li><a class="tocitem" href="../h2parallelkmeanstrees/">ParallelKMeans</a></li><li><a class="tocitem" href="../h2plotlyjstrees/">PlotlyJS</a></li></ul></li><li><a class="tocitem" href="../../apiref/">API Reference</a></li><li><a class="tocitem" href="../../contributing/">Contributing</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Extensions</a></li><li class="is-active"><a href>Metis</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Metis</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/djukic14/H2Trees.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/djukic14/H2Trees.jl/blob/main/docs/src/ext/h2metistrees.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Metis"><a class="docs-heading-anchor" href="#Metis">Metis</a><a id="Metis-1"></a><a class="docs-heading-anchor-permalink" href="#Metis" title="Permalink"></a></h1><p>The METIS extension provides graph-based partitioning for tree construction. Once <code>Metis.jl</code> is loaded, H2Trees can use <code>metispartition</code> internally and expose high-level constructors such as <a href="../../apiref/#H2Trees.MetisTree-Union{Tuple{T}, Tuple{N}, Tuple{AbstractArray{StaticArraysCore.SVector{N, T}, 1}, Any, Any, Int64}} where {N, T}"><code>MetisTree</code></a> and <a href="../../apiref/#H2Trees.MetisForest-Tuple{Any, Any, Any, Int64}"><code>MetisForest</code></a>.</p><h2 id="Adjacency-Graph-and-Weights"><a class="docs-heading-anchor" href="#Adjacency-Graph-and-Weights">Adjacency Graph and Weights</a><a id="Adjacency-Graph-and-Weights-1"></a><a class="docs-heading-anchor-permalink" href="#Adjacency-Graph-and-Weights" title="Permalink"></a></h2><p>For BEAST spaces, the graph and weights are typically built with <code>g, w = H2Trees.adjacencygraph(X)</code>.</p><ul><li><code>g</code> is a graph on basis functions.</li><li>A graph edge between two basis functions means their supports touch through the underlying mesh.</li><li><code>w</code> contains one vertex weight per basis function and is assembled from mesh element areas distributed over all basis functions supported on each element.</li></ul><p>These weights are then used by METIS to bias partitioning.</p><pre><code class="language-julia hljs">using H2Trees
+using Metis, Graphs
+using BEAST, CompScienceMeshes
+
+m = meshicosphere(1)
+X = lagrangecxd0(m)
+
+g, w = H2Trees.adjacencygraph(X)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">(SimpleGraph{Int64}(30, [[2, 5, 6], [1, 3, 7], [2, 4, 8], [3, 5, 9], [1, 4, 10], [1, 18, 19], [2, 19, 20], [3, 16, 20], [4, 16, 17], [5, 17, 18], [12, 15, 16], [11, 13, 17], [12, 14, 18], [13, 15, 19], [11, 14, 20], [8, 9, 11], [9, 10, 12], [6, 10, 13], [6, 7, 14], [7, 8, 15]]), [0.478727069163697, 0.478727069163697, 0.478727069163697, 0.478727069163697, 0.478727069163697, 0.478727069163697, 0.478727069163697, 0.478727069163697, 0.478727069163697, 0.478727069163697, 0.478727069163697, 0.478727069163697, 0.478727069163697, 0.478727069163697, 0.478727069163697, 0.478727069163697, 0.478727069163697, 0.478727069163697, 0.478727069163697, 0.478727069163697])</code></pre><p>Set <code>splitunconnectedpartitions=true</code> when you want each output partition to be post-processed into connected components.</p><h2 id="Visualizing-a-MetisTree"><a class="docs-heading-anchor" href="#Visualizing-a-MetisTree">Visualizing a <code>MetisTree</code></a><a id="Visualizing-a-MetisTree-1"></a><a class="docs-heading-anchor-permalink" href="#Visualizing-a-MetisTree" title="Permalink"></a></h2><p>A tree node can be visualized by coloring basis functions that belong to each child cluster.</p><pre><code class="language-julia hljs">using H2Trees
+using Metis
+using BEAST
+using CompScienceMeshes
+using PlotlyJS
+
+m = meshicosphere(10)
+X = lagrangecxd0(m)
+
+tree = H2Trees.MetisTree(X, 4)
+
+childcolors = [
+    &quot;rgb(0.5490196078431373, 0.00784313725490196, 0.45098039215686275)&quot;,
+    &quot;rgb(0.6, 0.38823529411764707, 0.18823529411764706)&quot;,
+    &quot;rgb(0.5019607843137255, 0.7725490196078432, 0.37254901960784315)&quot;,
+    &quot;rgb(0.7019607843137254, 0.9490196078431372, 0.9921568627450981)&quot;,
+]
+
+color = [&quot;rgba(0,0,0,0)&quot; for _ in 1:numcells(m)]
+
+node = H2Trees.root(tree)
+for (i, child) in enumerate(H2Trees.children(tree, node))
+    for val in H2Trees.values(tree, child)
+        for fn in X.fns[val]
+            color[fn.cellid] = childcolors[i]
+        end
+    end
+end</code></pre><object data="../metis_tree_clusters.html" type="text/html"  style="width:100%; height:50vh;"> </object><h2 id="MetisForest-for-Disconnected-Geometry"><a class="docs-heading-anchor" href="#MetisForest-for-Disconnected-Geometry"><code>MetisForest</code> for Disconnected Geometry</a><a id="MetisForest-for-Disconnected-Geometry-1"></a><a class="docs-heading-anchor-permalink" href="#MetisForest-for-Disconnected-Geometry" title="Permalink"></a></h2><p><code>MetisForest</code> is useful when your adjacency graph has multiple connected components. One tree is created per connected component and wrapped in a <a href="../../forest/#Forest"><code>Forest</code></a>.</p><pre><code class="language-julia hljs">using H2Trees
+using Metis
+using BEAST
+using CompScienceMeshes
+using PlotlyJS
+
+m = CompScienceMeshes.readmesh(
+    joinpath(pkgdir(H2Trees), &quot;test&quot;, &quot;assets&quot;, &quot;in&quot;, &quot;twospheres2.in&quot;)
+)
+X = lagrangecxd0(m)
+
+forest = H2Trees.MetisForest(X, 4)
+
+childcolors = [
+    &quot;rgb(0.5490196078431373, 0.00784313725490196, 0.45098039215686275)&quot;,
+    &quot;rgb(0.6, 0.38823529411764707, 0.18823529411764706)&quot;,
+    &quot;rgb(0.5019607843137255, 0.7725490196078432, 0.37254901960784315)&quot;,
+    &quot;rgb(0.7019607843137254, 0.9490196078431372, 0.9921568627450981)&quot;,
+    &quot;rgb(0.5725490196078431, 0.16470588235294117, 0.34901960784313724)&quot;,
+    &quot;rgb(0.615686274509804, 0.5137254901960784, 0.11764705882352941)&quot;,
+    &quot;rgb(0.4, 0.8470588235294118, 0.611764705882353)&quot;,
+    &quot;rgb(0.4235294117647059, 0.9215686274509803, 0.8588235294117647)&quot;,
+]
+
+color = [&quot;rgba(0,0,0,0)&quot; for _ in 1:numcells(m)]
+
+node = H2Trees.root(forest[1])
+for (i, child) in enumerate(H2Trees.children(forest[1], node))
+    for val in H2Trees.values(forest[1], child)
+        for fn in X.fns[val]
+            color[fn.cellid] = childcolors[i]
+        end
+    end
+end
+
+node = H2Trees.root(forest[2])
+for (i, child) in enumerate(H2Trees.children(forest[2], node))
+    for val in H2Trees.values(forest[2], child)
+        for fn in X.fns[val]
+            color[fn.cellid] = childcolors[i + 4]
+        end
+    end
+end</code></pre><object data="../metis_forest_clusters.html" type="text/html"  style="width:100%; height:50vh;"> </object></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../h2beasttrees/">« BEAST</a><a class="docs-footer-nextpage" href="../h2parallelkmeanstrees/">ParallelKMeans »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Monday 18 May 2026 02:03">Monday 18 May 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
