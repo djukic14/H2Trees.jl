@@ -59,6 +59,21 @@ end
 # asking where a symmetry sends each sample point. The element type is deliberately not a type
 # parameter (`NTuple{0,T}` would leave it unbound, which Aqua flags); `Int8 * Number` promotes to
 # the argument's own type, which is what is wanted anyway.
+# Component `i` of `applysymmetry(symmetry, q)`, and the single place the formula is written.
+#
+# The two public forms below cannot share an implementation, only this expression: the tuple form
+# needs an immutable result and the vector form a runtime-length mutable one, so either calling the
+# other would allocate on a path that currently does not. What they CAN share is the formula, which
+# is the part that could silently drift: a sign or an index convention changed in one and not the
+# other is a wrong answer rather than an error, and the two are covered by different tests.
+#
+# `@inline` because this sits on the translation build loop, which reaches roughly 129k non-identity
+# applications on 146k far pairs in the block-tree benchmark. That the annotation actually fires was
+# measured, not assumed: see the allocation and benchmark checks in the commit that introduced it.
+@inline function _symmetrycomponent(symmetry::LatticeSymmetry, q, i::Integer)
+    return symmetry.signs[i] * q[symmetry.permutation[i]]
+end
+
 """
     applysymmetry(symmetry, q)
 
@@ -68,7 +83,7 @@ Takes and returns a tuple. Use [`applysymmetry!`](@ref) if you are working with 
 translation build loop does.
 """
 function applysymmetry(symmetry::LatticeSymmetry{D}, q::NTuple{D,<:Number}) where {D}
-    return ntuple(i -> symmetry.signs[i] * q[symmetry.permutation[i]], Val(D))
+    return ntuple(i -> _symmetrycomponent(symmetry, q, i), Val(D))
 end
 
 """
@@ -82,7 +97,7 @@ function applysymmetry!(
     destination::AbstractVector, symmetry::LatticeSymmetry{D}, q::AbstractVector
 ) where {D}
     for i in 1:D
-        destination[i] = symmetry.signs[i] * q[symmetry.permutation[i]]
+        destination[i] = _symmetrycomponent(symmetry, q, i)
     end
     return destination
 end
