@@ -22,7 +22,7 @@ using H2Trees
 
             g, w = H2Trees.adjacencygraph(X)
 
-            b = boundary(geometry(X))
+            b = boundary(m)
 
             # edges = BEAST.setminus(skeleton(geometry(X), 1), b))
             edges = BEAST.skeleton(geometry(X), 1)

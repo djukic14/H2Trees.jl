@@ -33,8 +33,7 @@ The [H2Trees](https://github.com/djukic14/H2Trees.jl) package is related to the 
 * [BEAST](https://github.com/krcools/BEAST.jl)
 * [H2Factory](https://github.com/djukic14/H2Factory.jl)
 * [MLFMA](https://github.com/djukic14/MLFMA.jl)
-* [iFMM](https://github.com/djukic14/iFMM.jl)
-* [HybridFMM](https://github.com/djukic14/HybridFMM.jl)
+* [MultilevelKernelInterpolation](https://github.com/djukic14/MultilevelKernelInterpolation.jl)
 
 ## Documentation
 
