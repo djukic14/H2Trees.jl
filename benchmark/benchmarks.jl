@@ -50,19 +50,19 @@ const POINTS_3D_10K = detpoints(3, 10_000)
 const POINTS_3D_100K = detpoints(3, 100_000)
 
 SUITE["tree construction"]["1D"]["10k"] = @benchmarkable(
-    TwoNTree($POINTS_1D_10K), seconds = 1, samples = 20
+    TwoNTree($POINTS_1D_10K), seconds=1, samples=20
 )
 SUITE["tree construction"]["2D"]["10k"] = @benchmarkable(
-    TwoNTree($POINTS_2D_10K), seconds = 1, samples = 20
+    TwoNTree($POINTS_2D_10K), seconds=1, samples=20
 )
 SUITE["tree construction"]["2D"]["100k"] = @benchmarkable(
-    TwoNTree($POINTS_2D_100K), seconds = 2, samples = 10
+    TwoNTree($POINTS_2D_100K), seconds=2, samples=10
 )
 SUITE["tree construction"]["3D"]["10k"] = @benchmarkable(
-    TwoNTree($POINTS_3D_10K), seconds = 1, samples = 20
+    TwoNTree($POINTS_3D_10K), seconds=1, samples=20
 )
 SUITE["tree construction"]["3D"]["100k"] = @benchmarkable(
-    TwoNTree($POINTS_3D_100K), seconds = 2, samples = 10
+    TwoNTree($POINTS_3D_100K), seconds=2, samples=10
 )
 
 # Plan construction ##############################################################################
@@ -82,10 +82,10 @@ const PLAN_BLOCKTREE = buildtree(
 )
 
 SUITE["plan construction"]["Galerkin"] = @benchmarkable(
-    buildplans($PLAN_TREE; builder=PlanBuilder()), seconds = 3, samples = 10
+    buildplans($PLAN_TREE; builder=PlanBuilder()), seconds=3, samples=10
 )
 SUITE["plan construction"]["Petrov"] = @benchmarkable(
-    buildplans($PLAN_BLOCKTREE; builder=PlanBuilder()), seconds = 3, samples = 10
+    buildplans($PLAN_BLOCKTREE; builder=PlanBuilder()), seconds=3, samples=10
 )
 
 # Iterators #######################################################################################
@@ -118,13 +118,13 @@ function _sumnearfar(tree)
 end
 
 SUITE["iterators"]["node traversal"] = @benchmarkable(
-    _sumnodes($ITER_TREE), seconds = 1, samples = 20
+    _sumnodes($ITER_TREE), seconds=1, samples=20
 )
 SUITE["iterators"]["leaf traversal"] = @benchmarkable(
-    H2Trees.leaves($ITER_TREE), seconds = 1, samples = 20
+    H2Trees.leaves($ITER_TREE), seconds=1, samples=20
 )
 SUITE["iterators"]["near/far interactions"] = @benchmarkable(
-    _sumnearfar($ITER_TREE), seconds = 1, samples = 20
+    _sumnearfar($ITER_TREE), seconds=1, samples=20
 )
 
 # Interaction construction #######################################################################
@@ -144,7 +144,7 @@ end
 const INTERACTION_PLANS = buildplans(PLAN_TREE; builder=PlanBuilder())
 
 SUITE["interaction construction"]["near-field lists"] = @benchmarkable(
-    _gathernearfield($ITER_TREE), seconds = 1, samples = 20
+    _gathernearfield($ITER_TREE), seconds=1, samples=20
 )
 SUITE["interaction construction"]["checkadmissibility"] = @benchmarkable(
     checkadmissibility($PLAN_TREE, $INTERACTION_PLANS; throw=false),
@@ -166,7 +166,7 @@ function _endtoendworkflow(points, builder)
 end
 
 SUITE["representative workflows"]["input to interactions (3D)"] = @benchmarkable(
-    _endtoendworkflow($WORKFLOW_POINTS, $PLAN_BUILDER), seconds = 3, samples = 10
+    _endtoendworkflow($WORKFLOW_POINTS, $PLAN_BUILDER), seconds=3, samples=10
 )
 
 # Geometric translation construction ############################################################

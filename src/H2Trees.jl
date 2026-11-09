@@ -111,6 +111,7 @@ end
 include("hilbert/HilbertOrdering.jl")
 
 include("bounding/boundingbox.jl")
+include("bounding/boundingsphere.jl")
 
 include("iterators/NodeFilterIterator.jl")
 
