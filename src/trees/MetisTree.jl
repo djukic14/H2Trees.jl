@@ -144,7 +144,7 @@ function metiswrapper(
     radii = Vector{T}(undef, length(partitions))
 
     for i in eachindex(partitions)
-        centers[i], radii[i] = BoundingSphere.boundingsphere(points[partitions[i]])
+        centers[i], radii[i] = _boundingsphereofpoints(points[partitions[i]])
     end
 
     return partitions, centers, radii

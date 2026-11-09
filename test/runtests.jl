@@ -17,6 +17,10 @@ using H2Trees
         include("trees/test_boundingballtree_sebb.jl")
     end
 
+    @testset verbose = true "Bounding sphere of points" begin
+        include("trees/test_boundingsphereofpoints.jl")
+    end
+
     @testset verbose = true "Iterators" begin
         include("trees/test_iterators.jl")
     end

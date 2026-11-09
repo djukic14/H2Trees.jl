@@ -1,7 +1,7 @@
 module TestPerformanceContracts
 
-# Performance-contract suite: inference and allocation budgets for tree construction, iterators,
-# plans, and `checkadmissibility`.
+# Performance-contract suite: inference, allocation and point-read budgets for tree construction,
+# iterators, plans, and `checkadmissibility`.
 #
 # These complement the correctness tests -- they check HOW the result was computed (concrete
 # types, bounded allocations), not whether it is correct. Compiler and allocation behavior is more
@@ -10,8 +10,9 @@ module TestPerformanceContracts
 #
 #     julia --project=. -e 'include("test/performance/runtests.jl")'
 #
-# No wall-clock timing is asserted anywhere in this suite -- only inference and allocation
-# counts/bytes.
+# No wall-clock timing is asserted anywhere in this suite -- only inference, allocation
+# counts/bytes, and how often construction reads its input points (`reads.jl`, not pinned:
+# read counts depend on the algorithms, not on the compiler).
 #
 # Exact allocation counts/bytes can shift between Julia minor versions (compiler changes)
 # independently of anything in this package -- the strict allocation checks (`allocations.jl`) are
@@ -33,6 +34,9 @@ include("budgets.jl")
 @testset verbose = true "Performance contracts" begin
     @testset "Inference" begin
         include("inference.jl")
+    end
+    @testset "Point reads" begin
+        include("reads.jl")
     end
     if PERF_STRICT_CHECKS_ACTIVE
         @testset "Allocations" begin

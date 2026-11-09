@@ -77,7 +77,7 @@ this method is what it forwards to.
 function BoundingBallTree(
     points::AbstractVector{SVector{N,T}}; builder::BoundingBallTreeBuilder
 ) where {N,T}
-    center, radius = BoundingSphere.boundingsphere(points)
+    center, radius = _boundingsphereofpoints(points)
     minlevel = _resolve_minlevel(builder.minlevel, 1)
     tree = BoundingBallTree(
         center, radius; minlevel=minlevel, root=builder.root, balldata=builder.balldata
