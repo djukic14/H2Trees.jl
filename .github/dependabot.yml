@@ -13,4 +13,3 @@ updates:
       - "/benchmark"
     schedule:
       interval: "weekly"
-    versioning-strategy: "widen"
