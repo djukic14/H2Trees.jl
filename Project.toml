@@ -25,7 +25,7 @@ H2ParallelKMeansTrees = ["ParallelKMeans"]
 H2PlotlyJSTrees = "PlotlyJS"
 
 [compat]
-Aqua = "=0.8.16"
+Aqua = "0.8, =0.8.16"
 BEAST = "2.9, 2.10, 2.11"
 BoundingSphere = "0.2.0"
 CompScienceMeshes = "0.11, 0.12, 0.13, 1"
