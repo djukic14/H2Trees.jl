@@ -8,3 +8,4 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 [compat]
 PkgBenchmark = "0.2.15"
 H2Trees = "0.4.3"
+StaticArrays = "1.9.25"
